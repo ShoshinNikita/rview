@@ -58,7 +58,7 @@ func main() {
 	resizedImageDir := filepath.Join(dir, "resized")
 	resizer := resizer.NewImageResizer(resizedImageDir, runtime.NumCPU()+5)
 
-	server := web.NewServer(serverPort, rcloneURL.URL)
+	server := web.NewServer(serverPort, rcloneURL.URL, resizer)
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Printf("web server error: %s", err)

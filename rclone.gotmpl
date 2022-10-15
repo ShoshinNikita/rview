@@ -1,0 +1,25 @@
+{
+	"name": "{{ .Name }}",
+	"sort": "{{ .Sort }}",
+	"order": "{{ .Order }}",
+	"breadcrumbs": [
+		{{ range .Breadcrumb }}
+		{
+			"link": "{{ .Link }}",
+			"text": "{{ .Text }}"
+		},
+		{{ end }}
+		{ "_c": "add extra object to fix trailing comma problem" }
+	],
+	"entries": [
+		{{ range .Entries }}
+		{
+			"url": "{{ .URL }}",
+			"is_dir": {{ .IsDir }},
+			"size": {{ .Size }},
+			"mod_time": {{ .ModTime.Unix }}
+		},
+		{{ end }}
+		{ "_c": "add extra object to fix trailing comma problem" }
+	]
+}
