@@ -6,6 +6,7 @@ import (
 	"flag"
 	"net/url"
 	"os/signal"
+	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
@@ -65,11 +66,12 @@ func main() {
 
 	termCtx, termCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-	cache := cache.NewDiskCache(dir)
+	resizerCache := cache.NewDiskCache(filepath.Join(dir, "thumbnails"))
+	resizer := resizer.NewImageResizer(resizerCache, runtime.NumCPU()+5)
 
-	resizer := resizer.NewImageResizer(cache, runtime.NumCPU()+5)
+	webCache := cache.NewDiskCache(filepath.Join(dir, "cache"))
 
-	server := web.NewServer(serverPort, rcloneURL.URL, resizer, cache)
+	server := web.NewServer(serverPort, rcloneURL.URL, resizer, webCache)
 	go func() {
 		if err := server.Start(); err != nil {
 			rlog.Errorf("web server error: %s", err)
