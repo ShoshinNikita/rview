@@ -16,6 +16,8 @@ type DiskCache struct {
 	dir string
 }
 
+var _ rview.Cache = (*DiskCache)(nil)
+
 func NewDiskCache(dir string) *DiskCache {
 	return &DiskCache{
 		dir: dir,
