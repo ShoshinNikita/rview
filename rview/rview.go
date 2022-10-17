@@ -3,6 +3,7 @@ package rview
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"path"
 	"time"
@@ -38,7 +39,11 @@ func (id FileID) GetName() string {
 
 // GetModTime returns the modification time.
 func (id FileID) GetModTime() time.Time {
-	return time.Unix(id.modTime, 0)
+	return time.Unix(id.modTime, 0).UTC()
+}
+
+func (id FileID) String() string {
+	return fmt.Sprintf("%s_%d", id.path, id.modTime)
 }
 
 var (

@@ -18,20 +18,24 @@ import (
 	"github.com/ShoshinNikita/rview/rview"
 )
 
+const maxFileSizeForCache = 512 << 10 // 512 KiB
+
 type Server struct {
 	httpServer    *http.Server
 	httpClient    *http.Client
 	rcloneBaseURL *url.URL
 	resizer       rview.ImageResizer
+	cache         rview.Cache
 }
 
-func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer) (s *Server) {
+func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cache rview.Cache) (s *Server) {
 	s = &Server{
 		rcloneBaseURL: rcloneBaseURL,
 		httpClient: &http.Client{
 			Timeout: 10 * time.Second,
 		},
 		resizer: resizer,
+		cache:   cache,
 	}
 
 	mux := http.NewServeMux()
@@ -146,11 +150,10 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			}).String()
 
 		} else {
+			id := rview.NewFileID(filepath, entry.ModTime)
 			originalFileURL = (&url.URL{
-				Path: "/file",
-				RawQuery: (url.Values{
-					"filepath": []string{filepath},
-				}).Encode(),
+				Path:     "/file",
+				RawQuery: fileIDToQuery(make(url.Values), id).Encode(),
 			}).String()
 		}
 
@@ -182,11 +185,8 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 		// TODO: limit max image size?
 
 		thumbnailURL := &url.URL{
-			Path: "/thumbnail",
-			RawQuery: (url.Values{
-				"mod_time": []string{strconv.Itoa(int(entry.ModTime.Unix()))},
-				"filepath": []string{entry.filepath},
-			}).Encode(),
+			Path:     "/thumbnail",
+			RawQuery: fileIDToQuery(make(url.Values), id).Encode(),
 		}
 
 		if s.resizer.IsResized(id) {
@@ -195,7 +195,7 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 		}
 
 		openFile := func(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
-			rc, _, err := s.getFile(ctx, id.GetPath())
+			rc, _, err := s.getFile(ctx, id)
 			return rc, err
 		}
 		err := s.resizer.Resize(id, openFile)
@@ -212,18 +212,46 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 
 // handleFile proxy the original file from Rclone, copying some headers.
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
-	filepath := r.FormValue("filepath")
-	if filepath == "" {
-		writeBadRequestError(w, "filepath is required")
+	fileID, err := fileIDFromQuery(r)
+	if err != nil {
+		writeBadRequestError(w, err.Error())
 		return
 	}
 
-	rc, rcloneHeaders, err := s.getFile(r.Context(), filepath)
+	rc, err := s.cache.Open(fileID)
+	if err == nil {
+		log.Printf("serve file %q from cache", fileID)
+		defer rc.Close()
+
+		contentType := mime.TypeByExtension(pkgFilepath.Ext(fileID.GetName()))
+		if contentType != "" {
+			w.Header().Set("Content-Type", contentType)
+		}
+		w.Header().Set("Last-Modified", fileID.GetModTime().Format(http.TimeFormat))
+
+		io.Copy(w, rc)
+		return
+	}
+
+	rc, rcloneHeaders, err := s.getFile(r.Context(), fileID)
 	if err != nil {
 		writeInternalServerError(w, "couldn't get file: %s", err)
 		return
 	}
 	defer rc.Close()
+
+	fileModTime, err := time.Parse(http.TimeFormat, rcloneHeaders.Get("Last-Modified"))
+	if err != nil {
+		writeInternalServerError(w, "rclone response must have valid Last-Modified header: %s", err)
+		return
+	}
+	if !fileModTime.Equal(fileID.GetModTime()) {
+		writeInternalServerError(w,
+			"rclone file and requested file have different mod times: %q, %q",
+			fileModTime, fileID.GetModTime(),
+		)
+		return
+	}
 
 	for _, headerName := range []string{
 		"Content-Type",
@@ -236,17 +264,20 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if w.Header().Get("Content-Type") == "" {
-		contentType := mime.TypeByExtension(pkgFilepath.Ext(filepath))
+		contentType := mime.TypeByExtension(pkgFilepath.Ext(fileID.GetName()))
 		if contentType != "" {
 			w.Header().Set("Content-Type", contentType)
 		}
 	}
 
-	io.Copy(w, rc)
+	writer, close := s.getFileWriter(w, rcloneHeaders, fileID)
+	defer close()
+
+	io.Copy(writer, rc)
 }
 
-func (s *Server) getFile(ctx context.Context, path string) (io.ReadCloser, http.Header, error) {
-	rcloneURL := s.rcloneBaseURL.JoinPath(path)
+func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
+	rcloneURL := s.rcloneBaseURL.JoinPath(id.GetPath())
 	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't prepare request: %w", err)
@@ -259,32 +290,78 @@ func (s *Server) getFile(ctx context.Context, path string) (io.ReadCloser, http.
 	return resp.Body, resp.Header, nil
 }
 
+func (s *Server) getFileWriter(w http.ResponseWriter, rcloneHeaders http.Header, fileID rview.FileID) (_ io.Writer, close func() error) {
+	close = func() error { return nil }
+
+	rawSize := rcloneHeaders.Get("Content-Length")
+	if rawSize == "" {
+		log.Printf(`file %q doesn't have "Content-Length" header, skip caching`, fileID)
+		return w, close
+	}
+	size, err := strconv.Atoi(rawSize)
+	if err != nil {
+		log.Printf(`couldn't parse value of "Content-Length" of file %q: %s`, fileID, err)
+		return w, close
+	}
+
+	if size > maxFileSizeForCache {
+		return w, close
+	}
+
+	cacheWriter, err := s.cache.GetSaveWriter(fileID)
+	if err != nil {
+		// We can serve the file. So, just log the error.
+		log.Printf("couldn't get cache writer for file %q: %s", fileID, err)
+		return w, close
+	}
+
+	log.Printf("save file %q to cache", fileID)
+
+	res := io.MultiWriter(w, cacheWriter)
+
+	return res, cacheWriter.Close
+}
+
 // handleThumbnail returns the resized image.
 func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
-	path := r.FormValue("filepath")
-	rawModTime := r.FormValue("mod_time")
-	if path == "" || rawModTime == "" {
-		writeBadRequestError(w, "both filepath and mod_time are required")
-		return
-	}
-	modTime, err := strconv.Atoi(rawModTime)
+	fileID, err := fileIDFromQuery(r)
 	if err != nil {
-		writeBadRequestError(w, "mod_time must be a number")
+		writeBadRequestError(w, err.Error())
 		return
 	}
 
-	rc, err := s.resizer.OpenResized(r.Context(), rview.NewFileID(path, int64(modTime)))
+	rc, err := s.resizer.OpenResized(r.Context(), fileID)
 	if err != nil {
 		writeBadRequestError(w, "couldn't open resized image: %s", err)
 		return
 	}
 	defer rc.Close()
 
-	contentType := mime.TypeByExtension(pkgFilepath.Ext(path))
+	contentType := mime.TypeByExtension(pkgFilepath.Ext(fileID.GetName()))
 	if contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
 	io.Copy(w, rc)
+}
+
+func fileIDToQuery(query url.Values, id rview.FileID) url.Values {
+	query.Set("filepath", id.GetPath())
+	query.Set("mod_time", strconv.FormatInt(id.GetModTime().Unix(), 10))
+	return query
+}
+
+func fileIDFromQuery(r *http.Request) (rview.FileID, error) {
+	path := r.FormValue("filepath")
+	if path == "" {
+		return rview.FileID{}, errors.New("filepath can't be empty")
+	}
+	rawModTime := r.FormValue("mod_time")
+	modTime, err := strconv.ParseInt(rawModTime, 10, 64)
+	if err != nil {
+		return rview.FileID{}, fmt.Errorf("invalid mod_time: %w", err)
+	}
+
+	return rview.NewFileID(path, modTime), nil
 }
 
 func writeBadRequestError(w http.ResponseWriter, format string, a ...any) {

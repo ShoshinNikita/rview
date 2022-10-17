@@ -59,7 +59,7 @@ func main() {
 
 	resizer := resizer.NewImageResizer(cache, runtime.NumCPU()+5)
 
-	server := web.NewServer(serverPort, rcloneURL.URL, resizer)
+	server := web.NewServer(serverPort, rcloneURL.URL, resizer, cache)
 	go func() {
 		if err := server.Start(); err != nil {
 			log.Printf("web server error: %s", err)
