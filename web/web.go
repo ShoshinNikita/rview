@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"mime"
 	"net/http"
 	"net/url"
@@ -15,6 +14,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 )
 
@@ -32,7 +32,7 @@ func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cac
 	s = &Server{
 		rcloneBaseURL: rcloneBaseURL,
 		httpClient: &http.Client{
-			Timeout: 10 * time.Second,
+			Timeout: time.Minute,
 		},
 		resizer: resizer,
 		cache:   cache,
@@ -53,7 +53,7 @@ func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cac
 }
 
 func (s *Server) Start() error {
-	log.Printf("start web server on %q", s.httpServer.Addr)
+	rlog.Infof("start web server on %q", s.httpServer.Addr)
 
 	err := s.httpServer.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -200,7 +200,7 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 		}
 		err := s.resizer.Resize(id, openFile)
 		if err != nil {
-			log.Printf("couldn't start resizing for file %q: %s", entry.filepath, err)
+			rlog.Errorf("couldn't start resizing for file %q: %s", entry.filepath, err)
 			continue
 		}
 
@@ -220,7 +220,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 
 	rc, err := s.cache.Open(fileID)
 	if err == nil {
-		log.Printf("serve file %q from cache", fileID)
+		rlog.Debugf("serve file %q from cache", fileID)
 		defer rc.Close()
 
 		contentType := mime.TypeByExtension(pkgFilepath.Ext(fileID.GetName()))
@@ -273,7 +273,10 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	writer, close := s.getFileWriter(w, rcloneHeaders, fileID)
 	defer close()
 
-	io.Copy(writer, rc)
+	_, err = io.Copy(writer, rc)
+	if err != nil {
+		rlog.Errorf("couldn't serve file %q: %s", fileID, err)
+	}
 }
 
 func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
@@ -295,27 +298,28 @@ func (s *Server) getFileWriter(w http.ResponseWriter, rcloneHeaders http.Header,
 
 	rawSize := rcloneHeaders.Get("Content-Length")
 	if rawSize == "" {
-		log.Printf(`file %q doesn't have "Content-Length" header, skip caching`, fileID)
+		rlog.Debugf(`file %q doesn't have "Content-Length" header, skip caching`, fileID)
 		return w, close
 	}
 	size, err := strconv.Atoi(rawSize)
 	if err != nil {
-		log.Printf(`couldn't parse value of "Content-Length" of file %q: %s`, fileID, err)
+		rlog.Debugf(`couldn't parse value of "Content-Length" of file %q: %s`, fileID, err)
 		return w, close
 	}
 
 	if size > maxFileSizeForCache {
+		rlog.Debugf("don't cache too large file %q (%.2f MiB)", fileID, float64(maxFileSizeForCache)/(1<<20))
 		return w, close
 	}
 
 	cacheWriter, err := s.cache.GetSaveWriter(fileID)
 	if err != nil {
 		// We can serve the file. So, just log the error.
-		log.Printf("couldn't get cache writer for file %q: %s", fileID, err)
+		rlog.Debugf("couldn't get cache writer for file %q: %s", fileID, err)
 		return w, close
 	}
 
-	log.Printf("save file %q to cache", fileID)
+	rlog.Debugf("save file %q to cache", fileID)
 
 	res := io.MultiWriter(w, cacheWriter)
 

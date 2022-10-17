@@ -6,13 +6,14 @@ import (
 	"fmt"
 	"image"
 	"io"
-	"log"
 	"sync"
 	"sync/atomic"
 	"time"
 
-	"github.com/ShoshinNikita/rview/rview"
 	"github.com/disintegration/imaging"
+
+	"github.com/ShoshinNikita/rview/rlog"
+	"github.com/ShoshinNikita/rview/rview"
 )
 
 var (
@@ -73,8 +74,14 @@ func (r *ImageResizer) startWorkers() {
 			for task := range r.tasksCh {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
-				if err := r.processTask(ctx, task); err != nil {
-					log.Printf("couldn't process task to resize %q: %s", task.GetPath(), err)
+				stats, err := r.processTask(ctx, task)
+				if err != nil {
+					rlog.Errorf("couldn't process task to resize %q: %s", task.GetPath(), err)
+				} else {
+					rlog.Debugf(
+						"file %q was resized, original size: %.2f MiB, new size: %.2f MiB",
+						task.FileID, float64(stats.originalSize)/(1<<20), float64(stats.resizedSize)/(1<<20),
+					)
 				}
 
 				cancel()
@@ -87,58 +94,68 @@ func (r *ImageResizer) startWorkers() {
 	close(r.workersDoneCh)
 }
 
-func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) error {
-	img, err := r.resize(ctx, task)
+type stats struct {
+	originalSize int64
+	resizedSize  int64
+}
+
+func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats, error) {
+	img, originalSize, err := r.resize(ctx, task)
 	if err != nil {
-		return fmt.Errorf("couldn't resize image: %w", err)
+		return stats{}, fmt.Errorf("couldn't resize image: %w", err)
 	}
 
-	err = r.saveImage(task.FileID, img)
+	resizedSize, err := r.saveImage(task.FileID, img)
 	if err != nil {
-		return fmt.Errorf("couldn't save image: %w", err)
+		return stats{}, fmt.Errorf("couldn't save image: %w", err)
 	}
-	return nil
+	return stats{
+		originalSize: originalSize,
+		resizedSize:  resizedSize,
+	}, nil
 }
 
 // resize downloads a file and resize it. It can return the original image if resizing is not needed.
-func (r *ImageResizer) resize(ctx context.Context, task resizeTask) (image.Image, error) {
+func (r *ImageResizer) resize(ctx context.Context, task resizeTask) (_ image.Image, originalSize int64, _ error) {
 	rc, err := task.openFileFn(ctx, task.FileID)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't get image reader: %w", err)
+		return nil, 0, fmt.Errorf("couldn't get image reader: %w", err)
 	}
 	defer rc.Close()
 
-	img, err := imaging.Decode(rc)
+	readCounter := &readWriteCounter{r: rc}
+	img, err := imaging.Decode(readCounter)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't decode image: %s", err)
+		return nil, 0, fmt.Errorf("couldn't decode image: %s", err)
 	}
 
 	width, height, shouldResize := thumbnail(img.Bounds(), maxWidth, maxHeight)
 	if !shouldResize {
-		return img, nil
+		return img, 0, nil
 	}
 
-	return imaging.Resize(img, width, height, imaging.Linear), nil
+	return imaging.Resize(img, width, height, imaging.Linear), readCounter.size, nil
 }
 
 // saveImage saves an image. It creates all directories if needed.
-func (r *ImageResizer) saveImage(id rview.FileID, img image.Image) error {
+func (r *ImageResizer) saveImage(id rview.FileID, img image.Image) (resizedSize int64, _ error) {
 	format, err := imaging.FormatFromFilename(id.GetName())
 	if err != nil {
-		return fmt.Errorf("couldn't determine image format: %w", err)
+		return 0, fmt.Errorf("couldn't determine image format: %w", err)
 	}
 
 	w, err := r.cache.GetSaveWriter(id)
 	if err != nil {
-		return fmt.Errorf("couldn't get cache writer: %w", err)
+		return 0, fmt.Errorf("couldn't get cache writer: %w", err)
 	}
 	defer w.Close()
 
-	err = imaging.Encode(w, img, format, imaging.JPEGQuality(jpegQuality))
+	writeCounter := &readWriteCounter{w: w}
+	err = imaging.Encode(writeCounter, img, format, imaging.JPEGQuality(jpegQuality))
 	if err != nil {
-		return fmt.Errorf("couldn't encode image: %w", err)
+		return 0, fmt.Errorf("couldn't encode image: %w", err)
 	}
-	return nil
+	return writeCounter.size, nil
 }
 
 // CanResize detects if a file can be resized based on its filename.
@@ -239,4 +256,22 @@ func (r *ImageResizer) Shutdown(ctx context.Context) error {
 	case <-r.workersDoneCh:
 		return nil
 	}
+}
+
+type readWriteCounter struct {
+	r    io.Reader
+	w    io.Writer
+	size int64
+}
+
+func (rw *readWriteCounter) Read(p []byte) (int, error) {
+	n, err := rw.r.Read(p)
+	rw.size += int64(n)
+	return n, err
+}
+
+func (rw *readWriteCounter) Write(p []byte) (int, error) {
+	n, err := rw.w.Write(p)
+	rw.size += int64(n)
+	return n, err
 }

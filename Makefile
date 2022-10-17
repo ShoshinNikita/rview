@@ -1,7 +1,7 @@
 default: run
 
 run:
-	go run . --port=8090 --rclone-url=http://localhost:8080 --dir=_var
+	go run . --port=8090 --rclone-url=http://localhost:8080 --dir=_var --debug
 
 build:
 	go build -o ./bin/rview .
