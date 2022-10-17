@@ -47,6 +47,8 @@ type resizeTask struct {
 
 func NewImageResizer(cache rview.Cache, workersCount int) *ImageResizer {
 	r := &ImageResizer{
+		cache: cache,
+		//
 		workersCount: workersCount,
 		//
 		tasksCh:         make(chan resizeTask, 200),
