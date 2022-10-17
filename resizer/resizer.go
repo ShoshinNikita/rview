@@ -7,13 +7,11 @@ import (
 	"image"
 	"io"
 	"log"
-	"os"
-	"path/filepath"
-	"strconv"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"github.com/ShoshinNikita/rview/rview"
 	"github.com/disintegration/imaging"
 )
 
@@ -29,38 +27,30 @@ const (
 )
 
 type ImageResizer struct {
-	dir          string
+	cache rview.Cache
+
 	workersCount int
 
 	tasksCh           chan resizeTask
-	inProgressTasks   map[taskID]struct{}
+	inProgressTasks   map[rview.FileID]struct{}
 	inProgressTasksMu sync.RWMutex
 
 	stopped       *atomic.Bool
 	workersDoneCh chan struct{}
 }
 
-// GetFileFn is used to download file.
-type GetFileFn func(ctx context.Context, filepath string) (io.ReadCloser, error)
-
 type resizeTask struct {
-	taskID
+	rview.FileID
 
-	getFileFn GetFileFn
+	openFileFn rview.OpenFileFn
 }
 
-type taskID struct {
-	filepath string
-	modTime  int64 // unix time
-}
-
-func NewImageResizer(dir string, workersCount int) *ImageResizer {
+func NewImageResizer(cache rview.Cache, workersCount int) *ImageResizer {
 	r := &ImageResizer{
-		dir:          dir,
 		workersCount: workersCount,
 		//
 		tasksCh:         make(chan resizeTask, 200),
-		inProgressTasks: make(map[taskID]struct{}),
+		inProgressTasks: make(map[rview.FileID]struct{}),
 		//
 		stopped:       new(atomic.Bool),
 		workersDoneCh: make(chan struct{}),
@@ -82,11 +72,11 @@ func (r *ImageResizer) startWorkers() {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
 				if err := r.processTask(ctx, task); err != nil {
-					log.Printf("couldn't process task to resize %q: %s", task.filepath, err)
+					log.Printf("couldn't process task to resize %q: %s", task.GetPath(), err)
 				}
 
 				cancel()
-				delete(r.inProgressTasks, task.taskID)
+				delete(r.inProgressTasks, task.FileID)
 			}
 		}()
 	}
@@ -101,8 +91,7 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) error {
 		return fmt.Errorf("couldn't resize image: %w", err)
 	}
 
-	path := r.generateFilepath(task.filepath, time.Unix(task.modTime, 0))
-	err = r.saveImage(path, img)
+	err = r.saveImage(task.FileID, img)
 	if err != nil {
 		return fmt.Errorf("couldn't save image: %w", err)
 	}
@@ -111,7 +100,7 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) error {
 
 // resize downloads a file and resize it. It can return the original image if resizing is not needed.
 func (r *ImageResizer) resize(ctx context.Context, task resizeTask) (image.Image, error) {
-	rc, err := task.getFileFn(ctx, task.filepath)
+	rc, err := task.openFileFn(ctx, task.FileID)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't get image reader: %w", err)
 	}
@@ -131,25 +120,19 @@ func (r *ImageResizer) resize(ctx context.Context, task resizeTask) (image.Image
 }
 
 // saveImage saves an image. It creates all directories if needed.
-func (r *ImageResizer) saveImage(path string, img image.Image) error {
-	dir := filepath.Dir(path)
-	err := os.MkdirAll(dir, 0o777)
-	if err != nil {
-		return fmt.Errorf("couldn't create dir %q: %w", dir, err)
-	}
-
-	format, err := imaging.FormatFromFilename(path)
+func (r *ImageResizer) saveImage(id rview.FileID, img image.Image) error {
+	format, err := imaging.FormatFromFilename(id.GetName())
 	if err != nil {
 		return fmt.Errorf("couldn't determine image format: %w", err)
 	}
 
-	file, err := os.Create(path)
+	w, err := r.cache.GetSaveWriter(id)
 	if err != nil {
-		return fmt.Errorf("couldn't create file %q: %w", path, err)
+		return fmt.Errorf("couldn't get cache writer: %w", err)
 	}
-	defer file.Close()
+	defer w.Close()
 
-	err = imaging.Encode(file, img, format, imaging.JPEGQuality(jpegQuality))
+	err = imaging.Encode(w, img, format, imaging.JPEGQuality(jpegQuality))
 	if err != nil {
 		return fmt.Errorf("couldn't encode image: %w", err)
 	}
@@ -157,17 +140,13 @@ func (r *ImageResizer) saveImage(path string, img image.Image) error {
 }
 
 // CanResize detects if a file can be resized based on its filename.
-func (r *ImageResizer) CanResize(filename string) bool {
-	_, err := imaging.FormatFromFilename(filename)
+func (r *ImageResizer) CanResize(id rview.FileID) bool {
+	_, err := imaging.FormatFromFilename(id.GetName())
 	return err == nil
 }
 
 // IsResized returns true if this file is already resized or is in the task queue.
-func (r *ImageResizer) IsResized(filepath string, modTime time.Time) bool {
-	id := taskID{
-		filepath: filepath,
-		modTime:  modTime.Unix(),
-	}
+func (r *ImageResizer) IsResized(id rview.FileID) bool {
 	r.inProgressTasksMu.RLock()
 	_, inProgress := r.inProgressTasks[id]
 	r.inProgressTasksMu.RUnlock()
@@ -175,18 +154,12 @@ func (r *ImageResizer) IsResized(filepath string, modTime time.Time) bool {
 		return true
 	}
 
-	path := r.generateFilepath(filepath, modTime)
-	_, err := os.Stat(path)
-	return err == nil
+	return r.cache.Check(id) == nil
 }
 
 // OpenResized returns io.ReadCloser for the resized image. It waits for the files in queue, but no longer
 // than context timeout.
-func (r *ImageResizer) OpenResized(ctx context.Context, filepath string, modTime time.Time) (io.ReadCloser, error) {
-	id := taskID{
-		filepath: filepath,
-		modTime:  modTime.Unix(),
-	}
+func (r *ImageResizer) OpenResized(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
 	isInProgress := func() (inProgress bool) {
 		r.inProgressTasksMu.RLock()
 		defer r.inProgressTasksMu.RUnlock()
@@ -211,8 +184,7 @@ func (r *ImageResizer) OpenResized(ctx context.Context, filepath string, modTime
 		}
 	}
 
-	path := r.generateFilepath(filepath, modTime)
-	return os.Open(path)
+	return r.cache.Open(id)
 }
 
 // Resize sends a resize task to the queue. It returns an error if the image format
@@ -220,17 +192,12 @@ func (r *ImageResizer) OpenResized(ctx context.Context, filepath string, modTime
 // should be absolute.
 //
 // Resize ignores duplicate tasks. However, it doesn't check files on disk.
-func (r *ImageResizer) Resize(filepath string, modTime time.Time, getImageFn GetFileFn) error {
+func (r *ImageResizer) Resize(id rview.FileID, openFileFn rview.OpenFileFn) error {
 	if r.stopped.Load() {
 		return errors.New("can't send resize tasks after Shutdown call")
 	}
-	if !r.CanResize(filepath) {
+	if !r.CanResize(id) {
 		return ErrUnsupportedImageFormat
-	}
-
-	id := taskID{
-		filepath: filepath,
-		modTime:  modTime.Unix(),
 	}
 
 	var ignore bool
@@ -249,19 +216,10 @@ func (r *ImageResizer) Resize(filepath string, modTime time.Time, getImageFn Get
 	}
 
 	r.tasksCh <- resizeTask{
-		taskID:    id,
-		getFileFn: getImageFn,
+		FileID:     id,
+		openFileFn: openFileFn,
 	}
 	return nil
-}
-
-// generateFilepath generates a filepath of pattern '<dir>/<YYYY-MM>/<modTime>_<filename>'.
-func (r *ImageResizer) generateFilepath(srcFilepath string, modTime time.Time) string {
-	subdir := modTime.Format("2006-01")
-	filename := filepath.Base(srcFilepath)
-	resizedFilename := strconv.Itoa(int(modTime.Unix())) + "_" + filename
-
-	return filepath.Join(r.dir, subdir, resizedFilename)
 }
 
 // Shutdown drops all tasks in the queue and waits for ones that are in progress

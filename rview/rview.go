@@ -1,6 +1,7 @@
 package rview
 
 import (
+	"context"
 	"errors"
 	"io"
 	"path"
@@ -49,3 +50,12 @@ type Cache interface {
 	Check(id FileID) error
 	GetSaveWriter(id FileID) (io.WriteCloser, error)
 }
+
+type ImageResizer interface {
+	CanResize(id FileID) bool
+	IsResized(id FileID) bool
+	OpenResized(ctx context.Context, id FileID) (io.ReadCloser, error)
+	Resize(id FileID, openFileFn OpenFileFn) error
+}
+
+type OpenFileFn func(ctx context.Context, id FileID) (io.ReadCloser, error)

@@ -15,24 +15,17 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/ShoshinNikita/rview/resizer"
+	"github.com/ShoshinNikita/rview/rview"
 )
 
 type Server struct {
 	httpServer    *http.Server
 	httpClient    *http.Client
 	rcloneBaseURL *url.URL
-	resizer       ImageResizer
+	resizer       rview.ImageResizer
 }
 
-type ImageResizer interface {
-	CanResize(filepath string) bool
-	IsResized(filepath string, modTime time.Time) bool
-	OpenResized(ctx context.Context, filepath string, modTime time.Time) (io.ReadCloser, error)
-	Resize(filepath string, modTime time.Time, getImageFn resizer.GetFileFn) error
-}
-
-func NewServer(port int, rcloneBaseURL *url.URL, resizer ImageResizer) (s *Server) {
+func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer) (s *Server) {
 	s = &Server{
 		rcloneBaseURL: rcloneBaseURL,
 		httpClient: &http.Client{
@@ -178,10 +171,12 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 
 func (s *Server) sendResizeImageTasks(info Info) Info {
 	for i, entry := range info.Entries {
+		id := rview.NewFileID(entry.filepath, entry.ModTime.Unix())
+
 		if entry.IsDir {
 			continue
 		}
-		if !s.resizer.CanResize(entry.filepath) {
+		if !s.resizer.CanResize(id) {
 			continue
 		}
 		// TODO: limit max image size?
@@ -194,16 +189,16 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 			}).Encode(),
 		}
 
-		if s.resizer.IsResized(entry.filepath, entry.ModTime) {
+		if s.resizer.IsResized(id) {
 			info.Entries[i].ThumbnailURL = thumbnailURL.String()
 			continue
 		}
 
-		getFile := func(ctx context.Context, path string) (io.ReadCloser, error) {
-			rc, _, err := s.getFile(ctx, path)
+		openFile := func(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+			rc, _, err := s.getFile(ctx, id.GetPath())
 			return rc, err
 		}
-		err := s.resizer.Resize(entry.filepath, entry.ModTime, getFile)
+		err := s.resizer.Resize(id, openFile)
 		if err != nil {
 			log.Printf("couldn't start resizing for file %q: %s", entry.filepath, err)
 			continue
@@ -278,7 +273,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rc, err := s.resizer.OpenResized(r.Context(), path, time.Unix(int64(modTime), 0))
+	rc, err := s.resizer.OpenResized(r.Context(), rview.NewFileID(path, int64(modTime)))
 	if err != nil {
 		writeBadRequestError(w, "couldn't open resized image: %s", err)
 		return

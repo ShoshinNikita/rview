@@ -6,11 +6,11 @@ import (
 	"log"
 	"net/url"
 	"os/signal"
-	"path/filepath"
 	"runtime"
 	"syscall"
 	"time"
 
+	"github.com/ShoshinNikita/rview/cache"
 	"github.com/ShoshinNikita/rview/resizer"
 	"github.com/ShoshinNikita/rview/web"
 )
@@ -55,8 +55,9 @@ func main() {
 
 	termCtx, termCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-	resizedImageDir := filepath.Join(dir, "resized")
-	resizer := resizer.NewImageResizer(resizedImageDir, runtime.NumCPU()+5)
+	cache := cache.NewDiskCache(dir)
+
+	resizer := resizer.NewImageResizer(cache, runtime.NumCPU()+5)
 
 	server := web.NewServer(serverPort, rcloneURL.URL, resizer)
 	go func() {
