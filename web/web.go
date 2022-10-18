@@ -71,7 +71,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
 	dir := r.FormValue("dir")
 
-	rcloneInfo, err := s.getRcloneInfo(r.Context(), dir, r.URL.RawQuery)
+	rcloneInfo, err := s.getRcloneInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
 		writeInternalServerError(w, "couldn't get rclone info: %s", err)
 		return
@@ -88,9 +88,12 @@ func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(info)
 }
 
-func (s *Server) getRcloneInfo(ctx context.Context, path, query string) (RcloneInfo, error) {
+func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Values) (RcloneInfo, error) {
 	rcloneURL := s.rcloneBaseURL.JoinPath(path)
-	rcloneURL.RawQuery = query
+	rcloneURL.RawQuery = url.Values{
+		"sort":  query["sort"],
+		"order": query["order"],
+	}.Encode()
 	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
 	if err != nil {
 		return RcloneInfo{}, fmt.Errorf("couldn't prepare request: %w", err)
