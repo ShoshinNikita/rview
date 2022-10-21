@@ -58,6 +58,7 @@ func TestGetIconFilename(t *testing.T) {
 			"src":     "folder-src.svg",
 			"scripts": "folder-scripts.svg",
 			"data":    "folder-database.svg",
+			"Docs":    "folder-docs.svg",
 			// No custom icons
 			"dir": "folder.svg",
 			"ui":  "folder.svg",

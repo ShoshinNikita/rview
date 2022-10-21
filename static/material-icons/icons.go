@@ -47,7 +47,7 @@ func GetIconFilename(filename string, isDir bool) string {
 		panic("icons are not prepared")
 	}
 
-	filename = path.Base(filename)
+	filename = strings.ToLower(path.Base(filename))
 	if isDir {
 		iconName, ok := iconsData.FolderNames[filename]
 		if !ok {
