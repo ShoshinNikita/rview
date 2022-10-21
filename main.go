@@ -15,6 +15,7 @@ import (
 	"github.com/ShoshinNikita/rview/resizer"
 	"github.com/ShoshinNikita/rview/rlog"
 	icons "github.com/ShoshinNikita/rview/static/material-icons"
+	"github.com/ShoshinNikita/rview/ui"
 	"github.com/ShoshinNikita/rview/web"
 )
 
@@ -94,7 +95,9 @@ func main() {
 	webCache := cache.NewDiskCache(webCacheDir)
 	webCacheCleaner := cache.NewCleaner(webCacheDir, webCacheMaxAge, webCacheMaxTotalSize)
 
-	server := web.NewServer(serverPort, rcloneURL.URL, resizer, webCache)
+	templateFS := ui.New(debug)
+
+	server := web.NewServer(serverPort, rcloneURL.URL, resizer, webCache, templateFS)
 	go func() {
 		if err := server.Start(); err != nil {
 			rlog.Errorf("web server error: %s", err)

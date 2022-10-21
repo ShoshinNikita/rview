@@ -28,6 +28,8 @@ type (
 
 		// DirURL is an info url for the child directory (not empty only for directories).
 		DirURL string `json:"dir_url,omitempty"`
+		// WebDirURL is an url to the web page for the child directory (not empty only for directories).
+		WebDirURL string `json:"web_dir_url,omitempty"`
 		// OriginalFileURL is an url that should be used to open an original file.
 		OriginalFileURL string `json:"original_file_url,omitempty"`
 		// ThumbnailURL is an url that should be used to open a thumbnail file (not empty only for images).

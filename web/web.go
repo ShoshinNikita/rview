@@ -5,18 +5,22 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html/template"
 	"io"
+	"io/fs"
 	"mime"
 	"net/http"
 	"net/url"
 	pkgPath "path"
 	pkgFilepath "path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	icons "github.com/ShoshinNikita/rview/static/material-icons"
+	"github.com/ShoshinNikita/rview/ui"
 )
 
 const maxFileSizeForCache = 512 << 10 // 512 KiB
@@ -27,20 +31,25 @@ type Server struct {
 	rcloneBaseURL *url.URL
 	resizer       rview.ImageResizer
 	cache         rview.Cache
+	templatesFS   fs.FS
 }
 
-func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cache rview.Cache) (s *Server) {
+func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cache rview.Cache, templatesFS fs.FS) (s *Server) {
 	s = &Server{
 		rcloneBaseURL: rcloneBaseURL,
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
-		resizer: resizer,
-		cache:   cache,
+		resizer:     resizer,
+		cache:       cache,
+		templatesFS: templatesFS,
 	}
 
 	mux := http.NewServeMux()
 
+	mux.Handle("/", http.RedirectHandler("/ui/", http.StatusSeeOther))
+	mux.Handle("/favicon.ico", http.NotFoundHandler())
+	mux.HandleFunc("/ui/", s.handleUI)
 	mux.Handle("/static/icons/", http.StripPrefix("/static/", http.FileServer(http.FS(icons.IconsFS))))
 	//
 	mux.HandleFunc("/dir", s.handleDir)
@@ -82,6 +91,33 @@ func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(info)
 }
 
+func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
+	dir := strings.TrimPrefix(r.URL.Path, "/ui")
+	if !strings.HasSuffix(dir, "/") {
+		dir += "/"
+	}
+
+	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
+	if err != nil {
+		writeInternalServerError(w, err.Error())
+		return
+	}
+
+	// Parse templates every time because it doesn't affect performance but
+	// significantly increases the development process.
+	template, err := template.New("index.html").ParseFS(ui.New(true), "index.html")
+	if err != nil {
+		writeInternalServerError(w, "couldn't parse templates: %s", err)
+		return
+	}
+
+	err = template.ExecuteTemplate(w, "index.html", info)
+	if err != nil {
+		writeInternalServerError(w, "couldn't execute templates: %s", err)
+		return
+	}
+}
+
 // getDirInfo requests the directory information from Rclone and converts it into
 // the appropriate format. It also sends resize tasks for the images.
 func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (Info, error) {
@@ -101,6 +137,11 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 }
 
 func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Values) (RcloneInfo, error) {
+	now := time.Now()
+	defer func() {
+		rlog.Debugf("rclone info for %q was loaded in %s", path, time.Since(now))
+	}()
+
 	rcloneURL := s.rcloneBaseURL.JoinPath(path)
 	rcloneURL.RawQuery = url.Values{
 		"sort":  query["sort"],
@@ -155,7 +196,7 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		}
 		filepath := pkgPath.Join(rcloneInfo.Name, filename)
 
-		var originalFileURL, dirURL string
+		var originalFileURL, dirURL, webDirURL string
 		if entry.IsDir {
 			dirURL = (&url.URL{
 				Path: "/dir",
@@ -163,6 +204,11 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 					"dir": []string{filepath + "/"},
 				}).Encode(),
 			}).String()
+
+			webDirURL, err = url.JoinPath("/ui", filepath+"/")
+			if err != nil {
+				return Info{}, fmt.Errorf("couldn't prepare web directory url: %w", err)
+			}
 
 		} else {
 			id := rview.NewFileID(filepath, entry.ModTime)
@@ -181,6 +227,7 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			ModTime:  time.Unix(entry.ModTime, 0),
 			//
 			DirURL:          dirURL,
+			WebDirURL:       webDirURL,
 			OriginalFileURL: originalFileURL,
 			IconURL:         "/static/icons/" + icons.GetIconFilename(filename, entry.IsDir),
 		})
@@ -389,7 +436,10 @@ func writeBadRequestError(w http.ResponseWriter, format string, a ...any) {
 }
 
 func writeInternalServerError(w http.ResponseWriter, format string, a ...any) {
-	writeError(w, http.StatusInternalServerError, format, a...)
+	msg := fmt.Sprintf(format, a...)
+
+	rlog.Errorf("internal error: %s", msg)
+	writeError(w, http.StatusInternalServerError, msg)
 }
 
 func writeError(w http.ResponseWriter, code int, format string, a ...any) {
