@@ -16,6 +16,7 @@ import (
 
 	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/ShoshinNikita/rview/rview"
+	icons "github.com/ShoshinNikita/rview/static/material-icons"
 )
 
 const maxFileSizeForCache = 512 << 10 // 512 KiB
@@ -40,6 +41,8 @@ func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cac
 
 	mux := http.NewServeMux()
 
+	mux.Handle("/static/icons/", http.StripPrefix("/static/", http.FileServer(http.FS(icons.IconsFS))))
+	//
 	mux.HandleFunc("/dir", s.handleDir)
 	mux.HandleFunc("/file", s.handleFile)
 	mux.HandleFunc("/thumbnail", s.handleThumbnail)
@@ -66,26 +69,35 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpServer.Shutdown(ctx)
 }
 
-// handleDir requests the directory information from Rclone and converts it into
-// the appropriate format. It also sends resize tasks for the images.
 func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
 	dir := r.FormValue("dir")
 
-	rcloneInfo, err := s.getRcloneInfo(r.Context(), dir, r.URL.Query())
+	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
-		writeInternalServerError(w, "couldn't get rclone info: %s", err)
+		writeInternalServerError(w, err.Error())
 		return
 	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(info)
+}
+
+// getDirInfo requests the directory information from Rclone and converts it into
+// the appropriate format. It also sends resize tasks for the images.
+func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (Info, error) {
+	rcloneInfo, err := s.getRcloneInfo(ctx, dir, query)
+	if err != nil {
+		return Info{}, fmt.Errorf("couldn't get rclone info: %w", err)
+	}
+
 	info, err := s.convertRcloneInfo(rcloneInfo)
 	if err != nil {
-		writeInternalServerError(w, "couldn't convert rclone info: %s", err)
-		return
+		return Info{}, fmt.Errorf("couldn't convert rclone info: %w", err)
 	}
 
 	info = s.sendResizeImageTasks(info)
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(info)
+	return info, nil
 }
 
 func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Values) (RcloneInfo, error) {
@@ -170,6 +182,7 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			//
 			DirURL:          dirURL,
 			OriginalFileURL: originalFileURL,
+			IconURL:         "/static/icons/" + icons.GetIconFilename(filename, entry.IsDir),
 		})
 	}
 	return info, nil

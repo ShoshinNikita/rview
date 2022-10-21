@@ -14,6 +14,7 @@ import (
 	"github.com/ShoshinNikita/rview/cache"
 	"github.com/ShoshinNikita/rview/resizer"
 	"github.com/ShoshinNikita/rview/rlog"
+	icons "github.com/ShoshinNikita/rview/static/material-icons"
 	"github.com/ShoshinNikita/rview/web"
 )
 
@@ -76,6 +77,10 @@ func main() {
 
 	if debug {
 		rlog.EnableDebug()
+	}
+
+	if err := icons.Prepare(); err != nil {
+		rlog.Fatalf("couldn't prepare icons: %s", err)
 	}
 
 	termCtx, termCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
