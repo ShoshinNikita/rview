@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -105,17 +106,25 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 
 	// Parse templates every time because it doesn't affect performance but
 	// significantly increases the development process.
-	template, err := template.New("index.html").ParseFS(ui.New(true), "index.html")
+	template, err := template.New("index.html").
+		Funcs(template.FuncMap{
+			"FormatFileSize": FormatFileSize,
+			"FormatModTime":  FormatModTime,
+		}).
+		ParseFS(ui.New(true), "index.html")
 	if err != nil {
 		writeInternalServerError(w, "couldn't parse templates: %s", err)
 		return
 	}
 
-	err = template.ExecuteTemplate(w, "index.html", info)
+	buf := bytes.NewBuffer(nil)
+	err = template.ExecuteTemplate(buf, "index.html", info)
 	if err != nil {
 		writeInternalServerError(w, "couldn't execute templates: %s", err)
 		return
 	}
+
+	io.Copy(w, buf)
 }
 
 // getDirInfo requests the directory information from Rclone and converts it into

@@ -16,6 +16,7 @@
 			font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji",
 				"Segoe UI Emoji";
 			margin: 0;
+			min-width: 600px;
 		}
 	</style>
 
@@ -131,13 +132,15 @@
 	<div class="files">
 		{{ range .Entries }}
 
-		{{ $href := .OriginalFileURL }}
-		{{ $target := "_blank" }}
-		{{ if .IsDir }}
-		{{ $href = .WebDirURL }}
-		{{ $target = "_self" }}
+		{{ $href := .WebDirURL }}
+		{{ $target := "_self" }}
+		{{ $title := .Filename }}
+		{{ if not .IsDir }}
+		{{ $href = .OriginalFileURL }}
+		{{ $target = "_blank" }}
+		{{ $title = printf "%s • %s" (FormatModTime .ModTime) (FormatFileSize .Size) }}
 		{{ end }}
-		<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ .Filename }}">
+		<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}">
 			<div class="icon-wrapper">
 				{{ if .ThumbnailURL }}
 				<img src="{{ .ThumbnailURL }}" class="thumbnail" alt="{{ .Filename }}">
