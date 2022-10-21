@@ -130,11 +130,10 @@ func (r *ImageResizer) resize(ctx context.Context, task resizeTask) (_ image.Ima
 	}
 
 	width, height, shouldResize := thumbnail(img.Bounds(), maxWidth, maxHeight)
-	if !shouldResize {
-		return img, 0, nil
+	if shouldResize {
+		img = imaging.Resize(img, width, height, imaging.Linear)
 	}
-
-	return imaging.Resize(img, width, height, imaging.Linear), readCounter.size, nil
+	return img, readCounter.size, nil
 }
 
 // saveImage saves an image. It creates all directories if needed.
