@@ -43,7 +43,7 @@ func (id FileID) GetModTime() time.Time {
 }
 
 func (id FileID) String() string {
-	return fmt.Sprintf("%s_%d", id.path, id.modTime)
+	return fmt.Sprintf("%d_%s", id.modTime, id.path)
 }
 
 var (
