@@ -180,9 +180,20 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		if breadcrumb.Text == "" {
 			continue
 		}
+
+		link, err := url.JoinPath("/ui", rcloneInfo.Name, breadcrumb.Link)
+		if err != nil {
+			return Info{}, fmt.Errorf("couldn't prepare breadcrumb link: %w", err)
+		}
+
+		text := breadcrumb.Text
+		if text == "/" {
+			text = "Root"
+		}
+
 		info.Breadcrumbs = append(info.Breadcrumbs, Breadcrumb{
-			Link: pkgPath.Join(rcloneInfo.Name, breadcrumb.Link),
-			Text: breadcrumb.Text,
+			Link: link,
+			Text: text,
 		})
 	}
 	for _, entry := range rcloneInfo.Entries {
