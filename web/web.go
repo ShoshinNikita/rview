@@ -36,7 +36,11 @@ type Server struct {
 	templatesFS   fs.FS
 }
 
-func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cache rview.Cache, templatesFS fs.FS) (s *Server) {
+func NewServer(
+	port int, gitHash string, rcloneBaseURL *url.URL, resizer rview.ImageResizer,
+	cache rview.Cache, templatesFS fs.FS,
+) (s *Server) {
+
 	s = &Server{
 		rcloneBaseURL: rcloneBaseURL,
 		httpClient: &http.Client{
@@ -49,6 +53,7 @@ func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cac
 
 	mux := http.NewServeMux()
 
+	// UI
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
@@ -57,12 +62,28 @@ func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cac
 		http.Redirect(w, r, "/ui/", http.StatusSeeOther)
 	})
 	mux.HandleFunc("/ui/", s.handleUI)
-	mux.Handle("/static/icons/", http.StripPrefix("/static/", http.FileServer(http.FS(icons.IconsFS))))
-	mux.Handle("/static/fileicons/", replacePath("/static/fileicons/", "icons/", 1, http.FileServer(http.FS(fileicons.IconsFS))))
-	//
-	mux.HandleFunc("/dir", s.handleDir)
-	mux.HandleFunc("/file", s.handleFile)
-	mux.HandleFunc("/thumbnail", s.handleThumbnail)
+
+	// Static
+	const cacheMaxAge = 14*24*time.Hour
+	mux.Handle(
+		"/static/icons/",
+		http.StripPrefix(
+			"/static/",
+			cacheMiddleware(cacheMaxAge, gitHash, http.FileServer(http.FS(icons.IconsFS))),
+		),
+	)
+	mux.Handle(
+		"/static/fileicons/",
+		replacePath(
+			"/static/fileicons/", "icons/", 1,
+			cacheMiddleware(cacheMaxAge, gitHash, http.FileServer(http.FS(fileicons.IconsFS))),
+		),
+	)
+
+	// API
+	mux.HandleFunc("/api/dir", s.handleDir)
+	mux.HandleFunc("/api/file", s.handleFile)
+	mux.HandleFunc("/api/thumbnail", s.handleThumbnail)
 
 	s.httpServer = &http.Server{
 		Addr:    ":" + strconv.Itoa(port),
@@ -234,7 +255,7 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		var originalFileURL, dirURL, webDirURL string
 		if entry.IsDir {
 			dirURL = (&url.URL{
-				Path: "/dir",
+				Path: "/api/dir",
 				RawQuery: (url.Values{
 					"dir": []string{filepath + "/"},
 				}).Encode(),
@@ -248,7 +269,7 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		} else {
 			id := rview.NewFileID(filepath, entry.ModTime)
 			originalFileURL = (&url.URL{
-				Path:     "/file",
+				Path:     "/api/file",
 				RawQuery: fileIDToQuery(make(url.Values), id).Encode(),
 			}).String()
 		}
@@ -283,7 +304,7 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 		// TODO: limit max image size?
 
 		thumbnailURL := &url.URL{
-			Path:     "/thumbnail",
+			Path:     "/api/thumbnail",
 			RawQuery: fileIDToQuery(make(url.Values), id).Encode(),
 		}
 

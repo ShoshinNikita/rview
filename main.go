@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"path/filepath"
 	"runtime"
+	debugPkg "runtime/debug"
 	"syscall"
 	"time"
 
@@ -80,6 +81,13 @@ func main() {
 		rlog.EnableDebug()
 	}
 
+	gitHash := readGitHash()
+	if gitHash == "" {
+		rlog.Error("couldn't read git hash, use empty value")
+	} else {
+		rlog.Infof("git hash is %q", gitHash)
+	}
+
 	if err := icons.Prepare(); err != nil {
 		rlog.Fatalf("couldn't prepare icons: %s", err)
 	}
@@ -97,7 +105,7 @@ func main() {
 
 	templateFS := ui.New(debug)
 
-	server := web.NewServer(serverPort, rcloneURL.URL, resizer, webCache, templateFS)
+	server := web.NewServer(serverPort, gitHash, rcloneURL.URL, resizer, webCache, templateFS)
 	go func() {
 		if err := server.Start(); err != nil {
 			rlog.Errorf("web server error: %s", err)
@@ -124,4 +132,17 @@ func main() {
 	if err := webCacheCleaner.Shutdown(shutdownCtx); err != nil {
 		rlog.Errorf("couldn't shutdown web cache cleaner gracefully: %s", err)
 	}
+}
+
+func readGitHash() string {
+	info, ok := debugPkg.ReadBuildInfo()
+	if !ok {
+		return ""
+	}
+	for _, s := range info.Settings {
+		if s.Key == "vcs.revision" {
+			return s.Value
+		}
+	}
+	return ""
 }
