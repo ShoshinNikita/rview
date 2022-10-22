@@ -241,7 +241,7 @@
 		{{ if not .IsDir }}
 		{{ $href = .OriginalFileURL }}
 		{{ $target = "_blank" }}
-		{{ $title = printf "%s\n\nFile Size: %s\nMod Time: %s" .Filename (FormatFileSize .Size) (FormatModTime .ModTime) }}
+		{{ $title = printf "%s\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
 		{{ end }}
 
 		<!-- Download all files except images -->

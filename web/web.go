@@ -64,7 +64,7 @@ func NewServer(
 	mux.HandleFunc("/ui/", s.handleUI)
 
 	// Static
-	const cacheMaxAge = 14*24*time.Hour
+	const cacheMaxAge = 14 * 24 * time.Hour
 	mux.Handle(
 		"/static/icons/",
 		http.StripPrefix(
@@ -136,8 +136,6 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 	// significantly increases the development process.
 	template, err := template.New("index.html").
 		Funcs(template.FuncMap{
-			"FormatFileSize": FormatFileSize,
-			"FormatModTime":  FormatModTime,
 			"attr": func(s string) template.HTMLAttr {
 				return template.HTMLAttr(s)
 			},
@@ -274,13 +272,16 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			}).String()
 		}
 
+		modTime := time.Unix(entry.ModTime, 0)
 		info.Entries = append(info.Entries, Entry{
 			filepath: filepath,
 			//
-			Filename: filename,
-			IsDir:    entry.IsDir,
-			Size:     entry.Size,
-			ModTime:  time.Unix(entry.ModTime, 0),
+			Filename:             filename,
+			IsDir:                entry.IsDir,
+			Size:                 entry.Size,
+			HumanReadableSize:    FormatFileSize(entry.Size),
+			ModTime:              modTime,
+			HumanReadableModTime: FormatModTime(modTime),
 			//
 			DirURL:          dirURL,
 			WebDirURL:       webDirURL,

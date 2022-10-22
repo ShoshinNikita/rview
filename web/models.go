@@ -22,10 +22,12 @@ type (
 		// filepath is an rclone filepath, only for internal use.
 		filepath string
 
-		Filename string    `json:"filename,omitempty"`
-		IsDir    bool      `json:"is_dir,omitempty"`
-		Size     int64     `json:"size,omitempty"`
-		ModTime  time.Time `json:"mod_time"`
+		Filename             string    `json:"filename,omitempty"`
+		IsDir                bool      `json:"is_dir,omitempty"`
+		Size                 int64     `json:"size,omitempty"`
+		HumanReadableSize    string    `json:"human_readable_size"`
+		ModTime              time.Time `json:"mod_time"`
+		HumanReadableModTime string    `json:"human_readable_mod_time"`
 
 		// DirURL is an info url for the child directory (not empty only for directories).
 		DirURL string `json:"dir_url,omitempty"`
