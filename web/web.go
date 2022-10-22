@@ -458,6 +458,10 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	if contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
+	// Use mod time as a value for ETag.
+	etag := strconv.Itoa(int(fileID.GetModTime().Unix()))
+	setCacheHeaders(w, 24*time.Hour, etag)
+
 	io.Copy(w, rc)
 }
 
