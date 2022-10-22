@@ -210,7 +210,8 @@
 			{{ end }}
 
 			{{ $nameSortParams := `href="?sort=namedirfirst&order=asc" class="sort" title="Sort by name asc"` }}
-			{{ $sizeSortParams := `href="?sort=size&order=asc" class="sort" title="Sort by size asc"` }}
+			<!-- People usually want to sort files by size in the descending order. -->
+			{{ $sizeSortParams := `href="?sort=size&order=desc" class="sort" title="Sort by size desc"` }}
 			{{ $timeSortParams := `href="?sort=time&order=asc" class="sort" title="Sort by time asc"` }}
 
 			{{ if eq .Sort "size" }}
