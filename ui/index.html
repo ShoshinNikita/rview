@@ -43,6 +43,7 @@
 			padding: 10px 20px;
 			position: sticky;
 			top: 3px;
+			z-index: 10;
 		}
 
 		.breadcrumbs {
@@ -112,24 +113,30 @@
 			row-gap: 20px;
 		}
 
-		a.entry {
-			align-items: center;
-			color: black;
+		.entry-wrapper {
 			display: flex;
-			flex-direction: column;
-			justify-content: center;
+			align-items: center;
+		}
+
+		a.entry {
+			color: black;
+			display: block;
 			padding: 5px;
-			row-gap: 5px;
+			text-align: center;
 			text-decoration: none;
 			width: 100%;
 		}
 
-		.entry:hover {
+		.entry:hover,
+		.entry:hover .icon {
 			background-color: #e5f3ff;
 		}
 
 		.icon-wrapper {
 			text-align: center;
+			min-height: 60px;
+			min-width: 100%;
+			position: relative;
 		}
 
 		.thumbnail {
@@ -139,14 +146,47 @@
 		}
 
 		.icon {
+			background-color: white;
 			height: 100px;
 			/* Required to display pointer cursor */
 			pointer-events: none;
 		}
 
+		.icon,
+		.thumbnail {
+			position: relative;
+			z-index: 1;
+		}
+
+		.loader {
+			animation: spin 1.2s linear infinite;
+			border: 5px solid #f0f4f4;
+			border-radius: 50%;
+			border-top: 5px solid #0275d8;
+			height: 50px;
+			left: 50%;
+			position: absolute;
+			top: 50%;
+			width: 50px;
+		}
+
+		@keyframes spin {
+			0% {
+				transform: translate(-50%, -50%) rotate(0deg);
+			}
+
+			100% {
+				transform: translate(-50%, -50%) rotate(360deg);
+			}
+		}
+
 		.entry-filename {
+			display: inline-block;
+			overflow: hidden;
 			text-align: center;
-			word-break: break-all;
+			text-overflow: ellipsis;
+			width: 100%;
+			white-space: nowrap;
 		}
 	</style>
 </head>
@@ -200,19 +240,23 @@
 		{{ if not .IsDir }}
 		{{ $href = .OriginalFileURL }}
 		{{ $target = "_blank" }}
-		{{ $title = printf "%s • %s" (FormatModTime .ModTime) (FormatFileSize .Size) }}
+		{{ $title = printf "%s\n\nFile Size: %s\nMod Time: %s" .Filename (FormatFileSize .Size) (FormatModTime .ModTime) }}
 		{{ end }}
-		<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}">
-			<div class="icon-wrapper">
-				{{ if .ThumbnailURL }}
-				<img src="{{ .ThumbnailURL }}" class="thumbnail" alt="{{ .Filename }}">
-				{{ else }}
-				<object data="{{ .IconURL }}" type="image/svg+xml" class="icon"></object>
-				{{ end }}
-			</div>
+		<div class="entry-wrapper">
+			<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}">
+				<div class="icon-wrapper">
+					<div class="loader"></div>
 
-			<span class="entry-filename">{{ .Filename }}</span>
-		</a>
+					{{ if .ThumbnailURL }}
+					<img src="{{ .ThumbnailURL }}" class="thumbnail">
+					{{ else }}
+					<object data="{{ .IconURL }}" type="image/svg+xml" class="icon"></object>
+					{{ end }}
+				</div>
+
+				<span class="entry-filename">{{ .Filename }}</span>
+			</a>
+		</div>
 
 		{{ end }}
 	</div>
