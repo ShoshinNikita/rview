@@ -5,8 +5,9 @@ import "time"
 // Service response.
 type (
 	Info struct {
-		Sort  string `json:"sort"`
-		Order string `json:"order"`
+		PageName string `json:"page_name"`
+		Sort     string `json:"sort"`
+		Order    string `json:"order"`
 
 		Breadcrumbs []Breadcrumb `json:"breadcrumbs"`
 		Entries     []Entry      `json:"entries"`
