@@ -2,17 +2,14 @@ package main
 
 import (
 	"context"
-	"errors"
-	"flag"
-	"net/url"
 	"os/signal"
 	"path/filepath"
 	"runtime"
-	debugPkg "runtime/debug"
 	"syscall"
 	"time"
 
 	"github.com/ShoshinNikita/rview/cache"
+	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/resizer"
 	"github.com/ShoshinNikita/rview/rlog"
 	icons "github.com/ShoshinNikita/rview/static/material-icons"
@@ -20,73 +17,19 @@ import (
 	"github.com/ShoshinNikita/rview/web"
 )
 
-// Flags
-var (
-	serverPort int
-	rcloneURL  flagURL
-	dir        string
-	debug      bool
-
-	resizedImageMaxAge        time.Duration
-	resizedImagesMaxTotalSize int64
-
-	webCacheMaxAge       time.Duration
-	webCacheMaxTotalSize int64
-)
-
-type flagURL struct {
-	URL *url.URL
-}
-
-func (u *flagURL) MarshalText() ([]byte, error) {
-	if u.URL == nil {
-		return nil, nil
-	}
-	return []byte(u.URL.String()), nil
-}
-
-func (u *flagURL) UnmarshalText(text []byte) (err error) {
-	if len(text) == 0 {
-		return errors.New("url can't be empty")
-	}
-	u.URL, err = url.Parse(string(text))
-	return err
-}
-
 func main() {
-	flag.IntVar(&serverPort, "port", 8080, "server port")
-	flag.TextVar(&rcloneURL, "rclone-url", &flagURL{}, "rclone base url")
-	flag.StringVar(&dir, "dir", "./var", "data dir")
-	flag.BoolVar(&debug, "debug", false, "enable debug logs")
-	//
-	flag.DurationVar(&resizedImageMaxAge, "resized-images-max-age", 60*24*time.Hour, "max age of resized images")
-	flag.Int64Var(&resizedImagesMaxTotalSize, "resized-images-max-total-size", 200<<20, "max total size of resized images, bytes")
-	//
-	flag.DurationVar(&webCacheMaxAge, "web-cache-max-age", 60*24*time.Hour, "max age of web cache")
-	flag.Int64Var(&webCacheMaxTotalSize, "web-cache-max-total-size", 200<<20, "max total size of web cache, bytes")
-
-	flag.Parse()
-
-	if serverPort == 0 {
-		rlog.Fatal("server port must be > 0")
-	}
-	if rcloneURL.URL == nil {
-		rlog.Fatal("rclone base url can't be empty")
-	}
-	if dir == "" {
-		rlog.Fatal("dir can't be empty")
+	cfg, err := config.Parse()
+	if err != nil {
+		rlog.Errorf("invalid config: %s", err)
 	}
 
-	if debug {
+	if cfg.Debug {
 		rlog.EnableDebug()
+
+		rlog.Info("debug mode is enabled")
 	}
 
-	gitHash := readGitHash()
-	if gitHash == "" {
-		rlog.Error("couldn't read git hash, use empty value")
-	} else {
-		rlog.Infof("git hash is %q", gitHash)
-	}
+	rlog.Infof("git hash is %q", cfg.GitHash)
 
 	if err := icons.Prepare(); err != nil {
 		rlog.Fatalf("couldn't prepare icons: %s", err)
@@ -94,18 +37,18 @@ func main() {
 
 	termCtx, termCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
-	resizerCacheDir := filepath.Join(dir, "thumbnails")
+	resizerCacheDir := filepath.Join(cfg.Dir, "thumbnails")
 	resizerCache := cache.NewDiskCache(resizerCacheDir)
-	resizerCacheCleaner := cache.NewCleaner(resizerCacheDir, resizedImageMaxAge, resizedImagesMaxTotalSize)
+	resizerCacheCleaner := cache.NewCleaner(resizerCacheDir, cfg.ResizedImageMaxAge, cfg.ResizedImagesMaxTotalSize)
 	resizer := resizer.NewImageResizer(resizerCache, runtime.NumCPU()+5)
 
-	webCacheDir := filepath.Join(dir, "cache")
+	webCacheDir := filepath.Join(cfg.Dir, "cache")
 	webCache := cache.NewDiskCache(webCacheDir)
-	webCacheCleaner := cache.NewCleaner(webCacheDir, webCacheMaxAge, webCacheMaxTotalSize)
+	webCacheCleaner := cache.NewCleaner(webCacheDir, cfg.WebCacheMaxAge, cfg.WebCacheMaxTotalSize)
 
-	templateFS := ui.New(debug)
+	templateFS := ui.New(cfg.Debug)
 
-	server := web.NewServer(serverPort, gitHash, rcloneURL.URL, resizer, webCache, templateFS)
+	server := web.NewServer(cfg.ServerPort, cfg.GitHash, cfg.RcloneURL.URL, resizer, webCache, templateFS)
 	go func() {
 		if err := server.Start(); err != nil {
 			rlog.Errorf("web server error: %s", err)
@@ -132,17 +75,4 @@ func main() {
 	if err := webCacheCleaner.Shutdown(shutdownCtx); err != nil {
 		rlog.Errorf("couldn't shutdown web cache cleaner gracefully: %s", err)
 	}
-}
-
-func readGitHash() string {
-	info, ok := debugPkg.ReadBuildInfo()
-	if !ok {
-		return ""
-	}
-	for _, s := range info.Settings {
-		if s.Key == "vcs.revision" {
-			return s.Value
-		}
-	}
-	return ""
 }
