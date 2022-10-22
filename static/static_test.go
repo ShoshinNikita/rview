@@ -1,7 +1,6 @@
-package icons
+package static
 
 import (
-	"path/filepath"
 	"testing"
 
 	"github.com/ShoshinNikita/rview/util/testutil"
@@ -13,19 +12,19 @@ func TestData(t *testing.T) {
 
 	checkIcon := func(m map[string]string) {
 		for _, iconName := range m {
-			_, ok := iconsData.IconDefinitions[iconName]
+			_, ok := fileIconsData.IconDefinitions[iconName]
 			if !ok {
 				t.Errorf("icon %q is not found", iconName)
 			}
 		}
 	}
-	checkIcon(iconsData.FolderNames)
-	checkIcon(iconsData.FileExtensions)
-	checkIcon(iconsData.FileNames)
+	checkIcon(fileIconsData.FolderNames)
+	checkIcon(fileIconsData.FileExtensions)
+	checkIcon(fileIconsData.FileNames)
 
-	for _, iconPath := range iconsData.IconDefinitions {
-		iconPath = filepath.Join("icons", iconPath)
-		f, err := IconsFS.Open(iconPath)
+	fs := NewFileIconsFS(false)
+	for _, iconPath := range fileIconsData.IconDefinitions {
+		f, err := fs.Open(iconPath)
 		if err != nil {
 			t.Errorf("couldn't open icon %q", iconPath)
 		}
@@ -33,7 +32,7 @@ func TestData(t *testing.T) {
 	}
 }
 
-func TestGetIconFilename(t *testing.T) {
+func TestGetFileIcon(t *testing.T) {
 	err := Prepare()
 	testutil.NoError(t, err)
 
@@ -48,7 +47,7 @@ func TestGetIconFilename(t *testing.T) {
 			"x.js": "file.svg",
 			"x.ts": "file.svg",
 		} {
-			testutil.Equal(t, wantIconPath, GetIconFilename(filename, false))
+			testutil.Equal(t, wantIconPath, GetFileIcon(filename, false))
 		}
 	})
 
@@ -63,7 +62,7 @@ func TestGetIconFilename(t *testing.T) {
 			"dir": "folder.svg",
 			"ui":  "folder.svg",
 		} {
-			testutil.Equal(t, wantIconPath, GetIconFilename(filename, true))
+			testutil.Equal(t, wantIconPath, GetFileIcon(filename, true))
 		}
 	})
 }

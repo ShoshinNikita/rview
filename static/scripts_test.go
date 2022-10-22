@@ -1,4 +1,4 @@
-package icons
+package static
 
 import (
 	"encoding/json"
@@ -13,17 +13,17 @@ import (
 	"github.com/ShoshinNikita/rview/util/testutil"
 )
 
-// TestConvert converts `material-icons.json` to a more convenient format and removes
+// TestPrepareFileIcons converts `material-icons.json` to a more convenient format and removes
 // unnecessary icons. Preparation steps:
 //
 //  1. Clone https://github.com/PKief/vscode-material-icon-theme
 //  2. Run `npm i && npm run build`
 //  3. Copy `dist/material-icons.json` and `icons/*`
 //  4. Run this script (remove `t.SkipNow`)
-func TestConvert(t *testing.T) {
+func TestPrepareFileIcons(t *testing.T) {
 	t.Skip("script")
 
-	f, err := os.Open("material-icons.json")
+	f, err := os.Open("material-icons/material-icons.json")
 	testutil.NoError(t, err)
 	defer f.Close()
 
@@ -31,7 +31,7 @@ func TestConvert(t *testing.T) {
 	err = json.NewDecoder(f).Decode(&old)
 	testutil.NoError(t, err)
 
-	new := IconsData{
+	new := FileIconsData{
 		IconDefinitions: make(map[string]string),
 		FolderNames:     old.FolderNames,
 		FileExtensions:  old.FileExtensions,
@@ -50,7 +50,7 @@ func TestConvert(t *testing.T) {
 		new.IconDefinitions[iconName] = pkgPath.Base(iconPath.IconPath)
 	}
 
-	f, err = os.Create("icons.json")
+	f, err = os.Create("material-icons/icons.json")
 	testutil.NoError(t, err)
 	defer f.Close()
 
@@ -58,7 +58,7 @@ func TestConvert(t *testing.T) {
 	testutil.NoError(t, err)
 
 	var removedIconsCount int
-	err = filepath.Walk("icons", func(path string, info fs.FileInfo, err error) error {
+	err = filepath.Walk("material-icons/icons", func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

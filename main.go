@@ -12,8 +12,7 @@ import (
 	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/resizer"
 	"github.com/ShoshinNikita/rview/rlog"
-	icons "github.com/ShoshinNikita/rview/static/material-icons"
-	"github.com/ShoshinNikita/rview/ui"
+	"github.com/ShoshinNikita/rview/static"
 	"github.com/ShoshinNikita/rview/web"
 )
 
@@ -31,7 +30,7 @@ func main() {
 
 	rlog.Infof("git hash is %q", cfg.GitHash)
 
-	if err := icons.Prepare(); err != nil {
+	if err := static.Prepare(); err != nil {
 		rlog.Fatalf("couldn't prepare icons: %s", err)
 	}
 
@@ -46,9 +45,7 @@ func main() {
 	webCache := cache.NewDiskCache(webCacheDir)
 	webCacheCleaner := cache.NewCleaner(webCacheDir, cfg.WebCacheMaxAge, cfg.WebCacheMaxTotalSize)
 
-	templateFS := ui.New(cfg.Debug)
-
-	server := web.NewServer(cfg.ServerPort, cfg.GitHash, cfg.RcloneURL.URL, resizer, webCache, templateFS)
+	server := web.NewServer(cfg.ServerPort, cfg.GitHash, cfg.Debug, cfg.RcloneURL.URL, resizer, webCache)
 	go func() {
 		if err := server.Start(); err != nil {
 			rlog.Errorf("web server error: %s", err)

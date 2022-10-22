@@ -20,9 +20,7 @@ import (
 
 	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/ShoshinNikita/rview/rview"
-	icons "github.com/ShoshinNikita/rview/static/feathericons"
-	fileicons "github.com/ShoshinNikita/rview/static/material-icons"
-	"github.com/ShoshinNikita/rview/ui"
+	"github.com/ShoshinNikita/rview/static"
 )
 
 const maxFileSizeForCache = 512 << 10 // 512 KiB
@@ -37,8 +35,8 @@ type Server struct {
 }
 
 func NewServer(
-	port int, gitHash string, rcloneBaseURL *url.URL, resizer rview.ImageResizer,
-	cache rview.Cache, templatesFS fs.FS,
+	port int, gitHash string, debug bool, rcloneBaseURL *url.URL,
+	resizer rview.ImageResizer, cache rview.Cache,
 ) (s *Server) {
 
 	s = &Server{
@@ -48,7 +46,7 @@ func NewServer(
 		},
 		resizer:     resizer,
 		cache:       cache,
-		templatesFS: templatesFS,
+		templatesFS: static.NewTemplatesFS(debug),
 	}
 
 	mux := http.NewServeMux()
@@ -64,21 +62,16 @@ func NewServer(
 	mux.HandleFunc("/ui/", s.handleUI)
 
 	// Static
-	const cacheMaxAge = 14 * 24 * time.Hour
-	mux.Handle(
-		"/static/icons/",
-		http.StripPrefix(
-			"/static/",
-			cacheMiddleware(cacheMaxAge, gitHash, http.FileServer(http.FS(icons.IconsFS))),
-		),
-	)
-	mux.Handle(
-		"/static/fileicons/",
-		replacePath(
-			"/static/fileicons/", "icons/", 1,
-			cacheMiddleware(cacheMaxAge, gitHash, http.FileServer(http.FS(fileicons.IconsFS))),
-		),
-	)
+	for pattern, fs := range map[string]fs.FS{
+		"/static/icons/":     static.NewIconsFS(debug),
+		"/static/fileicons/": static.NewFileIconsFS(debug),
+		"/static/styles/":    static.NewStylesFS(debug),
+	} {
+		handler := http.FileServer(http.FS(fs))
+		handler = cacheMiddleware(14*24*time.Hour, gitHash, handler)
+		handler = http.StripPrefix(pattern, handler)
+		mux.Handle(pattern, handler)
+	}
 
 	// API
 	mux.HandleFunc("/api/dir", s.handleDir)
@@ -140,7 +133,7 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 				return template.HTMLAttr(s)
 			},
 		}).
-		ParseFS(ui.New(true), "index.html", "preview.html")
+		ParseFS(s.templatesFS, "index.html", "preview.html")
 	if err != nil {
 		writeInternalServerError(w, "couldn't parse templates: %s", err)
 		return
@@ -286,7 +279,7 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			DirURL:          dirURL,
 			WebDirURL:       webDirURL,
 			OriginalFileURL: originalFileURL,
-			IconURL:         "/static/fileicons/" + fileicons.GetIconFilename(filename, entry.IsDir),
+			IconURL:         "/static/fileicons/" + static.GetFileIcon(filename, entry.IsDir),
 		})
 	}
 	return info, nil
