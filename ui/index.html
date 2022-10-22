@@ -243,8 +243,15 @@
 		{{ $target = "_blank" }}
 		{{ $title = printf "%s\n\nFile Size: %s\nMod Time: %s" .Filename (FormatFileSize .Size) (FormatModTime .ModTime) }}
 		{{ end }}
+
+		<!-- Download all files except images -->
+		{{ $downloadAttr := "" }}
+		{{ if and (not .ThumbnailURL) (not .IsDir) }}
+		{{ $downloadAttr = printf `download="%s"` .Filename }}
+		{{ end }}
+
 		<div class="entry-wrapper">
-			<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}">
+			<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}" {{ attr $downloadAttr }}>
 				<div class="icon-wrapper">
 					<div class="loader"></div>
 
