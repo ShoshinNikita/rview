@@ -48,8 +48,13 @@ func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cac
 
 	mux := http.NewServeMux()
 
-	mux.Handle("/", http.RedirectHandler("/ui/", http.StatusSeeOther))
-	mux.Handle("/favicon.ico", http.NotFoundHandler())
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/" {
+			http.NotFound(w, r)
+			return
+		}
+		http.Redirect(w, r, "/ui/", http.StatusSeeOther)
+	})
 	mux.HandleFunc("/ui/", s.handleUI)
 	mux.Handle("/static/icons/", http.StripPrefix("/static/", http.FileServer(http.FS(icons.IconsFS))))
 	//
