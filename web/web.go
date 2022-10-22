@@ -134,13 +134,13 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 
 	// Parse templates every time because it doesn't affect performance but
 	// significantly increases the development process.
-	template, err := template.New("index.html").
+	template, err := template.New("base").
 		Funcs(template.FuncMap{
 			"attr": func(s string) template.HTMLAttr {
 				return template.HTMLAttr(s)
 			},
 		}).
-		ParseFS(ui.New(true), "index.html")
+		ParseFS(ui.New(true), "index.html", "preview.html")
 	if err != nil {
 		writeInternalServerError(w, "couldn't parse templates: %s", err)
 		return
