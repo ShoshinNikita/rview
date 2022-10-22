@@ -20,7 +20,8 @@ import (
 
 	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/ShoshinNikita/rview/rview"
-	icons "github.com/ShoshinNikita/rview/static/material-icons"
+	icons "github.com/ShoshinNikita/rview/static/feathericons"
+	fileicons "github.com/ShoshinNikita/rview/static/material-icons"
 	"github.com/ShoshinNikita/rview/ui"
 )
 
@@ -57,6 +58,7 @@ func NewServer(port int, rcloneBaseURL *url.URL, resizer rview.ImageResizer, cac
 	})
 	mux.HandleFunc("/ui/", s.handleUI)
 	mux.Handle("/static/icons/", http.StripPrefix("/static/", http.FileServer(http.FS(icons.IconsFS))))
+	mux.Handle("/static/fileicons/", replacePath("/static/fileicons/", "icons/", 1, http.FileServer(http.FS(fileicons.IconsFS))))
 	//
 	mux.HandleFunc("/dir", s.handleDir)
 	mux.HandleFunc("/file", s.handleFile)
@@ -115,6 +117,9 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 		Funcs(template.FuncMap{
 			"FormatFileSize": FormatFileSize,
 			"FormatModTime":  FormatModTime,
+			"attr": func(s string) template.HTMLAttr {
+				return template.HTMLAttr(s)
+			},
 		}).
 		ParseFS(ui.New(true), "index.html")
 	if err != nil {
@@ -259,7 +264,7 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			DirURL:          dirURL,
 			WebDirURL:       webDirURL,
 			OriginalFileURL: originalFileURL,
-			IconURL:         "/static/icons/" + icons.GetIconFilename(filename, entry.IsDir),
+			IconURL:         "/static/fileicons/" + fileicons.GetIconFilename(filename, entry.IsDir),
 		})
 	}
 	return info, nil

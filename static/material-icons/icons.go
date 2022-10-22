@@ -12,7 +12,7 @@ var (
 	//go:embed icons.json
 	rawIconsData []byte
 
-	//go:embed icons/*
+	//go:embed icons
 	IconsFS embed.FS
 )
 
