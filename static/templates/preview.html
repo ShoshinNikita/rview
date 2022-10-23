@@ -59,20 +59,23 @@
 	<!-- Selector -->
 	<style>
 		.selector {
-			column-gap: 15px;
+			column-gap: 5px;
 			display: flex;
 			margin: 0;
 			overflow-x: auto;
-			padding: 10px;
-		}
-
-		.thumbnail-wrapper {
-			display: inline-block;
 			padding: 5px;
 		}
 
+		.thumbnail-wrapper {
+			border: 1px solid #00000000;
+			display: inline-block;
+			padding: 10px;
+		}
+
+		.thumbnail-wrapper:hover,
 		.thumbnail-wrapper:target {
 			background-color: #e5f3ff;
+			border: 1px solid #b2dbff;
 		}
 
 		.thumbnail {
@@ -128,23 +131,24 @@
 	<script>
 		const entries = JSON.parse(`{{ .Entries }}`).filter(v => { return v.thumbnail_url; });
 
-		const getChosenEntry = () => {
+		// getChosenEntryIndex returns the index of a chosen entry or 0.
+		const getChosenEntryIndex = () => {
 			const filename = decodeURIComponent(window.location.hash).substr(1);
-			for (const entry of entries) {
-				if (entry.filename == filename) {
-					return entry;
+			for (let i = 0; i < entries.length; i++) {
+				if (entries[i].filename == filename) {
+					return i;
 				}
 			}
-			return null;
+			return 0;
 		};
 
 		const previewImage = document.getElementsByClassName("preview-image")[0];
 		const fileInfo = document.getElementsByClassName("preview-file-info")[0];
 		const updatePreview = () => {
-			let entry = getChosenEntry();
-			if (!entry) {
-				entry = entries[0];
-			}
+			// CSS selector `:target` may not work without this assignment.
+			window.location.hash = window.location.hash;
+
+			const entry = entries[getChosenEntryIndex()];
 
 			// Scroll to the chosen file.
 			const thumbnail = document.getElementById(entry.filename);
@@ -179,7 +183,31 @@
 			downloadButton.download = entry.filename;
 		};
 
+		const handleKeyDown = (ev) => {
+			if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
+				let newIndex = getChosenEntryIndex();
+				if (ev.key == "ArrowRight") {
+					newIndex++;
+				} else {
+					newIndex--;
+				}
+
+				if (newIndex < 0) {
+					newIndex = 0;
+				}
+				if (newIndex >= entries.length) {
+					newIndex = entries.length - 1;
+				}
+
+				window.location.hash = "#" + entries[newIndex].filename;
+
+			} else if (ev.key === "Escape") {
+				window.parent.postMessage({ name: "close-preview" });
+			}
+		};
+
 		window.addEventListener("hashchange", updatePreview);
+		window.addEventListener("keydown", handleKeyDown);
 
 		// Call after page load to show the preview.
 		updatePreview();

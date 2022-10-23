@@ -97,6 +97,7 @@
 		}
 
 		a.entry {
+			border: 1px solid #00000000;
 			color: black;
 			display: block;
 			padding: 5px;
@@ -108,6 +109,10 @@
 		.entry:hover,
 		.entry:hover .icon {
 			background-color: #e5f3ff;
+		}
+
+		.entry:hover {
+			border: 1px solid #b2dbff;
 		}
 
 		.icon-wrapper {
@@ -296,11 +301,20 @@
 				replace("/ui/", "/preview/"). // preview url is the same except the first part.
 				replace(/#.*/, "").           // remove hash
 				concat("#", filename);
+
+			// Focus for event listeners.
+			previewIframe.focus();
 		};
 
 		const closePreview = () => {
 			preview.classList.remove("opened");
 		};
+
+		window.addEventListener("message", (ev) => {
+			if (ev.data.name === "close-preview") {
+				closePreview();
+			}
+		});
 	</script>
 </body>
 
