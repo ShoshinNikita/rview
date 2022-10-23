@@ -71,7 +71,9 @@ func NewServer(
 		"/static/styles/":    static.NewStylesFS(debug),
 	} {
 		handler := http.FileServer(http.FS(fs))
-		handler = cacheMiddleware(14*24*time.Hour, gitHash, handler)
+		if !debug {
+			handler = cacheMiddleware(14*24*time.Hour, gitHash, handler)
+		}
 		handler = http.StripPrefix(pattern, handler)
 		mux.Handle(pattern, handler)
 	}
