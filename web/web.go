@@ -228,7 +228,7 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		Order: rcloneInfo.Order,
 	}
 
-	var pageNameParts []string
+	var dirParts []string
 	for _, breadcrumb := range rcloneInfo.Breadcrumbs {
 		if breadcrumb.Text == "" {
 			continue
@@ -248,9 +248,9 @@ func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			Link: link,
 			Text: text,
 		})
-		pageNameParts = append(pageNameParts, breadcrumb.Text)
+		dirParts = append(dirParts, breadcrumb.Text)
 	}
-	info.PageName = pkgPath.Join(pageNameParts...)
+	info.Dir = pkgPath.Join(dirParts...)
 
 	for _, entry := range rcloneInfo.Entries {
 		if entry.URL == "" {

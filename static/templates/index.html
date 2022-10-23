@@ -4,7 +4,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Rview • {{ .PageName }}</title>
+	<title>Rview • {{ .Dir }}</title>
 
 	<link rel="stylesheet" href="/static/styles/common.css">
 
@@ -287,7 +287,7 @@
 	</div>
 
 	<a class="preview" title="Close Preview" onclick="closePreview()">
-		<iframe class="preview-iframe" src="" frameborder="0"></iframe>
+		<iframe class="preview-iframe" src="/preview{{ .Dir }}" frameborder="0"></iframe>
 	</a>
 
 	<script>
@@ -297,21 +297,20 @@
 		const openPreview = (filename) => {
 			preview.classList.add("opened");
 
-			previewIframe.src = window.location.toString().
-				replace("/ui/", "/preview/"). // preview url is the same except the first part.
-				replace(/#.*/, "").           // remove hash
-				concat("#", filename);
+			previewIframe.contentWindow.postMessage({ name: "preview.opened", filename: filename });
 
 			// Focus for event listeners.
 			previewIframe.focus();
 		};
 
 		const closePreview = () => {
+			previewIframe.contentWindow.postMessage({ name: "preview.closed" });
+
 			preview.classList.remove("opened");
 		};
 
 		window.addEventListener("message", (ev) => {
-			if (ev.data.name === "close-preview") {
+			if (ev.data.name === "preview.close") {
 				closePreview();
 			}
 		});

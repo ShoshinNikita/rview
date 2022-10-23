@@ -5,10 +5,10 @@ import "time"
 // Service response.
 type (
 	Info struct {
-		PageName string `json:"page_name"`
-		Sort     string `json:"sort"`
-		Order    string `json:"order"`
+		Sort  string `json:"sort"`
+		Order string `json:"order"`
 
+		Dir         string       `json:"dir"`
 		Breadcrumbs []Breadcrumb `json:"breadcrumbs"`
 		Entries     []Entry      `json:"entries"`
 	}
@@ -37,7 +37,7 @@ type (
 		OriginalFileURL string `json:"original_file_url,omitempty"`
 		// ThumbnailURL is an url that should be used to open a thumbnail file (not empty only for images).
 		ThumbnailURL string `json:"thumbnail_url,omitempty"`
-		// IconURL is an url to an icon. The icon choice is based of filename and file extension.
+		// IconURL is an url to an icon. The icon choice is based on filename and file extension.
 		IconURL string `json:"icon_url,omitempty"`
 	}
 )

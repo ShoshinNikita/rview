@@ -4,7 +4,7 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Rview • Preview {{ .PageName }} </title>
+	<title>Rview • Preview {{ .Dir }} </title>
 
 	<!-- Common -->
 	<link rel="stylesheet" href="/static/styles/common.css">
@@ -87,7 +87,6 @@
 		.thumbnail-wrapper {
 			border: 1px solid #00000000;
 			display: inline-block;
-			padding: 10px;
 		}
 
 		.thumbnail-wrapper:hover,
@@ -100,6 +99,7 @@
 			border: 1px solid #00000000;
 			display: flex;
 			height: 100%;
+			padding: 10px;
 			width: 100%;
 		}
 
@@ -157,29 +157,53 @@
 	<script>
 		const entries = JSON.parse(`{{ .Entries }}`).filter(v => { return v.thumbnail_url; });
 
-		// getChosenEntryIndex returns the index of a chosen entry or 0.
-		const getChosenEntryIndex = () => {
-			const filename = decodeURIComponent(window.location.hash).substr(1);
-			for (let i = 0; i < entries.length; i++) {
-				if (entries[i].filename == filename) {
-					return i;
-				}
-			}
-			return 0;
+		let isPreviewOpened = false;
+
+		const extractFilenameFromHash = () => {
+			return decodeURIComponent(window.location.hash).substr(1);
 		};
 
 		const previewImage = document.getElementsByClassName("preview-image")[0];
 		const fileInfos = document.getElementsByClassName("preview-file-info-value");
-		const updatePreview = () => {
-			// CSS selector `:target` may not work without this assignment.
-			window.location.hash = window.location.hash;
 
-			const entry = entries[getChosenEntryIndex()];
+		let scrollIntervalID = 0;
+		const updatePreview = (filename) => {
+			// Stop scroll animation to avoid any conflicts.
+			clearInterval(scrollIntervalID);
+
+			const entry = entries.find(v => v.filename == filename) || entries[0];
 
 			// Scroll to the chosen file.
 			const thumbnail = document.getElementById(entry.filename);
 			const selector = thumbnail.parentElement;
-			selector.scrollLeft = thumbnail.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;
+
+			const wantScrollLeft = thumbnail.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;
+			if (isPreviewOpened) {
+				let delta = Math.abs(selector.scrollLeft - wantScrollLeft) / 15; // total scroll time will be 150ms
+				if (delta < 2) {
+					delta = 2;
+				}
+
+				scrollIntervalID = setInterval(() => {
+					const diff = selector.scrollLeft - wantScrollLeft;
+					if (Math.abs(diff) <= delta) {
+						selector.scrollLeft = wantScrollLeft;
+						clearInterval(scrollIntervalID);
+						return;
+					}
+
+					if (diff > 0) {
+						selector.scrollLeft -= delta;
+					} else if (diff < 0) {
+						selector.scrollLeft += delta;
+					}
+				}, 10);
+
+			} else {
+				// Don't animate scroll on the preview open.
+				selector.scrollLeft = wantScrollLeft;
+			}
+
 
 			// Update preview.
 			previewImage.style["background-image"] = `url(${entry.thumbnail_url})`;
@@ -208,7 +232,12 @@
 
 		const handleKeyDown = (ev) => {
 			if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-				let newIndex = getChosenEntryIndex();
+				const filename = extractFilenameFromHash();
+				let newIndex = entries.findIndex(v => v.filename == filename);
+				if (newIndex === -1) {
+					newIndex = 0;
+				}
+
 				if (ev.key == "ArrowRight") {
 					newIndex++;
 				} else {
@@ -225,15 +254,30 @@
 				window.location.hash = "#" + entries[newIndex].filename;
 
 			} else if (ev.key === "Escape") {
-				window.parent.postMessage({ name: "close-preview" });
+				window.parent.postMessage({ name: "preview.close" });
 			}
 		};
 
-		window.addEventListener("hashchange", updatePreview);
+		window.addEventListener("hashchange", () => {
+			console.log(isPreviewOpened);
+			updatePreview(extractFilenameFromHash());
+
+			if (!isPreviewOpened) {
+				isPreviewOpened = true;
+			}
+		});
+
 		window.addEventListener("keydown", handleKeyDown);
 
-		// Call after page load to show the preview.
-		updatePreview();
+		window.addEventListener("message", (ev) => {
+			if (ev.data.name === "preview.opened") {
+				// Trigger event listener.
+				window.location.hash = "#" + ev.data.filename;
+
+			} else if (ev.data.name === "preview.closed") {
+				isPreviewOpened = false;
+			}
+		})
 	</script>
 </body>
 
