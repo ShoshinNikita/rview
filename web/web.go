@@ -69,6 +69,7 @@ func NewServer(
 		"/static/icons/":     s.iconsFS,
 		"/static/fileicons/": static.NewFileIconsFS(debug),
 		"/static/styles/":    static.NewStylesFS(debug),
+		"/static/js/":        static.NewScriptsFS(debug),
 	} {
 		handler := http.FileServer(http.FS(fs))
 		if !debug {

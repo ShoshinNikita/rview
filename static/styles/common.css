@@ -1,29 +1,62 @@
+/* Site for colors: https://www.color-hex.com */
+
 :root {
 	--background-color: #ffffff;
-	--font-color: #000000;
+	--font-color: #212121;
+	--shadow-color: #0000004d;
+	--shadow-color-2: #000000b4;
 
 	--hover-background-color: #e5f3ff;
-	--hover-border: 1px solid #b2dbff;
+	--hover-border-color: #b2dbff;
 
 	--interactive-color: #0275d8;
-	--interactive-color--accent: #01447e;
-
-	--image-box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+	--interactive-color--accent: #025aa5;
 
 	--loader-border-color: #f0f4f4;
 	--loader-border-color--accent: var(--interactive-color);
 
-	--header-background-color: rgba(250, 250, 250, 0.9);
-	--header-background-color--firefox: rgba(250, 250, 250, 0.97);
-	--header-box-shadow: 0px 3px 5px 0px rgba(0, 0, 0, 0.3);
+	--header-background-color: #fafafae6;
+	--header-background-color--firefox: #fafafaf8;
 
 	--preview-background-color: #000000b0;
-	--preview-card-box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.7);
+
+	--sort-order-icon-filter: none;
+
+	--scrollbar-track-color: var(--background-color);
+	--scrollbar-thumb-color: #e1e1e1;
+
+	/* Values of the following variables don't depend on the theme */
+
+	--image-box-shadow: 2px 2px 5px 0px var(--shadow-color);
+	--hover-border: 1px solid var(--hover-border-color);
+	--header-box-shadow: 0px 3px 5px 0px var(--shadow-color);
+	--preview-card-box-shadow: 0px 2px 5px 0px var(--shadow-color-2);
+}
+
+[data-theme="dark"] {
+	--background-color: #0d1117;
+	--font-color: #ffffffa0;
+	--shadow-color: #010409;
+	--shadow-color-2: var(--shadow-color);
+
+	--hover-background-color: #21262c;
+	--hover-border-color: #373f49;
+
+	--interactive-color: #0175d8;
+	--interactive-color--accent: #0283f1;
+
+	--loader-border-color: var(--font-color);
+
+	--header-background-color: #161b22e6;
+	--header-background-color--firefox: #161b22f8;
+
+	--sort-order-icon-filter: invert(0.7);
+
+	--scrollbar-thumb-color: #414141;
 }
 
 * {
 	box-sizing: border-box;
-	scrollbar-width: thin;
 }
 
 body {
@@ -49,4 +82,23 @@ a:hover {
 object {
 	/* Required to display pointer cursor */
 	pointer-events: none;
+}
+
+/* Scrollbar */
+
+* {
+	scrollbar-width: thin;
+}
+
+::-webkit-scrollbar {
+	height: 7px;
+	width: 7px;
+}
+
+::-webkit-scrollbar-track {
+	background-color: var(--scrollbar-track-color);
+}
+
+::-webkit-scrollbar-thumb {
+	background-color: var(--scrollbar-thumb-color);
 }

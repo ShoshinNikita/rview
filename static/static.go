@@ -23,6 +23,13 @@ func NewStylesFS(debug bool) fs.FS {
 	return newFS(stylesFS, "styles", debug)
 }
 
+//go:embed js
+var scriptsFS embed.FS
+
+func NewScriptsFS(debug bool) fs.FS {
+	return newFS(stylesFS, "js", debug)
+}
+
 //go:embed feathericons/icons
 var iconsFS embed.FS
 

@@ -6,6 +6,8 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Rview • {{ .Dir }}</title>
 
+	<script src="/static/js/theme.js"></script>
+
 	<link rel="stylesheet" href="/static/styles/common.css">
 
 	<!-- Header -->
@@ -69,6 +71,7 @@
 			background-size: cover;
 			content: " ";
 			display: inline-block;
+			filter: var(--sort-order-icon-filter);
 			height: 20px;
 			position: relative;
 			transform: rotate(90deg);
