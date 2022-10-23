@@ -60,6 +60,7 @@ func NewServer(
 		http.Redirect(w, r, "/ui/", http.StatusSeeOther)
 	})
 	mux.HandleFunc("/ui/", s.handleUI)
+	mux.HandleFunc("/preview/", s.handlePreview)
 
 	// Static
 	for pattern, fs := range map[string]fs.FS{
@@ -125,6 +126,25 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	s.executeTemplate(w, "index.html", info)
+}
+
+func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
+	dir := strings.TrimPrefix(r.URL.Path, "/preview")
+	if !strings.HasSuffix(dir, "/") {
+		dir += "/"
+	}
+
+	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
+	if err != nil {
+		writeInternalServerError(w, err.Error())
+		return
+	}
+
+	s.executeTemplate(w, "preview.html", info)
+}
+
+func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 	// Parse templates every time because it doesn't affect performance but
 	// significantly increases the development process.
 	template, err := template.New("base").
@@ -140,7 +160,7 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	buf := bytes.NewBuffer(nil)
-	err = template.ExecuteTemplate(buf, "index.html", info)
+	err = template.ExecuteTemplate(buf, name, data)
 	if err != nil {
 		writeInternalServerError(w, "couldn't execute templates: %s", err)
 		return

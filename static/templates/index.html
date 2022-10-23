@@ -21,7 +21,7 @@
 			padding: 10px 20px;
 			position: sticky;
 			top: 3px;
-			z-index: 10;
+			z-index: 2;
 		}
 
 		.breadcrumbs {
@@ -167,6 +167,33 @@
 			white-space: nowrap;
 		}
 	</style>
+
+	<!-- Preview -->
+	<style>
+		.preview {
+			height: 100%;
+			overflow: hidden;
+			position: fixed;
+			top: 0;
+			width: 100%;
+			display: none;
+		}
+
+		.preview.opened {
+			background-color: #000000b0;
+			z-index: 3;
+			display: block;
+		}
+
+		.preview-iframe {
+			height: 90vh;
+			left: 50%;
+			position: fixed;
+			top: 50%;
+			transform: translate(-50%, -52%);
+			width: 90vw;
+		}
+	</style>
 </head>
 
 <body>
@@ -222,21 +249,28 @@
 		{{ $title = printf "%s\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
 		{{ end }}
 
-		<!-- Download all files except images -->
-		{{ $downloadAttr := "" }}
-		{{ if and (not .ThumbnailURL) (not .IsDir) }}
-		{{ $downloadAttr = printf `download="%s"` .Filename }}
+		{{ if .ThumbnailURL }}
+		{{ $href = "#" }}
+		{{ $target = "" }}
+		{{ end }}
+
+		<!-- Open preview for images and download other files -->
+		{{ $attrs := "" }}
+		{{ if .ThumbnailURL }}
+		{{ $attrs = printf `onclick="openPreview('%s')"` .Filename }}
+		{{ else if not .IsDir }}
+		{{ $attrs = printf `download="%s"` .Filename }}
 		{{ end }}
 
 		<div class="entry-wrapper">
-			<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}" {{ attr $downloadAttr }}>
+			<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}" {{ attr $attrs }}>
 				<div class="icon-wrapper">
 					<div class="loader"></div>
 
 					{{ if .ThumbnailURL }}
-					<img src="{{ .ThumbnailURL }}" class="thumbnail">
+					<img src="{{ .ThumbnailURL }}" class="thumbnail" loading="lazy">
 					{{ else }}
-					<object data="{{ .IconURL }}" type="image/svg+xml" class="icon"></object>
+					<object data="{{ .IconURL }}" type="image/svg+xml" class="icon" tabindex="-1"></object>
 					{{ end }}
 				</div>
 
@@ -246,6 +280,28 @@
 
 		{{ end }}
 	</div>
+
+	<a class="preview" title="Close Preview" onclick="closePreview()">
+		<iframe class="preview-iframe" src="" frameborder="0"></iframe>
+	</a>
+
+	<script>
+		const preview = document.getElementsByClassName("preview")[0];
+		const previewIframe = document.getElementsByClassName("preview-iframe")[0];
+
+		const openPreview = (filename) => {
+			preview.classList.add("opened");
+
+			previewIframe.src = window.location.toString().
+				replace("/ui/", "/preview/"). // preview url is the same except the first part.
+				replace(/#.*/, "").           // remove hash
+				concat("#", filename);
+		};
+
+		const closePreview = () => {
+			preview.classList.remove("opened");
+		};
+	</script>
 </body>
 
 </html>

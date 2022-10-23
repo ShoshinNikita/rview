@@ -6,26 +6,32 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Rview • Preview {{ .PageName }} </title>
 
+	<!-- Common -->
 	<link rel="stylesheet" href="/static/styles/common.css">
 	<style>
 		body {
-			width: 90vw;
-			margin: auto;
-			padding: 10px;
+			display: grid;
+			grid-template-rows: auto min-content;
+			row-gap: 20px;
+			height: 100vh;
+		}
+
+		.card {
+			background-color: white;
+			border-radius: 3px;
+			box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.7);
 		}
 	</style>
 
 	<!-- Preview -->
 	<style>
 		.preview {
-			box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.3);
 			display: grid;
 			grid-template-rows: auto max-content;
-			height: 70vh;
-			margin: 0 auto 20px;
-			padding: 10px;
+			padding: 20px;
 			position: relative;
 			row-gap: 10px;
+			width: 100%;
 		}
 
 		.preview-image {
@@ -53,12 +59,11 @@
 	<!-- Selector -->
 	<style>
 		.selector {
-			box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.3);
 			column-gap: 15px;
 			display: flex;
 			margin: 0;
 			overflow-x: auto;
-			padding: 5px 10px;
+			padding: 10px;
 		}
 
 		.thumbnail-wrapper {
@@ -86,7 +91,7 @@
 </head>
 
 <body>
-	<div class="preview">
+	<div class="preview card">
 		<div class="preview-image"></div>
 
 		<div class="preview-footer">
@@ -104,7 +109,7 @@
 		</div>
 	</div>
 
-	<ul class="selector">
+	<ul class="selector card">
 		{{ range .Entries }}
 
 		{{ if not .ThumbnailURL }}
@@ -133,6 +138,8 @@
 			return null;
 		};
 
+		const previewImage = document.getElementsByClassName("preview-image")[0];
+		const fileInfo = document.getElementsByClassName("preview-file-info")[0];
 		const updatePreview = () => {
 			let entry = getChosenEntry();
 			if (!entry) {
@@ -145,11 +152,9 @@
 			selector.scrollLeft = thumbnail.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;
 
 			// Update preview.
-			const previewImage = document.getElementsByClassName("preview-image")[0];
 			previewImage.style["background-image"] = `url(${entry.thumbnail_url})`;
 
 			// Update file info.
-			const fileInfo = document.getElementsByClassName("preview-file-info")[0];
 			for (const child of fileInfo.children) {
 				const type = child.attributes["data-type"];
 				if (!type) {
