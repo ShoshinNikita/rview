@@ -21,16 +21,21 @@
 			border-radius: 3px;
 			box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.7);
 		}
+
+		.nowrap {
+			white-space: nowrap;
+			word-break: keep-all;
+		}
 	</style>
 
 	<!-- Preview -->
 	<style>
 		.preview {
+			column-gap: 10px;
 			display: grid;
-			grid-template-rows: auto max-content;
+			grid-template-columns: auto 300px;
 			padding: 20px;
 			position: relative;
-			row-gap: 10px;
 			width: 100%;
 		}
 
@@ -41,14 +46,27 @@
 			width: 100%;
 		}
 
-		.preview-footer {
+		.preview-side-panel {
 			display: flex;
+			flex-direction: column;
 			justify-content: space-between;
 		}
 
+		.preview-file-info {
+			font-size: 18px;
+			word-break: break-all;
+		}
+
+		.preview-file-info>* {
+			margin-bottom: 10px;
+		}
+
+		.preview-file-info-value {
+			font-style: italic;
+		}
+
 		.preview-download-button {
-			display: flex;
-			align-items: flex-end;
+			text-align: center;
 		}
 
 		.preview-download-button img {
@@ -87,6 +105,7 @@
 
 		.thumbnail img {
 			align-self: center;
+			box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
 			max-height: 150px;
 			max-width: 150px;
 		}
@@ -97,13 +116,20 @@
 	<div class="preview card">
 		<div class="preview-image"></div>
 
-		<div class="preview-footer">
+		<div class="preview-side-panel">
 			<div class="preview-file-info">
-				<i>Filename:</i> <span data-type="filename"></span>
-				<br>
-				<i>Size:</i> <span data-type="size"></span>
-				<br>
-				<i>Mod Time:</i> <span data-type="mod_time"></span>
+				<div>
+					<span>Filename:</span>
+					<span class="preview-file-info-value" data-type="filename"></span>
+				</div>
+				<div>
+					<span>Size:</span>
+					<span class="preview-file-info-value nowrap" data-type="size"></span>
+				</div>
+				<div>
+					<span>Mod Time:</span>
+					<span class="preview-file-info-value nowrap" data-type="mod_time"></span>
+				</div>
 			</div>
 
 			<a class="preview-download-button" title="Download the original file" href="" download="">
@@ -143,7 +169,7 @@
 		};
 
 		const previewImage = document.getElementsByClassName("preview-image")[0];
-		const fileInfo = document.getElementsByClassName("preview-file-info")[0];
+		const fileInfos = document.getElementsByClassName("preview-file-info-value");
 		const updatePreview = () => {
 			// CSS selector `:target` may not work without this assignment.
 			window.location.hash = window.location.hash;
@@ -159,20 +185,17 @@
 			previewImage.style["background-image"] = `url(${entry.thumbnail_url})`;
 
 			// Update file info.
-			for (const child of fileInfo.children) {
-				const type = child.attributes["data-type"];
-				if (!type) {
-					continue;
-				}
+			for (const fileInfo of fileInfos) {
+				const type = fileInfo.attributes["data-type"];
 				switch (type.value) {
 					case "filename":
-						child.innerHTML = entry.filename;
+						fileInfo.innerHTML = entry.filename;
 						break;
 					case "size":
-						child.innerHTML = entry.human_readable_size;
+						fileInfo.innerHTML = entry.human_readable_size;
 						break;
 					case "mod_time":
-						child.innerHTML = entry.human_readable_mod_time;
+						fileInfo.innerHTML = entry.human_readable_mod_time;
 						break;
 				}
 			}
