@@ -45,3 +45,8 @@ a:hover {
 	color: var(--interactive-color--accent);
 	text-decoration: underline;
 }
+
+object {
+	/* Required to display pointer cursor */
+	pointer-events: none;
+}

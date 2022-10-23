@@ -31,6 +31,7 @@ type Server struct {
 	rcloneBaseURL *url.URL
 	resizer       rview.ImageResizer
 	cache         rview.Cache
+	iconsFS       fs.FS
 	templatesFS   fs.FS
 }
 
@@ -46,6 +47,7 @@ func NewServer(
 		},
 		resizer:     resizer,
 		cache:       cache,
+		iconsFS:     static.NewIconsFS(debug),
 		templatesFS: static.NewTemplatesFS(debug),
 	}
 
@@ -64,7 +66,7 @@ func NewServer(
 
 	// Static
 	for pattern, fs := range map[string]fs.FS{
-		"/static/icons/":     static.NewIconsFS(debug),
+		"/static/icons/":     s.iconsFS,
 		"/static/fileicons/": static.NewFileIconsFS(debug),
 		"/static/styles/":    static.NewStylesFS(debug),
 	} {
@@ -151,6 +153,19 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 		Funcs(template.FuncMap{
 			"attr": func(s string) template.HTMLAttr {
 				return template.HTMLAttr(s)
+			},
+			"embedIcon": func(name string) (template.HTML, error) {
+				f, err := s.iconsFS.Open(name + ".svg")
+				if err != nil {
+					return "", fmt.Errorf("couldn't open icon %q: %w", name, err)
+				}
+				defer f.Close()
+
+				data, err := io.ReadAll(f)
+				if err != nil {
+					return "", fmt.Errorf("couldn't read icon %q: %w", name, err)
+				}
+				return template.HTML(data), nil
 			},
 		}).
 		ParseFS(s.templatesFS, "index.html", "preview.html")

@@ -67,10 +67,13 @@
 		}
 
 		.preview-download-button {
-			text-align: center;
+			display: block;
+			margin: auto;
+			width: fit-content;
 		}
 
-		.preview-download-button img {
+		.preview-download-button svg {
+			height: 30px;
 			width: 30px;
 		}
 	</style>
@@ -133,9 +136,11 @@
 				</div>
 			</div>
 
-			<a class="preview-download-button" title="Download the original file" href="" download="">
-				<img src="/static/icons/download.svg">
-			</a>
+			<div>
+				<a class="preview-download-button" title="Download the original file" href="" download="">
+					{{ embedIcon "download" }}
+				</a>
+			</div>
 		</div>
 	</div>
 
