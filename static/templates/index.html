@@ -12,10 +12,10 @@
 	<style>
 		.header {
 			display: flex;
-			background-color: rgba(250, 250, 250, 0.9);
+			background-color: var(--header-background-color);
 			backdrop-filter: blur(7px);
 			border-radius: 3px;
-			box-shadow: 0px 3px 5px 0px rgba(0, 0, 0, 0.3);
+			box-shadow: var(--header-box-shadow);
 			justify-content: space-between;
 			margin: 0 7px 10px;
 			padding: 10px 20px;
@@ -33,7 +33,7 @@
 		/* backdrop-filter is disabled in Firefox by default. As a temporary solution, increase opacity */
 		@supports (-moz-appearance:none) {
 			.header {
-				background-color: rgba(250, 250, 250, 0.97);
+				background-color: var(--header-background-color--firefox);
 			}
 		}
 
@@ -47,7 +47,7 @@
 		}
 
 		.breadcrumb:last-of-type .breadcrumb-link {
-			color: black;
+			color: var(--font-color);
 			pointer-events: none;
 		}
 
@@ -98,7 +98,7 @@
 
 		a.entry {
 			border: 1px solid #00000000;
-			color: black;
+			color: var(--font-color);
 			display: block;
 			padding: 5px;
 			text-align: center;
@@ -108,11 +108,11 @@
 
 		.entry:hover,
 		.entry:hover .icon {
-			background-color: #e5f3ff;
+			background-color: var(--hover-background-color)
 		}
 
 		.entry:hover {
-			border: 1px solid #b2dbff;
+			border: var(--hover-border);
 		}
 
 		.icon-wrapper {
@@ -123,13 +123,13 @@
 		}
 
 		.thumbnail {
-			box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+			box-shadow: var(--image-box-shadow);
 			max-height: 150px;
 			max-width: 90%;
 		}
 
 		.icon {
-			background-color: white;
+			background-color: var(--background-color);
 			height: 100px;
 			/* Required to display pointer cursor */
 			pointer-events: none;
@@ -143,9 +143,9 @@
 
 		.loader {
 			animation: spin 1.2s linear infinite;
-			border: 5px solid #f0f4f4;
+			border: 5px solid var(--loader-border-color);
 			border-radius: 50%;
-			border-top: 5px solid #0275d8;
+			border-top: 5px solid var(--loader-border-color--accent);
 			height: 50px;
 			left: 50%;
 			position: absolute;
@@ -185,7 +185,7 @@
 		}
 
 		.preview.opened {
-			background-color: #000000b0;
+			background-color: var(--preview-background-color);
 			z-index: 3;
 			display: block;
 		}

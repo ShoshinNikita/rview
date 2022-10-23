@@ -10,6 +10,7 @@
 	<link rel="stylesheet" href="/static/styles/common.css">
 	<style>
 		body {
+			background-color: #00000000;
 			display: grid;
 			grid-template-rows: auto min-content;
 			row-gap: 20px;
@@ -17,9 +18,9 @@
 		}
 
 		.card {
-			background-color: white;
+			background-color: var(--background-color);
 			border-radius: 3px;
-			box-shadow: 0px 2px 5px 0px rgba(0, 0, 0, 0.7);
+			box-shadow: var(--preview-card-box-shadow);
 		}
 
 		.nowrap {
@@ -91,8 +92,8 @@
 
 		.thumbnail-wrapper:hover,
 		.thumbnail-wrapper:target {
-			background-color: #e5f3ff;
-			border: 1px solid #b2dbff;
+			background-color: var(--hover-background-color);
+			border: var(--hover-border);
 		}
 
 		.thumbnail {
@@ -105,7 +106,7 @@
 
 		.thumbnail img {
 			align-self: center;
-			box-shadow: 2px 2px 5px 0px rgba(0, 0, 0, 0.3);
+			box-shadow: var(--image-box-shadow);
 			max-height: 150px;
 			max-width: 150px;
 		}
