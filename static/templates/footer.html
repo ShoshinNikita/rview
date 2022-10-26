@@ -42,6 +42,16 @@
 		height: 100%;
 		width: 100%;
 	}
+
+	@media only screen and (max-width: 600px) {
+		.footer {
+			grid-template-columns: repeat(2, 1fr);
+		}
+
+		.rview-info {
+			display: none;
+		}
+	}
 </style>
 
 <div class="footer">
@@ -51,7 +61,7 @@
 	<div class="rview-info">
 		<span>Rview [rev {{ .ShortGitHash }}]</span>
 		<span>•</span>
-		<a href="https://github.com/ShoshinNikita/rview" target="_blank" title="GitHub Repo" class="footer-icon github-icon">
+		<a href="https://github.com/ShoshinNikita/rview" target="_blank" title="GitHub Repo" class="footer-icon">
 			{{ embedIcon "github" }}
 		</a>
 	</div>

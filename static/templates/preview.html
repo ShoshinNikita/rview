@@ -17,6 +17,7 @@
 			grid-template-rows: auto min-content;
 			row-gap: 20px;
 			height: 100vh;
+			padding: 0;
 		}
 
 		.card {
@@ -69,14 +70,35 @@
 		}
 
 		.preview-download-button {
-			display: block;
-			margin: auto;
-			width: fit-content;
+			height: 30px;
+			margin: 0 auto;
+			width: 30px;
 		}
 
 		.preview-download-button svg {
-			height: 30px;
-			width: 30px;
+			height: 100%;
+			width: 100%;
+		}
+
+		@media only screen and (max-width: 900px) {
+			.preview {
+				grid-template-columns: none;
+				grid-template-rows: auto max-content;
+				row-gap: 20px;
+			}
+
+			.preview-side-panel {
+				align-items: flex-end;
+				flex-direction: row;
+			}
+
+			.preview-file-info>* {
+				margin-bottom: 3px;
+			}
+
+			.preview-download-button {
+				margin: 0;
+			}
 		}
 	</style>
 
@@ -138,11 +160,9 @@
 				</div>
 			</div>
 
-			<div>
-				<a class="preview-download-button" title="Download the original file" href="" download="">
-					{{ embedIcon "download" }}
-				</a>
-			</div>
+			<a class="preview-download-button" title="Download the original file" href="" download="">
+				{{ embedIcon "download" }}
+			</a>
 		</div>
 	</div>
 

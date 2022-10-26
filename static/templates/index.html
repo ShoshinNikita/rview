@@ -13,11 +13,12 @@
 	<!-- Header -->
 	<style>
 		.header {
-			display: flex;
 			background-color: var(--header-background-color);
 			backdrop-filter: blur(7px);
 			border-radius: 3px;
 			box-shadow: var(--header-box-shadow);
+			column-gap: 15px;
+			display: flex;
 			justify-content: space-between;
 			margin: 0 7px 10px;
 			padding: 10px 20px;
@@ -54,15 +55,17 @@
 		}
 
 		.sort-menu {
+			display: flex;
+			column-gap: 10px;
 			font-size: 18px;
-		}
-
-		.sort {
-			padding-right: 5px;
 		}
 
 		.sort:last-of-type {
 			padding: 0;
+		}
+
+		.sort.chosen {
+			white-space: nowrap;
 		}
 
 		.sort.chosen.asc::after,
@@ -81,6 +84,13 @@
 
 		.sort.chosen.desc::after {
 			transform: rotate(270deg) scaleY(-1);
+		}
+
+		@media only screen and (max-width: 600px) {
+			.sort-menu {
+				flex-direction: column;
+				row-gap: 5px;
+			}
 		}
 	</style>
 
