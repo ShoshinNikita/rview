@@ -11,6 +11,8 @@ type (
 		Dir         string       `json:"dir"`
 		Breadcrumbs []Breadcrumb `json:"breadcrumbs"`
 		Entries     []Entry      `json:"entries"`
+
+		ShortGitHash string `json:"short_git_hash"`
 	}
 
 	Breadcrumb struct {

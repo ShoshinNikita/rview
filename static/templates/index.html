@@ -287,6 +287,8 @@
 		{{ end }}
 	</div>
 
+	{{ template "footer.html" . }}
+
 	<a class="preview" title="Close Preview" onclick="closePreview()">
 		<iframe class="preview-iframe" src="/preview{{ .Dir }}" frameborder="0"></iframe>
 	</a>

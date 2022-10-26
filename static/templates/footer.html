@@ -1,0 +1,109 @@
+{{ define "footer.html" }}
+<style>
+	.footer {
+		bottom: 0;
+		display: grid;
+		grid-template-columns: repeat(3, 1fr);
+		height: var(--footer-height);
+		padding: 0 10px;
+		position: absolute;
+		width: 100%;
+	}
+
+	.rview-info {
+		align-items: center;
+		column-gap: 5px;
+		display: flex;
+		justify-content: center;
+	}
+
+	.theme-switcher {
+		align-items: center;
+		column-gap: 5px;
+		display: flex;
+		justify-content: right;
+		text-align: right;
+	}
+
+	a.footer-icon {
+		display: inline-block;
+		height: 20px;
+		text-decoration: none;
+		width: 20px;
+	}
+
+	.footer-icon.chosen {
+		color: var(--interactive-color--accent);
+		height: 26px;
+		width: 26px;
+	}
+
+	.footer-icon svg {
+		height: 100%;
+		width: 100%;
+	}
+</style>
+
+<div class="footer">
+	<!-- Empty element for grid -->
+	<div></div>
+
+	<div class="rview-info">
+		<span>Rview [rev {{ .ShortGitHash }}]</span>
+		<span>•</span>
+		<a href="https://github.com/ShoshinNikita/rview" target="_blank" title="GitHub Repo" class="footer-icon github-icon">
+			{{ embedIcon "github" }}
+		</a>
+	</div>
+
+	<div class="theme-switcher">
+		<a id="light-theme-button" title="Light Theme" class="footer-icon" onclick="switchTheme(lightTheme)">
+			{{ embedIcon "sun" }}
+		</a>
+		<a id="system-theme-button" title="System Theme" class="footer-icon" onclick="switchTheme(systemTheme)">
+			{{ embedIcon "disc" }}
+		</a>
+		<a id="dark-theme-button" title="Dark Theme" class="footer-icon" onclick="switchTheme(darkTheme)">
+			{{ embedIcon "moon" }}
+		</a>
+	</div>
+</div>
+
+<script>
+	const lightThemeButton = document.getElementById("light-theme-button");
+	const systemThemeButton = document.getElementById("system-theme-button");
+	const darkThemeButton = document.getElementById("dark-theme-button");
+
+	function updateThemeButtons() {
+		let highlight = null, reset = [];
+
+		switch (getLocalStorageTheme()) {
+			case lightTheme:
+				highlight = lightThemeButton;
+				reset = [systemThemeButton, darkThemeButton];
+				break;
+
+			case systemTheme:
+				highlight = systemThemeButton;
+				reset = [lightThemeButton, darkThemeButton];
+				break;
+
+			case darkTheme:
+				highlight = darkThemeButton;
+				reset = [lightThemeButton, systemThemeButton,];
+				break;
+		}
+
+		const className = "chosen";
+
+		highlight.classList.add(className);
+		for (let i = 0; i < reset.length; i++) {
+			reset[i].classList.remove(className);
+		}
+	}
+
+	updateThemeButtons();
+
+	window.addEventListener(themeChangeEventName, updateThemeButtons);
+</script>
+{{ end }}

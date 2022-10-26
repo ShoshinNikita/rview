@@ -33,6 +33,8 @@ type Server struct {
 	cache         rview.Cache
 	iconsFS       fs.FS
 	templatesFS   fs.FS
+
+	gitHash string
 }
 
 func NewServer(
@@ -49,6 +51,8 @@ func NewServer(
 		cache:       cache,
 		iconsFS:     static.NewIconsFS(debug),
 		templatesFS: static.NewTemplatesFS(debug),
+		//
+		gitHash: gitHash,
 	}
 
 	mux := http.NewServeMux()
@@ -171,7 +175,7 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 				return template.HTML(data), nil
 			},
 		}).
-		ParseFS(s.templatesFS, "index.html", "preview.html")
+		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html")
 	if err != nil {
 		writeInternalServerError(w, "couldn't parse templates: %s", err)
 		return
@@ -240,10 +244,18 @@ func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Value
 	return rcloneInfo, nil
 }
 
-func (*Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
+func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 	info := Info{
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
+		//
+		ShortGitHash: "unknown",
+	}
+	if s.gitHash != "" {
+		info.ShortGitHash = s.gitHash
+		if len(info.ShortGitHash) > 7 {
+			info.ShortGitHash = info.ShortGitHash[:7]
+		}
 	}
 
 	var dirParts []string
