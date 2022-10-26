@@ -44,7 +44,7 @@
 		}
 
 		.preview-image {
-			background-position: center;
+			background-position: 50%;
 			background-repeat: no-repeat;
 			background-size: contain;
 			width: 100%;
@@ -327,7 +327,27 @@
 				touchStartX = ev.changedTouches[0].clientX;
 			}
 		});
+		window.addEventListener("touchmove", ev => {
+			if (ev.target !== previewImage || !touchStartX) {
+				return;
+			}
+
+			let diff = (ev.changedTouches[0].clientX - touchStartX);
+
+			// Add some lag.
+			if (Math.abs(diff) < 30) {
+				return;
+			}
+
+			// Slow down.
+			diff /= 1.5;
+
+			previewImage.style["background-position-x"] = `calc(50% + ${diff / 2}px)`;
+		});
 		window.addEventListener("touchend", ev => {
+			// Always reset to center.
+			previewImage.style["background-position-x"] = "50%";
+
 			if (ev.target !== previewImage || !touchStartX) {
 				return;
 			}
