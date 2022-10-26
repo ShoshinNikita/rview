@@ -199,7 +199,7 @@
 		const previewImage = document.getElementsByClassName("preview-image")[0];
 		const fileInfos = document.getElementsByClassName("preview-file-info-value");
 
-		let scrollIntervalID = 0;
+		let scrollIntervalID = 0, prevScrollLeft = null;
 		const updatePreview = (filename) => {
 			// Stop scroll animation to avoid any conflicts.
 			clearInterval(scrollIntervalID);
@@ -219,11 +219,14 @@
 
 				scrollIntervalID = setInterval(() => {
 					const diff = selector.scrollLeft - wantScrollLeft;
-					if (Math.abs(diff) <= delta) {
+					if (Math.abs(diff) <= delta || selector.scrollLeft === prevScrollLeft) {
 						selector.scrollLeft = wantScrollLeft;
+						prevScrollLeft = null;
 						clearInterval(scrollIntervalID);
 						return;
 					}
+
+					prevScrollLeft = selector.scrollLeft;
 
 					if (diff > 0) {
 						selector.scrollLeft -= delta;
@@ -299,7 +302,6 @@
 		};
 
 		window.addEventListener("hashchange", () => {
-			console.log(isPreviewOpened);
 			updatePreview(extractFilenameFromHash());
 
 			if (!isPreviewOpened) {
