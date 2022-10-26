@@ -83,12 +83,17 @@
 		@media only screen and (max-width: 900px) {
 			.preview {
 				grid-template-columns: none;
-				grid-template-rows: auto max-content;
-				row-gap: 20px;
+				grid-template-rows: repeat(2, max-content);
+				row-gap: 10px;
+			}
+
+			.preview-image {
+				/* Move image to the bottom */
+				grid-row-start: -1;
 			}
 
 			.preview-side-panel {
-				align-items: flex-end;
+				column-gap: 10px;
 				flex-direction: row;
 			}
 
@@ -258,28 +263,35 @@
 			downloadButton.download = entry.filename;
 		};
 
+		function swipe(direction) {
+			const filename = extractFilenameFromHash();
+			let newIndex = entries.findIndex(v => v.filename == filename);
+			if (newIndex === -1) {
+				newIndex = 0;
+			}
+
+			if (direction > 0) {
+				newIndex++;
+			} else {
+				newIndex--;
+			}
+
+			if (newIndex < 0) {
+				newIndex = 0;
+			}
+			if (newIndex >= entries.length) {
+				newIndex = entries.length - 1;
+			}
+
+			window.location.hash = "#" + entries[newIndex].filename;
+		}
+
 		const handleKeyDown = (ev) => {
-			if (ev.key === "ArrowRight" || ev.key === "ArrowLeft") {
-				const filename = extractFilenameFromHash();
-				let newIndex = entries.findIndex(v => v.filename == filename);
-				if (newIndex === -1) {
-					newIndex = 0;
-				}
+			if (ev.key === "ArrowRight") {
+				swipe(1);
 
-				if (ev.key == "ArrowRight") {
-					newIndex++;
-				} else {
-					newIndex--;
-				}
-
-				if (newIndex < 0) {
-					newIndex = 0;
-				}
-				if (newIndex >= entries.length) {
-					newIndex = entries.length - 1;
-				}
-
-				window.location.hash = "#" + entries[newIndex].filename;
+			} else if (ev.key === "ArrowLeft") {
+				swipe(-1);
 
 			} else if (ev.key === "Escape") {
 				window.parent.postMessage({ name: "preview.close" });
@@ -305,6 +317,25 @@
 			} else if (ev.data.name === "preview.closed") {
 				isPreviewOpened = false;
 			}
+		});
+
+		let touchStartX = 0;
+		window.addEventListener("touchstart", ev => {
+			if (ev.target === previewImage) {
+				touchStartX = ev.changedTouches[0].clientX;
+			}
+		});
+		window.addEventListener("touchend", ev => {
+			if (ev.target !== previewImage || !touchStartX) {
+				return;
+			}
+
+			const diff = touchStartX - ev.changedTouches[0].clientX;
+			if (Math.abs(diff) > previewImage.clientWidth / 3) {
+				swipe(diff);
+			}
+
+			touchStartX = 0;
 		})
 	</script>
 </body>

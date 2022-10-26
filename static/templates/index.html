@@ -10,6 +10,12 @@
 
 	<link rel="stylesheet" href="/static/styles/common.css">
 
+	<style>
+		.noscroll {
+			overflow: hidden;
+		}
+	</style>
+
 	<!-- Header -->
 	<style>
 		.header {
@@ -308,6 +314,7 @@
 		const previewIframe = document.getElementsByClassName("preview-iframe")[0];
 
 		const openPreview = (filename) => {
+			document.body.classList.add("noscroll");
 			preview.classList.add("opened");
 
 			previewIframe.contentWindow.postMessage({ name: "preview.opened", filename: filename });
@@ -320,6 +327,7 @@
 			previewIframe.contentWindow.postMessage({ name: "preview.closed" });
 
 			preview.classList.remove("opened");
+			document.body.classList.remove("noscroll");
 		};
 
 		window.addEventListener("message", (ev) => {
