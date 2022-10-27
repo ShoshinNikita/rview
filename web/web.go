@@ -18,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
@@ -26,33 +27,26 @@ import (
 const maxFileSizeForCache = 512 << 10 // 512 KiB
 
 type Server struct {
-	httpServer    *http.Server
-	httpClient    *http.Client
-	rcloneBaseURL *url.URL
-	resizer       rview.ImageResizer
-	cache         rview.Cache
-	iconsFS       fs.FS
-	templatesFS   fs.FS
-
-	gitHash string
+	cfg         config.Config
+	httpServer  *http.Server
+	httpClient  *http.Client
+	resizer     rview.ImageResizer
+	cache       rview.Cache
+	iconsFS     fs.FS
+	templatesFS fs.FS
 }
 
-func NewServer(
-	port int, gitHash string, debug bool, rcloneBaseURL *url.URL,
-	resizer rview.ImageResizer, cache rview.Cache,
-) (s *Server) {
+func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache) (s *Server) {
 
 	s = &Server{
-		rcloneBaseURL: rcloneBaseURL,
+		cfg: cfg,
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
 		resizer:     resizer,
 		cache:       cache,
-		iconsFS:     static.NewIconsFS(debug),
-		templatesFS: static.NewTemplatesFS(debug),
-		//
-		gitHash: gitHash,
+		iconsFS:     static.NewIconsFS(cfg.Debug),
+		templatesFS: static.NewTemplatesFS(cfg.Debug),
 	}
 
 	mux := http.NewServeMux()
@@ -71,13 +65,13 @@ func NewServer(
 	// Static
 	for pattern, fs := range map[string]fs.FS{
 		"/static/icons/":     s.iconsFS,
-		"/static/fileicons/": static.NewFileIconsFS(debug),
-		"/static/styles/":    static.NewStylesFS(debug),
-		"/static/js/":        static.NewScriptsFS(debug),
+		"/static/fileicons/": static.NewFileIconsFS(cfg.Debug),
+		"/static/styles/":    static.NewStylesFS(cfg.Debug),
+		"/static/js/":        static.NewScriptsFS(cfg.Debug),
 	} {
 		handler := http.FileServer(http.FS(fs))
-		if !debug {
-			handler = cacheMiddleware(14*24*time.Hour, gitHash, handler)
+		if !cfg.Debug {
+			handler = cacheMiddleware(14*24*time.Hour, cfg.GitHash, handler)
 		}
 		handler = http.StripPrefix(pattern, handler)
 		mux.Handle(pattern, handler)
@@ -89,7 +83,7 @@ func NewServer(
 	mux.HandleFunc("/api/thumbnail", s.handleThumbnail)
 
 	s.httpServer = &http.Server{
-		Addr:    ":" + strconv.Itoa(port),
+		Addr:    ":" + strconv.Itoa(cfg.ServerPort),
 		Handler: mux,
 	}
 
@@ -215,7 +209,7 @@ func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Value
 		rlog.Debugf("rclone info for %q was loaded in %s", path, time.Since(now))
 	}()
 
-	rcloneURL := s.rcloneBaseURL.JoinPath(path)
+	rcloneURL := s.cfg.RcloneURL.JoinPath(path)
 	rcloneURL.RawQuery = url.Values{
 		"sort":  query["sort"],
 		"order": query["order"],
@@ -251,8 +245,8 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		//
 		ShortGitHash: "unknown",
 	}
-	if s.gitHash != "" {
-		info.ShortGitHash = s.gitHash
+	if s.cfg.GitHash != "" {
+		info.ShortGitHash = s.cfg.GitHash
 		if len(info.ShortGitHash) > 7 {
 			info.ShortGitHash = info.ShortGitHash[:7]
 		}
@@ -443,7 +437,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
-	rcloneURL := s.rcloneBaseURL.JoinPath(id.GetPath())
+	rcloneURL := s.cfg.RcloneURL.JoinPath(id.GetPath())
 	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't prepare request: %w", err)

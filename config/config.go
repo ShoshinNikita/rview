@@ -10,31 +10,33 @@ import (
 
 type Config struct {
 	ServerPort int
-	RcloneURL  FlagURL
+	RcloneURL  *url.URL
 	Dir        string
 	Debug      bool
 
-	ResizedImageMaxAge        time.Duration
-	ResizedImagesMaxTotalSize int64
+	Resizer             bool
+	ResizerMaxAge       time.Duration
+	ResizerMaxTotalSize int64
 
+	WebCache             bool
 	WebCacheMaxAge       time.Duration
 	WebCacheMaxTotalSize int64
 
 	GitHash string
 }
 
-type FlagURL struct {
+type flagURL struct {
 	URL *url.URL
 }
 
-func (u *FlagURL) MarshalText() ([]byte, error) {
+func (u *flagURL) MarshalText() ([]byte, error) {
 	if u.URL == nil {
 		return nil, nil
 	}
 	return []byte(u.URL.String()), nil
 }
 
-func (u *FlagURL) UnmarshalText(text []byte) (err error) {
+func (u *flagURL) UnmarshalText(text []byte) (err error) {
 	if len(text) == 0 {
 		return errors.New("url can't be empty")
 	}
@@ -43,23 +45,29 @@ func (u *FlagURL) UnmarshalText(text []byte) (err error) {
 }
 
 func Parse() (cfg Config, err error) {
+	var rcloneURL flagURL
+
 	flag.IntVar(&cfg.ServerPort, "port", 8080, "server port")
-	flag.TextVar(&cfg.RcloneURL, "rclone-url", &FlagURL{}, "rclone base url")
+	flag.TextVar(&rcloneURL, "rclone-url", &flagURL{}, "rclone base url")
 	flag.StringVar(&cfg.Dir, "dir", "./var", "data dir")
 	flag.BoolVar(&cfg.Debug, "debug", false, "enable debug logs")
 	//
-	flag.DurationVar(&cfg.ResizedImageMaxAge, "resized-images-max-age", 60*24*time.Hour, "max age of resized images")
-	flag.Int64Var(&cfg.ResizedImagesMaxTotalSize, "resized-images-max-total-size", 200<<20, "max total size of resized images, bytes")
+	flag.BoolVar(&cfg.Resizer, "resizer", true, "enable or disable image resizer")
+	flag.DurationVar(&cfg.ResizerMaxAge, "resizer-max-age", 60*24*time.Hour, "max age of resized images")
+	flag.Int64Var(&cfg.ResizerMaxTotalSize, "resizer-max-total-size", 200<<20, "max total size of resized images, bytes")
 	//
+	flag.BoolVar(&cfg.WebCache, "web-cache", true, "enable or disable web cache")
 	flag.DurationVar(&cfg.WebCacheMaxAge, "web-cache-max-age", 60*24*time.Hour, "max age of web cache")
 	flag.Int64Var(&cfg.WebCacheMaxTotalSize, "web-cache-max-total-size", 200<<20, "max total size of web cache, bytes")
 
 	flag.Parse()
 
+	cfg.RcloneURL = rcloneURL.URL
+
 	if cfg.ServerPort == 0 {
 		return cfg, errors.New("server port must be > 0")
 	}
-	if cfg.RcloneURL.URL == nil {
+	if cfg.RcloneURL == nil {
 		return cfg, errors.New("rclone base url can't be empty")
 	}
 	if cfg.Dir == "" {

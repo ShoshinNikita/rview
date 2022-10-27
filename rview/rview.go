@@ -56,11 +56,16 @@ type Cache interface {
 	GetSaveWriter(id FileID) (io.WriteCloser, error)
 }
 
+type CacheCleaner interface {
+	Shutdown(ctx context.Context) error
+}
+
 type ImageResizer interface {
 	CanResize(id FileID) bool
 	IsResized(id FileID) bool
 	OpenResized(ctx context.Context, id FileID) (io.ReadCloser, error)
 	Resize(id FileID, openFileFn OpenFileFn) error
+	Shutdown(ctx context.Context) error
 }
 
 type OpenFileFn func(ctx context.Context, id FileID) (io.ReadCloser, error)
