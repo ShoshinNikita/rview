@@ -158,6 +158,20 @@
 			z-index: 1;
 		}
 
+		.thumbnail~.icon {
+			/* Use thumbnail if available */
+			display: none;
+		}
+
+		.thumbnail.failed {
+			display: none;
+		}
+
+		.thumbnail.failed+.icon {
+			/* Fallback to icon in case of image load error */
+			display: initial;
+		}
+
 		.loader {
 			animation: spin 1.2s linear infinite;
 			border: 5px solid var(--loader-border-color);
@@ -170,8 +184,9 @@
 			width: 50px;
 		}
 
-		.thumbnail.loaded+.loader {
-			/* Hide loader after image load */
+		.thumbnail.loaded~.loader,
+		.thumbnail.failed~.loader {
+			/* Hide loader after image load or error */
 			display: none;
 		}
 
@@ -293,11 +308,15 @@
 			<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}" {{ attr $attrs }}>
 				<div class="icon-wrapper">
 					{{ if .ThumbnailURL }}
-					<img src="{{ .ThumbnailURL }}" class="thumbnail" loading="lazy" onload="this.classList.add('loaded')">
-					{{ else }}
-					<object data="{{ .IconURL }}" type="image/svg+xml" class="icon" tabindex="-1"></object>
+					<img
+						src="{{ .ThumbnailURL }}"
+						class="thumbnail"
+						loading="lazy"
+						onload="this.classList.add('loaded')"
+						onerror="this.classList.add('failed')">
 					{{ end }}
 
+					<object data="{{ .IconURL }}" type="image/svg+xml" class="icon" tabindex="-1"></object>
 					<div class="loader"></div>
 				</div>
 
