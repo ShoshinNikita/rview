@@ -39,8 +39,8 @@ type (
 		OriginalFileURL string `json:"original_file_url,omitempty"`
 		// ThumbnailURL is an url that should be used to open a thumbnail file (not empty only for images).
 		ThumbnailURL string `json:"thumbnail_url,omitempty"`
-		// IconURL is an url to an icon. The icon choice is based on filename and file extension.
-		IconURL string `json:"icon_url,omitempty"`
+		// IconName is an name of an file icon. The icon choice is based on filename and file extension.
+		IconName string `json:"icon_name,omitempty"`
 	}
 )
 

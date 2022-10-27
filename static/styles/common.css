@@ -83,11 +83,6 @@ a:hover {
 	text-decoration: underline;
 }
 
-object {
-	/* Required to display pointer cursor */
-	pointer-events: none;
-}
-
 /* Scrollbar */
 
 * {

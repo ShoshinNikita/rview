@@ -27,25 +27,32 @@ import (
 const maxFileSizeForCache = 512 << 10 // 512 KiB
 
 type Server struct {
-	cfg         config.Config
-	httpServer  *http.Server
-	httpClient  *http.Client
-	resizer     rview.ImageResizer
-	cache       rview.Cache
+	cfg config.Config
+
+	httpServer *http.Server
+	httpClient *http.Client
+
+	resizer rview.ImageResizer
+	cache   rview.Cache
+
 	iconsFS     fs.FS
+	fileIconsFS fs.FS
 	templatesFS fs.FS
 }
 
 func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache) (s *Server) {
-
 	s = &Server{
 		cfg: cfg,
+		//
 		httpClient: &http.Client{
 			Timeout: time.Minute,
 		},
-		resizer:     resizer,
-		cache:       cache,
+		//
+		resizer: resizer,
+		cache:   cache,
+		//
 		iconsFS:     static.NewIconsFS(cfg.Debug),
+		fileIconsFS: static.NewFileIconsFS(cfg.Debug),
 		templatesFS: static.NewTemplatesFS(cfg.Debug),
 	}
 
@@ -65,7 +72,7 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache)
 	// Static
 	for pattern, fs := range map[string]fs.FS{
 		"/static/icons/":     s.iconsFS,
-		"/static/fileicons/": static.NewFileIconsFS(cfg.Debug),
+		"/static/fileicons/": s.fileIconsFS,
 		"/static/styles/":    static.NewStylesFS(cfg.Debug),
 		"/static/js/":        static.NewScriptsFS(cfg.Debug),
 	} {
@@ -157,17 +164,10 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 				return template.HTMLAttr(s)
 			},
 			"embedIcon": func(name string) (template.HTML, error) {
-				f, err := s.iconsFS.Open(name + ".svg")
-				if err != nil {
-					return "", fmt.Errorf("couldn't open icon %q: %w", name, err)
-				}
-				defer f.Close()
-
-				data, err := io.ReadAll(f)
-				if err != nil {
-					return "", fmt.Errorf("couldn't read icon %q: %w", name, err)
-				}
-				return template.HTML(data), nil
+				return embedIcon(s.iconsFS, name)
+			},
+			"embedFileIcon": func(name string) (template.HTML, error) {
+				return embedIcon(s.fileIconsFS, name)
 			},
 		}).
 		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html")
@@ -184,6 +184,23 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 	}
 
 	io.Copy(w, buf)
+}
+
+func embedIcon(fs fs.FS, name string) (template.HTML, error) {
+	if !strings.HasSuffix(name, ".svg") {
+		name += ".svg"
+	}
+	f, err := fs.Open(name)
+	if err != nil {
+		return "", fmt.Errorf("couldn't open icon %q: %w", name, err)
+	}
+	defer f.Close()
+
+	data, err := io.ReadAll(f)
+	if err != nil {
+		return "", fmt.Errorf("couldn't read icon %q: %w", name, err)
+	}
+	return template.HTML(data), nil
 }
 
 // getDirInfo requests the directory information from Rclone and converts it into
@@ -330,7 +347,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			DirURL:          dirURL,
 			WebDirURL:       webDirURL,
 			OriginalFileURL: originalFileURL,
-			IconURL:         "/static/fileicons/" + static.GetFileIcon(filename, entry.IsDir),
+			IconName:        static.GetFileIcon(filename, entry.IsDir),
 		})
 	}
 	return info, nil

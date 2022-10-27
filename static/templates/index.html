@@ -150,6 +150,13 @@
 		.icon {
 			background-color: var(--background-color);
 			height: 100px;
+			margin: auto;
+			width: 100px;
+		}
+
+		.icon svg {
+			height: 100%;
+			width: 100%;
 		}
 
 		.icon,
@@ -316,7 +323,9 @@
 						onerror="this.classList.add('failed')">
 					{{ end }}
 
-					<object data="{{ .IconURL }}" type="image/svg+xml" class="icon" tabindex="-1"></object>
+					<div class="icon">
+						{{ embedFileIcon .IconName }}
+					</div>
 					<div class="loader"></div>
 				</div>
 
