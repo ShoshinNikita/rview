@@ -170,6 +170,11 @@
 			width: 50px;
 		}
 
+		.thumbnail.loaded+.loader {
+			/* Hide loader after image load */
+			display: none;
+		}
+
 		@keyframes spin {
 			0% {
 				transform: translate(-50%, -50%) rotate(0deg);
@@ -287,13 +292,13 @@
 		<div class="entry-wrapper">
 			<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}" {{ attr $attrs }}>
 				<div class="icon-wrapper">
-					<div class="loader"></div>
-
 					{{ if .ThumbnailURL }}
-					<img src="{{ .ThumbnailURL }}" class="thumbnail" loading="lazy">
+					<img src="{{ .ThumbnailURL }}" class="thumbnail" loading="lazy" onload="this.classList.add('loaded')">
 					{{ else }}
 					<object data="{{ .IconURL }}" type="image/svg+xml" class="icon" tabindex="-1"></object>
 					{{ end }}
+
+					<div class="loader"></div>
 				</div>
 
 				<span class="entry-filename">{{ .Filename }}</span>
