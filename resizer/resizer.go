@@ -124,7 +124,7 @@ func (r *ImageResizer) resize(ctx context.Context, task resizeTask) (_ image.Ima
 	defer rc.Close()
 
 	readCounter := &readWriteCounter{r: rc}
-	img, err := imaging.Decode(readCounter)
+	img, err := imaging.Decode(readCounter, imaging.AutoOrientation(true))
 	if err != nil {
 		return nil, 0, fmt.Errorf("couldn't decode image: %w", err)
 	}
