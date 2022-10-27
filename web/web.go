@@ -230,9 +230,15 @@ func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Value
 		return RcloneInfo{}, fmt.Errorf("got unexpected status code from rclone: %d, body: %q", resp.StatusCode, body)
 	}
 
+	buf := bytes.NewBuffer(nil)
+	body := io.TeeReader(resp.Body, buf)
+
 	var rcloneInfo RcloneInfo
-	err = json.NewDecoder(resp.Body).Decode(&rcloneInfo)
+	err = json.NewDecoder(body).Decode(&rcloneInfo)
 	if err != nil {
+		if strings.Contains(buf.String(), "<!DOCTYPE html>") {
+			return RcloneInfo{}, errors.New(`rclone returned HTML response, did you use "--template" option?`)
+		}
 		return RcloneInfo{}, fmt.Errorf("couldn't decode rclone response: %w", err)
 	}
 
