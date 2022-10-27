@@ -83,8 +83,9 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache)
 	mux.HandleFunc("/api/thumbnail", s.handleThumbnail)
 
 	s.httpServer = &http.Server{
-		Addr:    ":" + strconv.Itoa(cfg.ServerPort),
-		Handler: mux,
+		Addr:              ":" + strconv.Itoa(cfg.ServerPort),
+		Handler:           mux,
+		ReadHeaderTimeout: 5 * time.Second,
 	}
 
 	return s
@@ -428,7 +429,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writer, close := s.getFileWriter(w, rcloneHeaders, fileID)
-	defer close()
+	defer close() //nolint:errcheck
 
 	_, err = io.Copy(writer, rc)
 	if err != nil {

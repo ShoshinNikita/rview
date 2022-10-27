@@ -93,6 +93,7 @@ func TestPrepareFileIcons(t *testing.T) {
 	rlog.Infof("%d icons were removed", removedIconsCount)
 }
 
+//nolint:tagliatelle
 type OriginalIconsData struct {
 	IconDefinitions map[string]struct {
 		IconPath string `json:"iconPath"`

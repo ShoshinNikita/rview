@@ -27,7 +27,7 @@ func NewStylesFS(debug bool) fs.FS {
 var scriptsFS embed.FS
 
 func NewScriptsFS(debug bool) fs.FS {
-	return newFS(stylesFS, "js", debug)
+	return newFS(scriptsFS, "js", debug)
 }
 
 //go:embed feathericons/icons
@@ -52,10 +52,10 @@ func NewFileIconsFS(debug bool) fs.FS {
 type FileIconsData struct {
 	ready bool
 
-	IconDefinitions map[string]string `json:"iconDefinitions"`
-	FolderNames     map[string]string `json:"folderNames"`
-	FileExtensions  map[string]string `json:"fileExtensions"`
-	FileNames       map[string]string `json:"fileNames"`
+	IconDefinitions map[string]string `json:"icon_definitions"`
+	FolderNames     map[string]string `json:"folder_names"`
+	FileExtensions  map[string]string `json:"file_extensions"`
+	FileNames       map[string]string `json:"file_names"`
 }
 
 var fileIconsData FileIconsData

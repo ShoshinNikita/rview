@@ -126,7 +126,7 @@ func (r *ImageResizer) resize(ctx context.Context, task resizeTask) (_ image.Ima
 	readCounter := &readWriteCounter{r: rc}
 	img, err := imaging.Decode(readCounter)
 	if err != nil {
-		return nil, 0, fmt.Errorf("couldn't decode image: %s", err)
+		return nil, 0, fmt.Errorf("couldn't decode image: %w", err)
 	}
 
 	width, height, shouldResize := thumbnail(img.Bounds(), maxWidth, maxHeight)

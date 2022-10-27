@@ -1,0 +1,64 @@
+run:
+  modules-download-mode: vendor
+
+linters:
+  disable-all: true
+  enable:
+    - asciicheck
+    - bodyclose
+    - durationcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exportloopref
+    - goconst
+    - gocritic
+    - goerr113
+    - gofmt
+    - goimports
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - govet
+    - ineffassign
+    - misspell
+    - nestif
+    - nilerr
+    - nilnil
+    - noctx
+    - nolintlint
+    - revive
+    - staticcheck
+    - tagliatelle
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+
+linters-settings:
+  errcheck:
+    exclude-functions:
+      - io.Copy
+      - (*encoding/json.Encoder).Encode
+  tagliatelle:
+    case:
+      use-field-name: true
+      rules:
+        json: snake
+
+issues:
+  exclude:
+    # Ignore underscores in test functions
+    - "use underscores in Go names; (?:func|type) (?:T|t)est"
+
+  exclude-rules:
+    - linters:
+        - goerr113
+      text: "do not define dynamic errors"
+    - linters:
+        - gosec
+      text: "G203: The used method does not auto-escape HTML"
+
+  # Display all issues
+  max-issues-per-linter: 0
+  max-same-issues: 0
