@@ -1,19 +1,2 @@
-*
-
-# Include .git to embed a git hash
-!.git/
-!cache/
-!config/
-!rclone/
-!resizer/
-!rlog/
-!rview/
-!static/
-!util/
-!vendor/
-!web/
-
-!Makefile
-!go.mod
-!go.sum
-!main.go
+# Don't use .dockerignore because it causes a dirty git working tree. So,
+# we always use "devel" build info.
