@@ -9,8 +9,8 @@
 	--hover-background-color: #e5f3ff;
 	--hover-border-color: #b2dbff;
 
-	--interactive-color: #0275d8;
-	--interactive-color--accent: #025aa5;
+	--interactive-color: #3f98ff;
+	--interactive-color--accent: #258bff;
 
 	--loader-border-color: #f0f4f4;
 	--loader-border-color--accent: var(--interactive-color);
@@ -44,8 +44,7 @@
 	--hover-background-color: #21262c;
 	--hover-border-color: #373f49;
 
-	--interactive-color: #0175d8;
-	--interactive-color--accent: #0283f1;
+	--interactive-color--accent: #58a6ff;
 
 	--loader-border-color: var(--font-color);
 
