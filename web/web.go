@@ -83,7 +83,7 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache)
 	} {
 		handler := http.FileServer(http.FS(fs))
 		if !cfg.Debug {
-			handler = cacheMiddleware(14*24*time.Hour, cfg.GitHash, handler)
+			handler = cacheMiddleware(14*24*time.Hour, cfg.ShortGitHash, handler)
 		}
 		handler = http.StripPrefix(pattern, handler)
 		mux.Handle(pattern, handler)
@@ -272,13 +272,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
 		//
-		ShortGitHash: "unknown",
-	}
-	if s.cfg.GitHash != "" {
-		info.ShortGitHash = s.cfg.GitHash
-		if len(info.ShortGitHash) > 7 {
-			info.ShortGitHash = info.ShortGitHash[:7]
-		}
+		ShortGitHash: s.cfg.ShortGitHash,
 	}
 
 	var dirParts []string

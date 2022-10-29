@@ -3,11 +3,16 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"os"
 	"runtime/debug"
+	"strconv"
 	"time"
 )
 
 type Config struct {
+	BuildInfo
+
 	ServerPort int
 	Dir        string
 	Debug      bool
@@ -22,11 +27,19 @@ type Config struct {
 	WebCache             bool
 	WebCacheMaxAge       time.Duration
 	WebCacheMaxTotalSize int64
+}
 
-	GitHash string
+type BuildInfo struct {
+	ShortGitHash string
+	BuildTime    string
 }
 
 func Parse() (cfg Config, err error) {
+	cfg.BuildInfo = readBuildInfo()
+
+	var printVersion bool
+	flag.BoolVar(&printVersion, "version", false, "print version and exit")
+	//
 	flag.IntVar(&cfg.ServerPort, "port", 8080, "server port")
 	flag.StringVar(&cfg.Dir, "dir", "./var", "data dir")
 	flag.BoolVar(&cfg.Debug, "debug", false, "enable debug logs")
@@ -44,6 +57,11 @@ func Parse() (cfg Config, err error) {
 
 	flag.Parse()
 
+	if printVersion {
+		PrintBuildInfo(cfg.BuildInfo)
+		os.Exit(0)
+	}
+
 	if cfg.ServerPort == 0 {
 		return cfg, errors.New("server port must be > 0")
 	}
@@ -54,20 +72,63 @@ func Parse() (cfg Config, err error) {
 		return cfg, errors.New("dir can't be empty")
 	}
 
-	cfg.GitHash = readGitHash()
-
 	return cfg, nil
 }
 
-func readGitHash() string {
+func readBuildInfo() (res BuildInfo) {
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
-		return ""
+		return res
 	}
+
+	var isDevel bool
 	for _, s := range info.Settings {
-		if s.Key == "vcs.revision" {
-			return s.Value
+		switch s.Key {
+		case "vcs.revision":
+			res.ShortGitHash = s.Value
+			if len(res.ShortGitHash) > 7 {
+				res.ShortGitHash = res.ShortGitHash[:7]
+			}
+
+		case "vcs.time":
+			t, err := time.Parse(time.RFC3339, s.Value)
+			if err == nil {
+				res.BuildTime = t.UTC().Format("2006-01-02 15:04:05 UTC")
+			}
+
+		case "vcs.modified":
+			isDevel, _ = strconv.ParseBool(s.Value)
 		}
 	}
-	return ""
+
+	set := func(s *string) {
+		switch {
+		case isDevel:
+			*s = "devel"
+		case *s == "":
+			*s = "unknown"
+		}
+	}
+	set(&res.ShortGitHash)
+	set(&res.BuildTime)
+
+	return res
+}
+
+func PrintBuildInfo(info BuildInfo) {
+	fmt.Printf(`
+     _____          _                 
+    |  __ \        (_)                
+    | |__) |__   __ _   ___ __      __
+    |  _  / \ \ / /| | / _ \\ \ /\ / /
+    | | \ \  \ V / | ||  __/ \ V  V / 
+    |_|  \_\  \_/  |_| \___|  \_/\_/  
+
+    Commit:     %q
+    Build Time: %q
+
+`,
+		info.ShortGitHash,
+		info.BuildTime,
+	)
 }

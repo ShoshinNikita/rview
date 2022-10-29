@@ -3,8 +3,10 @@ package rclone
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"strconv"
@@ -102,7 +104,7 @@ func (r *Rclone) redirectRcloneLogs(pipe io.Reader) {
 	for s.Scan() {
 		rlog.Infof("[RCLONE]: %s", s.Text())
 	}
-	if err := s.Err(); err != nil {
+	if err := s.Err(); err != nil && !errors.Is(err, fs.ErrClosed) {
 		rlog.Errorf("couldn't read rclone logs: %s", err)
 	}
 }

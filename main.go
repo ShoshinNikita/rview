@@ -24,7 +24,7 @@ func main() {
 		rlog.Fatalf("invalid config: %s", err)
 	}
 
-	rlog.Infof("git hash: %q", cfg.GitHash)
+	config.PrintBuildInfo(cfg.BuildInfo)
 
 	if cfg.Debug {
 		rlog.EnableDebug()
