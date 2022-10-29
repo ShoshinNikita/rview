@@ -6,9 +6,13 @@ run: build
 
 build:
 	@ echo "Build..."
-	@ go build -o ./bin/rview
+	@ CGO_ENABLED=0 go build -ldflags "-s -w" -o ./bin/rview
 
-check: lint test
+docker-build:
+	@ echo "Build Docker Image..."
+	@ docker build -t rview .
+
+check: lint test build docker-build
 
 test:
 	@ echo "Run tests..."
@@ -26,4 +30,4 @@ lint:
 		-v $(shell go env GOPATH)/pkg:/go/pkg \
 		-v $(shell pwd):/app \
 		-w /app \
-		golangci/golangci-lint:v1.50-alpine golangci-lint run --config .golangci.yml -v
+		golangci/golangci-lint:v1.50-alpine golangci-lint run --config .golangci.yml

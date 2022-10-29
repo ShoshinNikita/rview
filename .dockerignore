@@ -1,0 +1,19 @@
+*
+
+# Include .git to embed a git hash
+!.git/
+!cache/
+!config/
+!rclone/
+!resizer/
+!rlog/
+!rview/
+!static/
+!util/
+!vendor/
+!web/
+
+!Makefile
+!go.mod
+!go.sum
+!main.go
