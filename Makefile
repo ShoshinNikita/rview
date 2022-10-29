@@ -16,7 +16,11 @@ check: lint test build docker-build
 
 test:
 	@ echo "Run tests..."
-	@ go test -v -count=1 ./...
+	@ go test -v -count=1 \
+		-cover -coverprofile=_cover.out -coverpkg=github.com/ShoshinNikita/rview/... \
+		./...
+	@ go tool cover -func=_cover.out
+	@ rm _cover.out
 
 # Use go cache to speed up execution: https://github.com/golangci/golangci-lint/issues/1004
 lint:
