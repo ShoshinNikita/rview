@@ -27,7 +27,8 @@ import (
 const maxFileSizeForCache = 512 << 10 // 512 KiB
 
 type Server struct {
-	cfg config.Config
+	cfg       config.Config
+	rcloneURL *url.URL
 
 	httpServer *http.Server
 	httpClient *http.Client
@@ -43,6 +44,10 @@ type Server struct {
 func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache) (s *Server) {
 	s = &Server{
 		cfg: cfg,
+		rcloneURL: &url.URL{
+			Scheme: "http",
+			Host:   "localhost:" + strconv.Itoa(cfg.RclonePort),
+		},
 		//
 		httpClient: &http.Client{
 			Timeout: time.Minute,
@@ -227,7 +232,7 @@ func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Value
 		rlog.Debugf("rclone info for %q was loaded in %s", path, time.Since(now))
 	}()
 
-	rcloneURL := s.cfg.RcloneURL.JoinPath(path)
+	rcloneURL := s.rcloneURL.JoinPath(path)
 	rcloneURL.RawQuery = url.Values{
 		"sort":  query["sort"],
 		"order": query["order"],
@@ -461,7 +466,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
-	rcloneURL := s.cfg.RcloneURL.JoinPath(id.GetPath())
+	rcloneURL := s.rcloneURL.JoinPath(id.GetPath())
 	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't prepare request: %w", err)
@@ -469,6 +474,9 @@ func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, h
 	resp, err := s.httpClient.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("request failed: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil, fmt.Errorf("got invalid status code: %d", resp.StatusCode)
 	}
 
 	return resp.Body, resp.Header, nil

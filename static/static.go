@@ -9,6 +9,9 @@ import (
 	"strings"
 )
 
+//go:embed rclone.gotmpl
+var RcloneTemplate string
+
 //go:embed templates
 var templatesFS embed.FS
 

@@ -2,7 +2,7 @@ default: run
 
 run: build
 	@ echo "Run..."
-	@ ./bin/rview --port=8090 --rclone-url=http://localhost:8080 --dir=_var --debug
+	@ ./bin/rview --port=8090 --dir=_var --debug --rclone-target=$(shell pwd)
 
 build:
 	@ echo "Build..."
