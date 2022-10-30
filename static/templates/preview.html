@@ -123,7 +123,7 @@
 		}
 
 		.thumbnail-wrapper:hover,
-		.thumbnail-wrapper:target {
+		.thumbnail-wrapper.chosen {
 			background-color: var(--hover-background-color);
 			border: var(--hover-border);
 		}
@@ -179,7 +179,7 @@
 		{{ end }}
 
 		<li id="{{ .Filename }}" class="thumbnail-wrapper">
-			<a href="#{{ .Filename }}" class="thumbnail" title="{{ .Filename }}">
+			<a href="#" class="thumbnail" title="{{ .Filename }}" onclick="updatePreview('{{ .Filename }}')">
 				<img src="{{ .ThumbnailURL }}">
 			</a>
 		</li>
@@ -191,10 +191,7 @@
 		const entries = JSON.parse(`{{ .Entries }}`).filter(v => { return v.thumbnail_url; });
 
 		let isPreviewOpened = false;
-
-		const extractFilenameFromHash = () => {
-			return decodeURIComponent(window.location.hash).substr(1);
-		};
+		let currentFilename = null;
 
 		const previewImage = document.getElementsByClassName("preview-image")[0];
 		const fileInfos = document.getElementsByClassName("preview-file-info-value");
@@ -240,7 +237,6 @@
 				selector.scrollLeft = wantScrollLeft;
 			}
 
-
 			// Update preview.
 			previewImage.style["background-image"] = `url(${entry.thumbnail_url})`;
 
@@ -264,11 +260,17 @@
 			const downloadButton = document.getElementsByClassName("preview-download-button")[0];
 			downloadButton.href = entry.original_file_url;
 			downloadButton.download = entry.filename;
+
+			// On the first open current filename is empty.
+			if (currentFilename) {
+				document.getElementById(currentFilename).classList.remove("chosen");
+			}
+			currentFilename = entry.filename;
+			document.getElementById(currentFilename).classList.add("chosen");
 		};
 
 		function swipe(direction) {
-			const filename = extractFilenameFromHash();
-			let newIndex = entries.findIndex(v => v.filename == filename);
+			let newIndex = entries.findIndex(v => v.filename === currentFilename);
 			if (newIndex === -1) {
 				newIndex = 0;
 			}
@@ -286,7 +288,7 @@
 				newIndex = entries.length - 1;
 			}
 
-			window.location.hash = "#" + entries[newIndex].filename;
+			updatePreview(entries[newIndex].filename);
 		}
 
 		const handleKeyDown = (ev) => {
@@ -301,20 +303,17 @@
 			}
 		};
 
-		window.addEventListener("hashchange", () => {
-			updatePreview(extractFilenameFromHash());
-
-			if (!isPreviewOpened) {
-				isPreviewOpened = true;
-			}
-		});
-
 		window.addEventListener("keydown", handleKeyDown);
 
 		window.addEventListener("message", (ev) => {
-			if (ev.data.name === "preview.opened") {
-				// Trigger event listener.
-				window.location.hash = "#" + ev.data.filename;
+			if (ev.data.name === "preview.update") {
+				updatePreview(ev.data.filename);
+
+				if (!isPreviewOpened) {
+					isPreviewOpened = true;
+				}
+
+				window.parent.postMessage({ name: "preview.ready" });
 
 			} else if (ev.data.name === "preview.closed") {
 				isPreviewOpened = false;

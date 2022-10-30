@@ -221,17 +221,18 @@
 	<style>
 		.preview {
 			height: 100%;
+			opacity: 0;
 			overflow: hidden;
 			position: fixed;
 			top: 0;
 			width: 100%;
-			display: none;
+			z-index: -1;
 		}
 
 		.preview.opened {
 			background-color: var(--preview-background-color);
+			opacity: 100%;
 			z-index: 3;
-			display: block;
 		}
 
 		.preview-iframe {
@@ -347,13 +348,20 @@
 		const previewIframe = document.getElementsByClassName("preview-iframe")[0];
 
 		const openPreview = (filename) => {
-			document.body.classList.add("noscroll");
-			preview.classList.add("opened");
+			previewIframe.contentWindow.postMessage({ name: "preview.update", filename: filename });
 
-			previewIframe.contentWindow.postMessage({ name: "preview.opened", filename: filename });
+			// Prevent image flickering by waiting for the preview.
+			const onPreviewReady = (ev) => {
+				if (ev.data.name === "preview.ready") {
+					window.removeEventListener("message", onPreviewReady);
 
-			// Focus for event listeners.
-			previewIframe.focus();
+					document.body.classList.add("noscroll");
+					preview.classList.add("opened");
+					// Focus for event listeners.
+					previewIframe.focus();
+				}
+			};
+			window.addEventListener("message", onPreviewReady);
 		};
 
 		const closePreview = () => {
