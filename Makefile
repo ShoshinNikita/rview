@@ -1,8 +1,11 @@
+include .env
+-include .env.local
+
 default: run
 
 run: build
 	@ echo "Run..."
-	@ ./bin/rview --port=8090 --dir=_var --debug --rclone-target=$(shell pwd)
+	@ ./bin/rview --port=8090 --dir=_var --debug --rclone-target=${RCLONE_TARGET}
 
 build:
 	@ echo "Build..."

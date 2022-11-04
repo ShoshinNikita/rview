@@ -24,6 +24,8 @@ func main() {
 		rlog.Fatalf("invalid config: %s", err)
 	}
 
+	// TODO: print config?
+
 	config.PrintBuildInfo(cfg.BuildInfo)
 
 	if cfg.Debug {

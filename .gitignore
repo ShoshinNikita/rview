@@ -3,4 +3,5 @@
 bin/
 _*
 
+.env.local
 material-icons.json
