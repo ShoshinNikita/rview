@@ -216,34 +216,6 @@
 			white-space: nowrap;
 		}
 	</style>
-
-	<!-- Preview -->
-	<style>
-		.preview {
-			height: 100%;
-			opacity: 0;
-			overflow: hidden;
-			position: fixed;
-			top: 0;
-			width: 100%;
-			z-index: -1;
-		}
-
-		.preview.opened {
-			background-color: var(--preview-background-color);
-			opacity: 100%;
-			z-index: 3;
-		}
-
-		.preview-iframe {
-			height: 93vh;
-			left: 50%;
-			position: fixed;
-			top: 50%;
-			transform: translate(-50%, -52%);
-			width: 90vw;
-		}
-	</style>
 </head>
 
 <body>
@@ -339,43 +311,12 @@
 
 	{{ template "footer.html" . }}
 
-	<a class="preview" title="Close Preview" onclick="closePreview()">
-		<iframe class="preview-iframe" src="/preview{{ .Dir }}" frameborder="0"></iframe>
-	</a>
+	{{ template "preview.html" . }}
 
 	<script>
-		const preview = document.getElementsByClassName("preview")[0];
-		const previewIframe = document.getElementsByClassName("preview-iframe")[0];
-
 		const openPreview = (filename) => {
-			previewIframe.contentWindow.postMessage({ name: "preview.update", filename: filename });
-
-			// Prevent image flickering by waiting for the preview.
-			const onPreviewReady = (ev) => {
-				if (ev.data.name === "preview.ready") {
-					window.removeEventListener("message", onPreviewReady);
-
-					document.body.classList.add("noscroll");
-					preview.classList.add("opened");
-					// Focus for event listeners.
-					previewIframe.focus();
-				}
-			};
-			window.addEventListener("message", onPreviewReady);
+			window.dispatchEvent(new CustomEvent("preview.open", { detail: { filename: filename } }));
 		};
-
-		const closePreview = () => {
-			previewIframe.contentWindow.postMessage({ name: "preview.closed" });
-
-			preview.classList.remove("opened");
-			document.body.classList.remove("noscroll");
-		};
-
-		window.addEventListener("message", (ev) => {
-			if (ev.data.name === "preview.close") {
-				closePreview();
-			}
-		});
 	</script>
 </body>
 

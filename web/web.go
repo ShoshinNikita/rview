@@ -72,7 +72,6 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache)
 		http.Redirect(w, r, "/ui/", http.StatusSeeOther)
 	})
 	mux.HandleFunc("/ui/", s.handleUI)
-	mux.HandleFunc("/preview/", s.handlePreview)
 
 	// Static
 	for pattern, fs := range map[string]fs.FS{
@@ -143,21 +142,6 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.executeTemplate(w, "index.html", info)
-}
-
-func (s *Server) handlePreview(w http.ResponseWriter, r *http.Request) {
-	dir := strings.TrimPrefix(r.URL.Path, "/preview")
-	if !strings.HasSuffix(dir, "/") {
-		dir += "/"
-	}
-
-	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
-	if err != nil {
-		writeInternalServerError(w, err.Error())
-		return
-	}
-
-	s.executeTemplate(w, "preview.html", info)
 }
 
 func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {

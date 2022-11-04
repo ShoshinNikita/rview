@@ -82,6 +82,17 @@ a:hover {
 	text-decoration: underline;
 }
 
+.card {
+	background-color: var(--background-color);
+	border-radius: 3px;
+	box-shadow: var(--preview-card-box-shadow);
+}
+
+.nowrap {
+	white-space: nowrap;
+	word-break: keep-all;
+}
+
 /* Scrollbar */
 
 * {

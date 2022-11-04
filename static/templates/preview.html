@@ -1,151 +1,146 @@
-<!DOCTYPE html>
-<html lang="en">
+<!-- Preview -->
+<style>
+	.preview-wrapper {
+		background-color: #00000000;
+		display: grid;
+		grid-template-rows: auto min-content;
+		height: 100vh;
+		opacity: 0;
+		overflow: hidden;
+		position: fixed;
+		padding: 3vh 5vw 4vh;
+		row-gap: 10px;
+		top: 0;
+		width: 100%;
+		z-index: -1;
+	}
 
-<head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Rview • Preview {{ .Dir }} </title>
+	.preview-wrapper.opened {
+		background-color: var(--preview-background-color);
+		opacity: 100%;
+		z-index: 3;
+	}
 
-	<script src="/static/js/theme.js"></script>
+	.preview-close-layer {
+		height: 100%;
+		position: absolute;
+		width: 100%;
+		z-index: -1;
+	}
 
-	<link rel="stylesheet" href="/static/styles/common.css">
+	.preview {
+		column-gap: 10px;
+		display: grid;
+		grid-template-columns: auto 300px;
+		padding: 20px;
+		position: relative;
+		width: 100%;
+	}
 
-	<style>
-		body {
-			background-color: #00000000;
-			display: grid;
-			grid-template-rows: auto min-content;
-			row-gap: 10px;
-			height: 100vh;
-			padding: 0;
-		}
+	.preview-image {
+		background-position: 50%;
+		background-repeat: no-repeat;
+		background-size: contain;
+		width: 100%;
+	}
 
-		.card {
-			background-color: var(--background-color);
-			border-radius: 3px;
-			box-shadow: var(--preview-card-box-shadow);
-		}
+	.preview-side-panel {
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+	}
 
-		.nowrap {
-			white-space: nowrap;
-			word-break: keep-all;
-		}
-	</style>
+	.preview-file-info {
+		font-size: 18px;
+		word-break: break-all;
+	}
 
-	<!-- Preview -->
-	<style>
+	.preview-file-info>* {
+		margin-bottom: 10px;
+	}
+
+	.preview-file-info-value {
+		font-style: italic;
+	}
+
+	.preview-download-button {
+		height: 30px;
+		margin: 0 auto;
+		width: 30px;
+	}
+
+	.preview-download-button svg {
+		height: 100%;
+		width: 100%;
+	}
+
+	@media only screen and (max-width: 900px) {
 		.preview {
-			column-gap: 10px;
-			display: grid;
-			grid-template-columns: auto 300px;
-			padding: 20px;
-			position: relative;
-			width: 100%;
+			grid-template-columns: none;
+			grid-template-rows: repeat(2, max-content);
+			row-gap: 10px;
 		}
 
 		.preview-image {
-			background-position: 50%;
-			background-repeat: no-repeat;
-			background-size: contain;
-			width: 100%;
+			/* Move image to the bottom */
+			grid-row-start: -1;
 		}
 
 		.preview-side-panel {
-			display: flex;
-			flex-direction: column;
-			justify-content: space-between;
-		}
-
-		.preview-file-info {
-			font-size: 18px;
-			word-break: break-all;
+			column-gap: 10px;
+			flex-direction: row;
 		}
 
 		.preview-file-info>* {
-			margin-bottom: 10px;
-		}
-
-		.preview-file-info-value {
-			font-style: italic;
+			margin-bottom: 3px;
 		}
 
 		.preview-download-button {
-			height: 30px;
-			margin: 0 auto;
-			width: 30px;
-		}
-
-		.preview-download-button svg {
-			height: 100%;
-			width: 100%;
-		}
-
-		@media only screen and (max-width: 900px) {
-			.preview {
-				grid-template-columns: none;
-				grid-template-rows: repeat(2, max-content);
-				row-gap: 10px;
-			}
-
-			.preview-image {
-				/* Move image to the bottom */
-				grid-row-start: -1;
-			}
-
-			.preview-side-panel {
-				column-gap: 10px;
-				flex-direction: row;
-			}
-
-			.preview-file-info>* {
-				margin-bottom: 3px;
-			}
-
-			.preview-download-button {
-				margin: 0;
-			}
-		}
-	</style>
-
-	<!-- Selector -->
-	<style>
-		.selector {
-			column-gap: 5px;
-			display: flex;
 			margin: 0;
-			overflow-x: auto;
-			padding: 5px;
 		}
+	}
+</style>
 
-		.thumbnail-wrapper {
-			border: 1px solid #00000000;
-			display: inline-block;
-		}
+<!-- Selector -->
+<style>
+	.selector {
+		column-gap: 5px;
+		display: flex;
+		margin: 0;
+		overflow-x: auto;
+		padding: 5px;
+	}
 
-		.thumbnail-wrapper:hover,
-		.thumbnail-wrapper.chosen {
-			background-color: var(--hover-background-color);
-			border: var(--hover-border);
-		}
+	.selector-thumbnail-wrapper {
+		border: 1px solid #00000000;
+		display: inline-block;
+	}
 
-		.thumbnail {
-			border: 1px solid #00000000;
-			display: flex;
-			height: 100%;
-			padding: 10px;
-			width: 100%;
-		}
+	.selector-thumbnail-wrapper:hover,
+	.selector-thumbnail-wrapper.chosen {
+		background-color: var(--hover-background-color);
+		border: var(--hover-border);
+	}
 
-		.thumbnail img {
-			align-self: center;
-			box-shadow: var(--image-box-shadow);
-			max-height: 100px;
-			max-width: 100px;
-		}
-	</style>
-</head>
+	.selector-thumbnail {
+		border: 1px solid #00000000;
+		display: flex;
+		height: 100%;
+		padding: 10px;
+		width: 100%;
+	}
 
-<body>
+	.selector-thumbnail img {
+		align-self: center;
+		box-shadow: var(--image-box-shadow);
+		max-height: 100px;
+		max-width: 100px;
+	}
+</style>
+
+<div class="preview-wrapper">
+	<a href="#" class="preview-close-layer" title="Close Preview" onclick="closePreview()"></a>
+
 	<div class="preview card">
 		<div class="preview-image"></div>
 
@@ -178,187 +173,199 @@
 		{{ continue }}
 		{{ end }}
 
-		<li id="{{ .Filename }}" class="thumbnail-wrapper">
-			<a href="#" class="thumbnail" title="{{ .Filename }}" onclick="updatePreview('{{ .Filename }}')">
+		<li id="selector-thumbnail-{{ .Filename }}" class="selector-thumbnail-wrapper">
+			<a href="#" class="selector-thumbnail" title="{{ .Filename }}" onclick="updatePreview('{{ .Filename }}')">
 				<img src="{{ .ThumbnailURL }}">
 			</a>
 		</li>
 
 		{{ end }}
 	</ul>
+</div>
 
-	<script>
-		const entries = JSON.parse(`{{ .Entries }}`).filter(v => { return v.thumbnail_url; });
+<script>
+	const entries = JSON.parse(`{{ .Entries }}`).filter(v => { return v.thumbnail_url; });
 
-		let isPreviewOpened = false;
-		let currentFilename = null;
+	const previewWrapper = document.getElementsByClassName("preview-wrapper")[0];
+	const previewImage = document.getElementsByClassName("preview-image")[0];
+	const fileInfos = document.getElementsByClassName("preview-file-info-value");
 
-		const previewImage = document.getElementsByClassName("preview-image")[0];
-		const fileInfos = document.getElementsByClassName("preview-file-info-value");
+	const thumbnailIDPrefix = "selector-thumbnail-";
 
-		let scrollIntervalID = 0, prevScrollLeft = null;
-		const updatePreview = (filename) => {
-			// Stop scroll animation to avoid any conflicts.
-			clearInterval(scrollIntervalID);
+	let isPreviewOpened = false;
+	let currentFilename = null;
+	let scrollIntervalID = 0;
+	let prevScrollLeft = null;
 
-			const entry = entries.find(v => v.filename == filename) || entries[0];
+	const updatePreview = (filename) => {
+		// Stop scroll animation to avoid any conflicts.
+		clearInterval(scrollIntervalID);
 
-			// Scroll to the chosen file.
-			const thumbnail = document.getElementById(entry.filename);
-			const selector = thumbnail.parentElement;
+		const entry = entries.find(v => v.filename == filename) || entries[0];
 
-			const wantScrollLeft = thumbnail.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;
-			if (isPreviewOpened) {
-				let delta = Math.abs(selector.scrollLeft - wantScrollLeft) / 15; // total scroll time will be 150ms
-				if (delta < 2) {
-					delta = 2;
+		// Scroll to the chosen file.
+		const thumbnail = document.getElementById(thumbnailIDPrefix + entry.filename);
+		const selector = thumbnail.parentElement;
+
+		const wantScrollLeft = thumbnail.offsetLeft - selector.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;
+		if (isPreviewOpened) {
+			let delta = Math.abs(selector.scrollLeft - wantScrollLeft) / 15; // total scroll time will be 150ms
+			if (delta < 2) {
+				delta = 2;
+			}
+
+			scrollIntervalID = setInterval(() => {
+				const diff = selector.scrollLeft - wantScrollLeft;
+				if (Math.abs(diff) <= delta || selector.scrollLeft === prevScrollLeft) {
+					selector.scrollLeft = wantScrollLeft;
+					prevScrollLeft = null;
+					clearInterval(scrollIntervalID);
+					return;
 				}
 
-				scrollIntervalID = setInterval(() => {
-					const diff = selector.scrollLeft - wantScrollLeft;
-					if (Math.abs(diff) <= delta || selector.scrollLeft === prevScrollLeft) {
-						selector.scrollLeft = wantScrollLeft;
-						prevScrollLeft = null;
-						clearInterval(scrollIntervalID);
-						return;
-					}
+				prevScrollLeft = selector.scrollLeft;
 
-					prevScrollLeft = selector.scrollLeft;
-
-					if (diff > 0) {
-						selector.scrollLeft -= delta;
-					} else if (diff < 0) {
-						selector.scrollLeft += delta;
-					}
-				}, 10);
-
-			} else {
-				// Don't animate scroll on the preview open.
-				selector.scrollLeft = wantScrollLeft;
-			}
-
-			// Update preview.
-			previewImage.style["background-image"] = `url(${entry.thumbnail_url})`;
-
-			// Update file info.
-			for (const fileInfo of fileInfos) {
-				const type = fileInfo.attributes["data-type"];
-				switch (type.value) {
-					case "filename":
-						fileInfo.innerHTML = entry.filename;
-						break;
-					case "size":
-						fileInfo.innerHTML = entry.human_readable_size;
-						break;
-					case "mod_time":
-						fileInfo.innerHTML = entry.human_readable_mod_time;
-						break;
+				if (diff > 0) {
+					selector.scrollLeft -= delta;
+				} else if (diff < 0) {
+					selector.scrollLeft += delta;
 				}
-			}
+			}, 10);
 
-			// Update link to the original file.
-			const downloadButton = document.getElementsByClassName("preview-download-button")[0];
-			downloadButton.href = entry.original_file_url;
-			downloadButton.download = entry.filename;
-
-			// On the first open current filename is empty.
-			if (currentFilename) {
-				document.getElementById(currentFilename).classList.remove("chosen");
-			}
-			currentFilename = entry.filename;
-			document.getElementById(currentFilename).classList.add("chosen");
-		};
-
-		function swipe(direction) {
-			let newIndex = entries.findIndex(v => v.filename === currentFilename);
-			if (newIndex === -1) {
-				newIndex = 0;
-			}
-
-			if (direction > 0) {
-				newIndex++;
-			} else {
-				newIndex--;
-			}
-
-			if (newIndex < 0) {
-				newIndex = 0;
-			}
-			if (newIndex >= entries.length) {
-				newIndex = entries.length - 1;
-			}
-
-			updatePreview(entries[newIndex].filename);
+		} else {
+			// Don't animate scroll on the preview open.
+			selector.scrollLeft = wantScrollLeft;
 		}
 
-		const handleKeyDown = (ev) => {
-			if (ev.key === "ArrowRight") {
-				swipe(1);
+		// Update preview.
+		previewImage.style["background-image"] = `url(${entry.thumbnail_url})`;
 
-			} else if (ev.key === "ArrowLeft") {
-				swipe(-1);
-
-			} else if (ev.key === "Escape") {
-				window.parent.postMessage({ name: "preview.close" });
+		// Update file info.
+		for (const fileInfo of fileInfos) {
+			const type = fileInfo.attributes["data-type"];
+			switch (type.value) {
+				case "filename":
+					fileInfo.innerHTML = entry.filename;
+					break;
+				case "size":
+					fileInfo.innerHTML = entry.human_readable_size;
+					break;
+				case "mod_time":
+					fileInfo.innerHTML = entry.human_readable_mod_time;
+					break;
 			}
-		};
+		}
 
-		window.addEventListener("keydown", handleKeyDown);
+		// Update link to the original file.
+		const downloadButton = document.getElementsByClassName("preview-download-button")[0];
+		downloadButton.href = entry.original_file_url;
+		downloadButton.download = entry.filename;
 
-		window.addEventListener("message", (ev) => {
-			if (ev.data.name === "preview.update") {
-				updatePreview(ev.data.filename);
+		// On the first open current filename is empty.
+		if (currentFilename) {
+			document.getElementById(thumbnailIDPrefix + currentFilename).classList.remove("chosen");
+		}
+		currentFilename = entry.filename;
+		document.getElementById(thumbnailIDPrefix + currentFilename).classList.add("chosen");
+	};
 
-				if (!isPreviewOpened) {
-					isPreviewOpened = true;
-				}
+	const swipePreview = (direction) => {
+		let newIndex = entries.findIndex(v => v.filename === currentFilename);
+		if (newIndex === -1) {
+			newIndex = 0;
+		}
 
-				window.parent.postMessage({ name: "preview.ready" });
+		if (direction > 0) {
+			newIndex++;
+		} else {
+			newIndex--;
+		}
 
-			} else if (ev.data.name === "preview.closed") {
-				isPreviewOpened = false;
-			}
-		});
+		if (newIndex < 0) {
+			newIndex = 0;
+		}
+		if (newIndex >= entries.length) {
+			newIndex = entries.length - 1;
+		}
 
-		let touchStartX = 0;
-		window.addEventListener("touchstart", ev => {
-			if (ev.target === previewImage) {
-				touchStartX = ev.changedTouches[0].clientX;
-			}
-		});
-		window.addEventListener("touchmove", ev => {
-			if (ev.target !== previewImage || !touchStartX) {
-				return;
-			}
+		updatePreview(entries[newIndex].filename);
+	};
 
-			let diff = (ev.changedTouches[0].clientX - touchStartX);
+	const closePreview = () => {
+		isPreviewOpened = false;
 
-			// Add some lag.
-			if (Math.abs(diff) < 30) {
-				return;
-			}
+		previewWrapper.classList.remove("opened");
+		document.body.classList.remove("noscroll");
+	};
 
-			// Slow down.
-			diff /= 1.5;
+	// Event listeners
 
-			previewImage.style["background-position-x"] = `calc(50% + ${diff / 2}px)`;
-		});
-		window.addEventListener("touchend", ev => {
-			// Always reset to center.
-			previewImage.style["background-position-x"] = "50%";
+	window.addEventListener("keydown", (ev) => {
+		if (!isPreviewOpened) {
+			return;
+		}
 
-			if (ev.target !== previewImage || !touchStartX) {
-				return;
-			}
+		if (ev.key === "ArrowRight") {
+			swipePreview(1);
 
-			const diff = touchStartX - ev.changedTouches[0].clientX;
-			if (Math.abs(diff) > previewImage.clientWidth / 3) {
-				swipe(diff);
-			}
+		} else if (ev.key === "ArrowLeft") {
+			swipePreview(-1);
 
-			touchStartX = 0;
-		})
-	</script>
-</body>
+		} else if (ev.key === "Escape") {
+			closePreview();
+		}
+	});
 
-</html>
+	let touchStartX = 0;
+	window.addEventListener("touchstart", ev => {
+		if (ev.target === previewImage) {
+			touchStartX = ev.changedTouches[0].clientX;
+		}
+	});
+	window.addEventListener("touchmove", ev => {
+		if (ev.target !== previewImage || !touchStartX) {
+			return;
+		}
+
+		let diff = (ev.changedTouches[0].clientX - touchStartX);
+
+		// Add some lag.
+		if (Math.abs(diff) < 30) {
+			return;
+		}
+
+		// Slow down.
+		diff /= 1.5;
+
+		previewImage.style["background-position-x"] = `calc(50% + ${diff / 2}px)`;
+	});
+	window.addEventListener("touchend", ev => {
+		// Always reset to center.
+		previewImage.style["background-position-x"] = "50%";
+
+		if (ev.target !== previewImage || !touchStartX) {
+			return;
+		}
+
+		const diff = touchStartX - ev.changedTouches[0].clientX;
+		if (Math.abs(diff) > previewImage.clientWidth / 3) {
+			swipePreview(diff);
+		}
+
+		touchStartX = 0;
+	});
+</script>
+
+<!-- Exported API -->
+<script>
+	window.addEventListener("preview.open", ev => {
+		updatePreview(ev.detail.filename);
+
+		if (!isPreviewOpened) {
+			isPreviewOpened = true;
+		}
+
+		document.body.classList.add("noscroll");
+		previewWrapper.classList.add("opened");
+	});
+</script>
