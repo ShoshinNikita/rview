@@ -1,18 +1,22 @@
 package web
 
-import "time"
+import (
+	"time"
+
+	"github.com/ShoshinNikita/rview/config"
+)
 
 // Service response.
 type (
 	Info struct {
+		config.BuildInfo `json:"-"`
+
 		Sort  string `json:"sort"`
 		Order string `json:"order"`
 
 		Dir         string       `json:"dir"`
 		Breadcrumbs []Breadcrumb `json:"breadcrumbs"`
 		Entries     []Entry      `json:"entries"`
-
-		ShortGitHash string `json:"short_git_hash"`
 	}
 
 	Breadcrumb struct {

@@ -253,10 +253,10 @@ func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Value
 
 func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 	info := Info{
+		BuildInfo: s.cfg.BuildInfo,
+		//
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
-		//
-		ShortGitHash: s.cfg.ShortGitHash,
 	}
 
 	var dirParts []string

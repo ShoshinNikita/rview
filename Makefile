@@ -1,5 +1,4 @@
-include .env
--include .env.local
+-include .env .env.local
 
 default: run
 

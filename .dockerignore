@@ -1,2 +1,19 @@
-# Don't use .dockerignore because it causes a dirty git working tree. So,
-# we always use "devel" build info.
+*
+
+# Add .git for VCS info
+!.git/
+!cache/
+!config/
+!rclone/
+!resizer/
+!rlog/
+!rview/
+!static/
+!util/
+!vendor/
+!web/
+
+!Makefile
+!main.go
+!go.mod
+!go.sum

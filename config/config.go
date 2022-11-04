@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"os"
 	"runtime/debug"
-	"strconv"
 	"time"
 )
 
@@ -31,7 +30,7 @@ type Config struct {
 
 type BuildInfo struct {
 	ShortGitHash string
-	BuildTime    string
+	CommitTime   string
 }
 
 func Parse() (cfg Config, err error) {
@@ -75,13 +74,17 @@ func Parse() (cfg Config, err error) {
 	return cfg, nil
 }
 
-func readBuildInfo() (res BuildInfo) {
+func readBuildInfo() BuildInfo {
+	res := BuildInfo{
+		ShortGitHash: "unknown",
+		CommitTime:   "unknown",
+	}
+
 	info, ok := debug.ReadBuildInfo()
 	if !ok {
 		return res
 	}
 
-	var isDevel bool
 	for _, s := range info.Settings {
 		switch s.Key {
 		case "vcs.revision":
@@ -93,25 +96,10 @@ func readBuildInfo() (res BuildInfo) {
 		case "vcs.time":
 			t, err := time.Parse(time.RFC3339, s.Value)
 			if err == nil {
-				res.BuildTime = t.UTC().Format("2006-01-02 15:04:05 UTC")
+				res.CommitTime = t.UTC().Format("2006-01-02 15:04:05 UTC")
 			}
-
-		case "vcs.modified":
-			isDevel, _ = strconv.ParseBool(s.Value)
 		}
 	}
-
-	set := func(s *string) {
-		switch {
-		case isDevel:
-			*s = "devel"
-		case *s == "":
-			*s = "unknown"
-		}
-	}
-	set(&res.ShortGitHash)
-	set(&res.BuildTime)
-
 	return res
 }
 
@@ -124,11 +112,11 @@ func PrintBuildInfo(info BuildInfo) {
     | | \ \  \ V / | ||  __/ \ V  V / 
     |_|  \_\  \_/  |_| \___|  \_/\_/  
 
-    Commit:     %q
-    Build Time: %q
+    Commit Hash: %q
+    Commit Time: %q
 
 `,
 		info.ShortGitHash,
-		info.BuildTime,
+		info.CommitTime,
 	)
 }
