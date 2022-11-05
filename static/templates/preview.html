@@ -16,16 +16,21 @@
 	}
 
 	.preview-wrapper.opened {
-		background-color: var(--preview-background-color);
 		opacity: 100%;
 		z-index: 3;
 	}
 
 	.preview-close-layer {
 		height: 100%;
-		position: absolute;
+		left: 0;
+		position: fixed;
+		top: 0;
 		width: 100%;
 		z-index: -1;
+	}
+
+	.preview-wrapper.opened .preview-close-layer {
+		background-color: var(--preview-background-color);
 	}
 
 	.preview {
@@ -66,6 +71,8 @@
 	.preview-download-button {
 		height: 30px;
 		margin: 0 auto;
+		min-height: 30px;
+		min-width: 30px;
 		width: 30px;
 	}
 
@@ -316,43 +323,81 @@
 		}
 	});
 
-	let touchStartX = 0;
-	window.addEventListener("touchstart", ev => {
-		if (ev.target === previewImage) {
-			touchStartX = ev.changedTouches[0].clientX;
+	const closeAnimation = "close", swipeAnimation = "swipe";
+
+	let touchStartX = 0, touchStartY = 0, animation = "", swipeDirection = 0;
+
+	const shouldIgnoreTouch = (ev, ignoreTouchStarts = false) => {
+		let ignore = ev.target !== previewImage || ev.touches.length > 1;
+		if (!ignoreTouchStarts) {
+			ignore = ignore || !(touchStartX && touchStartY);
 		}
+		return ignore;
+	};
+
+	window.addEventListener("touchstart", ev => {
+		if (shouldIgnoreTouch(ev, true)) {
+			return;
+		}
+
+		touchStartX = ev.changedTouches[0].clientX;
+		touchStartY = ev.changedTouches[0].clientY;
 	});
 	window.addEventListener("touchmove", ev => {
-		if (ev.target !== previewImage || !touchStartX) {
+		if (shouldIgnoreTouch(ev)) {
 			return;
 		}
 
-		let diff = (ev.changedTouches[0].clientX - touchStartX);
+		let diffX = ev.changedTouches[0].clientX - touchStartX;
+		let diffY = ev.changedTouches[0].clientY - touchStartY;
 
-		// Add some lag.
-		if (Math.abs(diff) < 30) {
-			return;
+		if (Math.abs(diffY) > 30 && (!animation || animation === closeAnimation)) {
+			animation = closeAnimation;
+
+			if (diffY > 0) {
+				diffY = 0;
+			}
+
+			previewWrapper.style["top"] = `${diffY / 3}px`;
+			previewWrapper.style["opacity"] = `${100 - (Math.abs(diffY) / previewWrapper.clientHeight * 100) / 3}%`;
 		}
+		if (Math.abs(diffX) > 30 && (!animation || animation === swipeAnimation)) {
+			animation = swipeAnimation;
 
-		// Slow down.
-		diff /= 1.5;
-
-		previewImage.style["background-position-x"] = `calc(50% + ${diff / 2}px)`;
+			previewImage.style["background-position-x"] = `calc(50% + ${diffX / 3}px)`;
+		}
 	});
 	window.addEventListener("touchend", ev => {
-		// Always reset to center.
-		previewImage.style["background-position-x"] = "50%";
-
-		if (ev.target !== previewImage || !touchStartX) {
+		if (shouldIgnoreTouch(ev)) {
 			return;
 		}
 
-		const diff = touchStartX - ev.changedTouches[0].clientX;
-		if (Math.abs(diff) > previewImage.clientWidth / 3) {
-			swipePreview(diff);
+		// Reset all changes.
+		previewWrapper.style.removeProperty("top");
+		previewWrapper.style.removeProperty("opacity");
+		//
+		previewImage.style.removeProperty("background-position-x");
+
+		const diffX = ev.changedTouches[0].clientX - touchStartX;
+		const diffY = ev.changedTouches[0].clientY - touchStartY;
+		switch (animation) {
+			case swipeAnimation:
+				if (Math.abs(diffX) > previewImage.clientWidth / 4) {
+					swipePreview(-diffX);
+				}
+				break;
+
+			case closeAnimation:
+				if (diffY < 0 && Math.abs(diffY) > previewWrapper.clientHeight / 3) {
+					closePreview();
+				}
+				break;
 		}
 
 		touchStartX = 0;
+		touchStartY = 0;
+		animation = "";
+		swipeDirection = 0;
 	});
 </script>
 
