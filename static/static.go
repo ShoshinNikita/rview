@@ -15,29 +15,29 @@ var RcloneTemplate string
 //go:embed templates
 var templatesFS embed.FS
 
-func NewTemplatesFS(debug bool) fs.FS {
-	return newFS(templatesFS, "templates", debug)
+func NewTemplatesFS(readFromDisk bool) fs.FS {
+	return newFS(templatesFS, "templates", readFromDisk)
 }
 
 //go:embed styles
 var stylesFS embed.FS
 
-func NewStylesFS(debug bool) fs.FS {
-	return newFS(stylesFS, "styles", debug)
+func NewStylesFS(readFromDisk bool) fs.FS {
+	return newFS(stylesFS, "styles", readFromDisk)
 }
 
 //go:embed js
 var scriptsFS embed.FS
 
-func NewScriptsFS(debug bool) fs.FS {
-	return newFS(scriptsFS, "js", debug)
+func NewScriptsFS(readFromDisk bool) fs.FS {
+	return newFS(scriptsFS, "js", readFromDisk)
 }
 
 //go:embed feathericons/icons
 var iconsFS embed.FS
 
-func NewIconsFS(debug bool) fs.FS {
-	return newFS(iconsFS, "feathericons/icons", debug)
+func NewIconsFS(readFromDisk bool) fs.FS {
+	return newFS(iconsFS, "feathericons/icons", readFromDisk)
 }
 
 var (
@@ -48,8 +48,8 @@ var (
 	rawFileIconsData []byte
 )
 
-func NewFileIconsFS(debug bool) fs.FS {
-	return newFS(fileIconsFS, "material-icons/icons", debug)
+func NewFileIconsFS(readFromDisk bool) fs.FS {
+	return newFS(fileIconsFS, "material-icons/icons", readFromDisk)
 }
 
 type FileIconsData struct {

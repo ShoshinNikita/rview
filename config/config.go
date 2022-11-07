@@ -14,7 +14,6 @@ type Config struct {
 
 	ServerPort int
 	Dir        string
-	Debug      bool
 
 	RcloneTarget string
 	RclonePort   int
@@ -26,6 +25,11 @@ type Config struct {
 	WebCache             bool
 	WebCacheMaxAge       time.Duration
 	WebCacheMaxTotalSize int64
+
+	// Debug options
+
+	DebugLogLevel           bool
+	ReadStaticFilesFromDisk bool
 }
 
 type BuildInfo struct {
@@ -41,7 +45,6 @@ func Parse() (cfg Config, err error) {
 	//
 	flag.IntVar(&cfg.ServerPort, "port", 8080, "server port")
 	flag.StringVar(&cfg.Dir, "dir", "./var", "data dir")
-	flag.BoolVar(&cfg.Debug, "debug", false, "enable debug logs")
 	//
 	flag.IntVar(&cfg.RclonePort, "rclone-port", 8181, "port of a rclone instance")
 	flag.StringVar(&cfg.RcloneTarget, "rclone-target", "", "rclone target")
@@ -53,6 +56,9 @@ func Parse() (cfg Config, err error) {
 	flag.BoolVar(&cfg.WebCache, "web-cache", true, "enable or disable web cache")
 	flag.DurationVar(&cfg.WebCacheMaxAge, "web-cache-max-age", 60*24*time.Hour, "max age of web cache")
 	flag.Int64Var(&cfg.WebCacheMaxTotalSize, "web-cache-max-total-size", 200<<20, "max total size of web cache, bytes")
+	//
+	flag.BoolVar(&cfg.DebugLogLevel, "debug-log-level", false, "display debug log messages")
+	flag.BoolVar(&cfg.ReadStaticFilesFromDisk, "read-static-files-from-disk", false, "read static files directly from disk")
 
 	flag.Parse()
 

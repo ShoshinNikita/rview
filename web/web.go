@@ -56,9 +56,9 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache)
 		resizer: resizer,
 		cache:   cache,
 		//
-		iconsFS:     static.NewIconsFS(cfg.Debug),
-		fileIconsFS: static.NewFileIconsFS(cfg.Debug),
-		templatesFS: static.NewTemplatesFS(cfg.Debug),
+		iconsFS:     static.NewIconsFS(cfg.ReadStaticFilesFromDisk),
+		fileIconsFS: static.NewFileIconsFS(cfg.ReadStaticFilesFromDisk),
+		templatesFS: static.NewTemplatesFS(cfg.ReadStaticFilesFromDisk),
 	}
 
 	mux := http.NewServeMux()
@@ -77,11 +77,11 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache)
 	for pattern, fs := range map[string]fs.FS{
 		"/static/icons/":     s.iconsFS,
 		"/static/fileicons/": s.fileIconsFS,
-		"/static/styles/":    static.NewStylesFS(cfg.Debug),
-		"/static/js/":        static.NewScriptsFS(cfg.Debug),
+		"/static/styles/":    static.NewStylesFS(cfg.ReadStaticFilesFromDisk),
+		"/static/js/":        static.NewScriptsFS(cfg.ReadStaticFilesFromDisk),
 	} {
 		handler := http.FileServer(http.FS(fs))
-		if !cfg.Debug {
+		if !cfg.ReadStaticFilesFromDisk {
 			handler = cacheMiddleware(14*24*time.Hour, cfg.ShortGitHash, handler)
 		}
 		handler = http.StripPrefix(pattern, handler)

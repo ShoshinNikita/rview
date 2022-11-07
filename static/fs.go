@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 )
 
-func newFS(fs embed.FS, root string, debug bool) fs.FS {
-	if debug {
+func newFS(fs embed.FS, root string, readFromDisk bool) fs.FS {
+	if readFromDisk {
 		return dirFS(filepath.Join("static", root))
 	}
 	return &rootFS{

@@ -4,7 +4,12 @@ default: run
 
 run: build
 	@ echo "Run..."
-	@ ./bin/rview --port=8090 --dir=_var --debug --rclone-target=${RCLONE_TARGET}
+	@ ./bin/rview \
+			--port=8090 \
+			--dir=_var \
+			--rclone-target=${RCLONE_TARGET} \
+			--read-static-files-from-disk \
+			--debug-log-level
 
 build:
 	@ echo "Build..."

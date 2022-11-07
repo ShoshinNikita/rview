@@ -28,10 +28,11 @@ func main() {
 
 	config.PrintBuildInfo(cfg.BuildInfo)
 
-	if cfg.Debug {
+	if cfg.DebugLogLevel {
 		rlog.EnableDebug()
-
-		rlog.Info("debug mode is enabled")
+	}
+	if cfg.ReadStaticFilesFromDisk {
+		rlog.Info("static files will be read from disk")
 	}
 
 	if err := static.Prepare(); err != nil {
