@@ -4,6 +4,7 @@
 !.git/
 !cache/
 !config/
+!/metrics/
 !rclone/
 !resizer/
 !rlog/

@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/ShoshinNikita/rview/metrics"
 	"github.com/ShoshinNikita/rview/rview"
 )
 
@@ -30,10 +31,15 @@ func (c *DiskCache) Open(id rview.FileID) (io.ReadCloser, error) {
 	file, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			err = rview.ErrCacheMiss
+			metrics.CacheMisses.Inc()
+			return nil, rview.ErrCacheMiss
 		}
+
+		metrics.CacheErrors.Inc()
 		return nil, err
 	}
+
+	metrics.CacheHits.Inc()
 	return file, nil
 }
 
@@ -44,10 +50,15 @@ func (c *DiskCache) Check(id rview.FileID) error {
 	_, err := os.Stat(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
-			err = rview.ErrCacheMiss
+			metrics.CacheMisses.Inc()
+			return rview.ErrCacheMiss
 		}
+
+		metrics.CacheErrors.Inc()
 		return err
 	}
+
+	metrics.CacheHits.Inc()
 	return nil
 }
 

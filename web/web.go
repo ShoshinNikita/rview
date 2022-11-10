@@ -19,9 +19,11 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/config"
+	"github.com/ShoshinNikita/rview/metrics"
 	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const maxFileSizeForCache = 512 << 10 // 512 KiB
@@ -93,9 +95,14 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache)
 	mux.HandleFunc("/api/file", s.handleFile)
 	mux.HandleFunc("/api/thumbnail", s.handleThumbnail)
 
+	// Debug
+	mux.Handle("/debug/metrics", promhttp.Handler())
+
+	handler := loggingMiddleware(mux)
+
 	s.httpServer = &http.Server{
 		Addr:              ":" + strconv.Itoa(cfg.ServerPort),
-		Handler:           mux,
+		Handler:           handler,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -213,7 +220,10 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Values) (RcloneInfo, error) {
 	now := time.Now()
 	defer func() {
-		rlog.Debugf("rclone info for %q was loaded in %s", path, time.Since(now))
+		dur := time.Since(now)
+
+		metrics.RcloneResponseTime.Observe(dur.Seconds())
+		rlog.Debugf("rclone info for %q was loaded in %s", path, dur)
 	}()
 
 	rcloneURL := s.rcloneURL.JoinPath(path)
