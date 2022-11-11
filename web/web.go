@@ -84,7 +84,7 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache)
 	} {
 		handler := http.FileServer(http.FS(fs))
 		if !cfg.ReadStaticFilesFromDisk {
-			handler = cacheMiddleware(14*24*time.Hour, cfg.ShortGitHash, handler)
+			handler = cacheMiddleware(30*24*time.Hour, cfg.ShortGitHash, handler)
 		}
 		handler = http.StripPrefix(pattern, handler)
 		mux.Handle(pattern, handler)
@@ -524,7 +524,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	}
 	// Use mod time as a value for ETag.
 	etag := strconv.Itoa(int(fileID.GetModTime().Unix()))
-	setCacheHeaders(w, 24*time.Hour, etag)
+	setCacheHeaders(w, 30*24*time.Hour, etag)
 
 	io.Copy(w, rc)
 }
