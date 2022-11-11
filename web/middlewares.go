@@ -1,6 +1,7 @@
 package web
 
 import (
+	"bytes"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -8,6 +9,7 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/metrics"
+	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/prometheus/client_golang/prometheus"
 )
 
@@ -31,7 +33,9 @@ func loggingMiddleware(h http.Handler) http.Handler {
 
 		h.ServeHTTP(rw, r)
 
-		// TODO: log errors?
+		if rw.errMsg.Len() > 0 {
+			rlog.Errorf(`request "%s %s" failed with code %d: %s`, r.Method, r.URL.Path, rw.statusCode, rw.errMsg.String())
+		}
 
 		metrics.HTTPResponseStatuses.
 			With(prometheus.Labels{
@@ -48,21 +52,43 @@ func loggingMiddleware(h http.Handler) http.Handler {
 }
 
 type responseWriter struct {
-	http.ResponseWriter
+	w http.ResponseWriter
 
-	statusCode int
+	statusCode    int
+	headerWritten bool
+	errMsg        *bytes.Buffer
 }
 
 func newResponseWriter(w http.ResponseWriter) *responseWriter {
 	return &responseWriter{
-		ResponseWriter: w,
-		statusCode:     http.StatusOK,
+		w:      w,
+		errMsg: bytes.NewBuffer(nil),
 	}
 }
 
+func (rw *responseWriter) Header() http.Header {
+	return rw.w.Header()
+}
+
+func (rw *responseWriter) Write(data []byte) (int, error) {
+	if !rw.headerWritten {
+		rw.WriteHeader(http.StatusOK)
+	}
+
+	if rw.statusCode >= http.StatusInternalServerError {
+		rw.errMsg.Write(data)
+	}
+	return rw.w.Write(data)
+}
+
 func (rw *responseWriter) WriteHeader(code int) {
+	if !rw.headerWritten {
+		rw.w.WriteHeader(code)
+	}
+
+	// Always set status code to handle io.Copy errors.
 	rw.statusCode = code
-	rw.ResponseWriter.WriteHeader(code)
+	rw.headerWritten = true
 }
 
 // cacheMiddleware sets "Cache-Control" and "Etag" headers.

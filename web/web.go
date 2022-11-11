@@ -179,7 +179,7 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 		return
 	}
 
-	io.Copy(w, buf)
+	copyResponse(w, w, buf)
 }
 
 func embedIcon(fs fs.FS, name string) (template.HTML, error) {
@@ -403,7 +403,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		}
 		w.Header().Set("Last-Modified", fileID.GetModTime().Format(http.TimeFormat))
 
-		io.Copy(w, rc)
+		copyResponse(w, w, rc)
 		return
 	}
 
@@ -447,10 +447,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	writer, close := s.getFileWriter(w, rcloneHeaders, fileID)
 	defer close() //nolint:errcheck
 
-	_, err = io.Copy(writer, rc)
-	if err != nil {
-		rlog.Errorf("couldn't serve file %q: %s", fileID, err)
-	}
+	copyResponse(w, writer, rc)
 }
 
 func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
@@ -470,6 +467,7 @@ func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, h
 	return resp.Body, resp.Header, nil
 }
 
+// getFileWriter returns an [io.Writer] that caches small files.
 func (s *Server) getFileWriter(w http.ResponseWriter, rcloneHeaders http.Header, fileID rview.FileID) (_ io.Writer, close func() error) {
 	close = func() error { return nil }
 
@@ -526,7 +524,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	etag := strconv.Itoa(int(fileID.GetModTime().Unix()))
 	setCacheHeaders(w, 30*24*time.Hour, etag)
 
-	io.Copy(w, rc)
+	copyResponse(w, w, rc)
 }
 
 func fileIDToQuery(query url.Values, id rview.FileID) url.Values {
@@ -549,15 +547,19 @@ func fileIDFromQuery(r *http.Request) (rview.FileID, error) {
 	return rview.NewFileID(path, modTime), nil
 }
 
+func copyResponse(w http.ResponseWriter, dst io.Writer, src io.Reader) {
+	_, err := io.Copy(dst, src)
+	if err != nil {
+		writeInternalServerError(w, "couldn't write response: %s", err)
+	}
+}
+
 func writeBadRequestError(w http.ResponseWriter, format string, a ...any) {
 	writeError(w, http.StatusBadRequest, format, a...)
 }
 
 func writeInternalServerError(w http.ResponseWriter, format string, a ...any) {
-	msg := fmt.Sprintf(format, a...)
-
-	rlog.Errorf("internal error: %s", msg)
-	writeError(w, http.StatusInternalServerError, msg)
+	writeError(w, http.StatusInternalServerError, format, a...)
 }
 
 func writeError(w http.ResponseWriter, code int, format string, a ...any) {
