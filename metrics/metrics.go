@@ -22,7 +22,7 @@ var (
 			Namespace: namespace,
 			Subsystem: "web",
 			Name:      "http_response_time_seconds",
-			Buckets:   []float64{0.1, 0.5, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120},
+			Buckets:   []float64{0.1, 0.5, 1, 2, 5, 10, 15, 30},
 		},
 		[]string{"path"},
 	)
@@ -73,7 +73,7 @@ var (
 			Namespace: namespace,
 			Subsystem: "resizer",
 			Name:      "process_duration_seconds",
-			Buckets:   []float64{0.2, 0.5, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120, 150, 180},
+			Buckets:   []float64{0.2, 0.5, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120},
 		},
 	)
 )
