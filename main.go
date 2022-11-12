@@ -4,7 +4,6 @@ import (
 	"context"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"syscall"
 	"time"
 
@@ -62,7 +61,7 @@ func main() {
 		resizerCacheDir := filepath.Join(cfg.Dir, "thumbnails")
 		resizerCache := cache.NewDiskCache(resizerCacheDir)
 		imageResizerCleaner = cache.NewCleaner(resizerCacheDir, cfg.ResizerMaxAge, cfg.ResizerMaxTotalSize)
-		imageResizer = resizer.NewImageResizer(resizerCache, runtime.NumCPU()+5)
+		imageResizer = resizer.NewImageResizer(resizerCache, cfg.ResizerWorkersCount)
 	} else {
 		rlog.Info("resizer is disabled")
 

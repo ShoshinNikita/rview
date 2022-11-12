@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 	"runtime/debug"
 	"time"
 )
@@ -21,6 +22,7 @@ type Config struct {
 	Resizer             bool
 	ResizerMaxAge       time.Duration
 	ResizerMaxTotalSize int64
+	ResizerWorkersCount int
 
 	WebCache             bool
 	WebCacheMaxAge       time.Duration
@@ -52,6 +54,7 @@ func Parse() (cfg Config, err error) {
 	flag.BoolVar(&cfg.Resizer, "resizer", true, "enable or disable image resizer")
 	flag.DurationVar(&cfg.ResizerMaxAge, "resizer-max-age", 60*24*time.Hour, "max age of resized images")
 	flag.Int64Var(&cfg.ResizerMaxTotalSize, "resizer-max-total-size", 200<<20, "max total size of resized images, bytes")
+	flag.IntVar(&cfg.ResizerWorkersCount, "resizer-workers-count", runtime.NumCPU(), "number of image resize workers")
 	//
 	flag.BoolVar(&cfg.WebCache, "web-cache", true, "enable or disable web cache")
 	flag.DurationVar(&cfg.WebCacheMaxAge, "web-cache-max-age", 60*24*time.Hour, "max age of web cache")
