@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/disintegration/imaging"
-	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/ShoshinNikita/rview/metrics"
 	"github.com/ShoshinNikita/rview/rlog"
@@ -76,17 +75,22 @@ func (r *ImageResizer) startWorkers() {
 			for task := range r.tasksCh {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
+				now := time.Now()
 				stats, err := r.processTask(ctx, task)
+				dur := time.Since(now)
+
 				if err != nil {
 					metrics.ResizerErrors.Inc()
 					rlog.Errorf("couldn't process task to resize %q: %s", task.GetPath(), err)
 				} else {
 					metrics.ResizerDownloadedImageSizes.Observe(float64(stats.originalSize))
 					rlog.Debugf(
-						"file %q was resized, original size: %.2f MiB, new size: %.2f MiB",
-						task.FileID, float64(stats.originalSize)/(1<<20), float64(stats.resizedSize)/(1<<20),
+						"file %q was resized in %s, original size: %.2f MiB, new size: %.2f MiB",
+						task.FileID, dur, float64(stats.originalSize)/(1<<20), float64(stats.resizedSize)/(1<<20),
 					)
 				}
+
+				metrics.ResizerProcessDuration.Observe(dur.Seconds())
 
 				cancel()
 				delete(r.inProgressTasks, task.FileID)
@@ -104,9 +108,6 @@ type stats struct {
 }
 
 func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats, error) {
-	timer := prometheus.NewTimer(metrics.ResizerProcessDuration)
-	defer timer.ObserveDuration()
-
 	img, originalSize, err := r.resize(ctx, task)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't resize image: %w", err)
