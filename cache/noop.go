@@ -12,10 +12,20 @@ var ErrNoopCache = errors.New("noop cache")
 
 type NoopCache struct{}
 
-func NewNoopCache() *NoopCache                                       { return &NoopCache{} }
-func (NoopCache) Open(rview.FileID) (io.ReadCloser, error)           { return nil, ErrNoopCache }
-func (NoopCache) Check(rview.FileID) error                           { return ErrNoopCache }
-func (NoopCache) GetSaveWriter(rview.FileID) (io.WriteCloser, error) { return nil, ErrNoopCache }
+func NewNoopCache() *NoopCache                             { return &NoopCache{} }
+func (NoopCache) Open(rview.FileID) (io.ReadCloser, error) { return nil, ErrNoopCache }
+func (NoopCache) Check(rview.FileID) error                 { return ErrNoopCache }
+func (NoopCache) GetSaveWriter(rview.FileID) (io.WriteCloser, error) {
+	return nopWriteCloser{io.Discard}, nil
+}
+
+type nopWriteCloser struct {
+	io.Writer
+}
+
+func (nopWriteCloser) Close() error {
+	return nil
+}
 
 type NoopCleaner struct{}
 
