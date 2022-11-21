@@ -78,14 +78,14 @@ func (r *ImageResizer) startWorkers() {
 					metrics.ResizerErrors.Inc()
 					rlog.Errorf("couldn't process task to resize %q: %s", task.GetPath(), err)
 				} else {
+					metrics.ResizerProcessDuration.Observe(dur.Seconds())
 					metrics.ResizerDownloadedImageSizes.Observe(float64(stats.originalSize))
+
 					rlog.Debugf(
 						"file %q was resized in %s, original size: %.2f MiB, new size: %.2f MiB",
 						task.FileID, dur, float64(stats.originalSize)/(1<<20), float64(stats.resizedSize)/(1<<20),
 					)
 				}
-
-				metrics.ResizerProcessDuration.Observe(dur.Seconds())
 
 				cancel()
 				delete(r.inProgressTasks, task.FileID)
