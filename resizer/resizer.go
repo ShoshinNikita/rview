@@ -1,16 +1,18 @@
 package resizer
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"image"
 	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"github.com/disintegration/imaging"
 
 	"github.com/ShoshinNikita/rview/metrics"
 	"github.com/ShoshinNikita/rview/rlog"
@@ -19,13 +21,6 @@ import (
 
 var (
 	ErrUnsupportedImageFormat = errors.New("unsupported image format")
-)
-
-const (
-	maxHeight = 1024
-	maxWidth  = 1024
-
-	jpegQuality = 80
 )
 
 type ImageResizer struct {
@@ -108,67 +103,78 @@ type stats struct {
 }
 
 func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats, error) {
-	img, originalSize, err := r.resize(ctx, task)
-	if err != nil {
-		return stats{}, fmt.Errorf("couldn't resize image: %w", err)
-	}
-
-	resizedSize, err := r.saveImage(task.FileID, img)
-	if err != nil {
-		return stats{}, fmt.Errorf("couldn't save image: %w", err)
-	}
-	return stats{
-		originalSize: originalSize,
-		resizedSize:  resizedSize,
-	}, nil
-}
-
-// resize downloads a file and resize it. It can return the original image if resizing is not needed.
-func (r *ImageResizer) resize(ctx context.Context, task resizeTask) (_ image.Image, originalSize int64, _ error) {
 	rc, err := task.openFileFn(ctx, task.FileID)
 	if err != nil {
-		return nil, 0, fmt.Errorf("couldn't get image reader: %w", err)
+		return stats{}, fmt.Errorf("couldn't get image reader: %w", err)
 	}
 	defer rc.Close()
 
-	readCounter := &readWriteCounter{r: rc}
-	img, err := imaging.Decode(readCounter, imaging.AutoOrientation(true))
+	// We could pass file reader as stdin of [exec.Cmd], but it caused weird errors:
+	//
+	//	VipsJpeg: Corrupt JPEG data: premature end of data segment
+	//
+	// An approach with temp files works well, so stick to it.
+	tempFile, err := os.CreateTemp("", "rview-*")
 	if err != nil {
-		return nil, 0, fmt.Errorf("couldn't decode image: %w", err)
+		return stats{}, fmt.Errorf("couldn't create temp image file: %w", err)
+	}
+	defer func() {
+		if err := tempFile.Close(); err != nil {
+			rlog.Errorf("couldn't close temp image file: %s", err)
+		}
+		if err := os.Remove(tempFile.Name()); err != nil {
+			rlog.Errorf("couldn't remove temp image file: %s", err)
+		}
+	}()
+
+	originalSize, err := io.Copy(tempFile, rc)
+	if err != nil {
+		return stats{}, fmt.Errorf("couldn't load image: %w", err)
 	}
 
-	width, height, shouldResize := thumbnail(img.Bounds(), maxWidth, maxHeight)
-	if shouldResize {
-		img = imaging.Resize(img, width, height, imaging.Linear)
-	}
-	return img, readCounter.size, nil
-}
-
-// saveImage saves an image. It creates all directories if needed.
-func (r *ImageResizer) saveImage(id rview.FileID, img image.Image) (resizedSize int64, _ error) {
-	format, err := imaging.FormatFromFilename(id.GetName())
+	w, err := r.cache.GetSaveWriter(task.FileID)
 	if err != nil {
-		return 0, fmt.Errorf("couldn't determine image format: %w", err)
-	}
-
-	w, err := r.cache.GetSaveWriter(id)
-	if err != nil {
-		return 0, fmt.Errorf("couldn't get cache writer: %w", err)
+		return stats{}, fmt.Errorf("couldn't get cache writer: %w", err)
 	}
 	defer w.Close()
 
 	writeCounter := &readWriteCounter{w: w}
-	err = imaging.Encode(writeCounter, img, format, imaging.JPEGQuality(jpegQuality))
-	if err != nil {
-		return 0, fmt.Errorf("couldn't encode image: %w", err)
+
+	// https://www.libvips.org/API/current/Using-vipsthumbnail.html
+	cmd := exec.Command(
+		"vips",
+		"thumbnail_source",
+		"[descriptor=0]",
+		".jpg[Q=80,optimize_coding,strip]",
+		"1024",
+	)
+	stderr := bytes.NewBuffer(nil)
+	cmd.Stdin = tempFile
+	cmd.Stdout = writeCounter
+	cmd.Stderr = stderr
+
+	if err := cmd.Run(); err != nil {
+		return stats{}, fmt.Errorf("couldn't resize image: %w, stderr: %q", err, stderr.String())
 	}
-	return writeCounter.size, nil
+	if stderr.Len() > 0 {
+		rlog.Infof("vips stderr for %q: %q", task.FileID, stderr.String())
+	}
+
+	return stats{
+		originalSize: originalSize,
+		resizedSize:  writeCounter.size,
+	}, nil
 }
 
 // CanResize detects if a file can be resized based on its filename.
 func (r *ImageResizer) CanResize(id rview.FileID) bool {
-	_, err := imaging.FormatFromFilename(id.GetName())
-	return err == nil
+	ext := strings.ToLower(filepath.Ext(id.GetName()))
+	switch ext {
+	case ".jpg", ".jpeg", ".png":
+		return true
+	default:
+		return false
+	}
 }
 
 // IsResized returns true if this file is already resized or is in the task queue.

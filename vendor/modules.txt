@@ -4,9 +4,6 @@ github.com/beorn7/perks/quantile
 # github.com/cespare/xxhash/v2 v2.1.2
 ## explicit; go 1.11
 github.com/cespare/xxhash/v2
-# github.com/disintegration/imaging v1.6.2
-## explicit
-github.com/disintegration/imaging
 # github.com/golang/protobuf v1.5.2
 ## explicit; go 1.9
 github.com/golang/protobuf/proto
@@ -33,12 +30,6 @@ github.com/prometheus/common/model
 github.com/prometheus/procfs
 github.com/prometheus/procfs/internal/fs
 github.com/prometheus/procfs/internal/util
-# golang.org/x/image v0.0.0-20191009234506-e7c1f5e7dbb8
-## explicit; go 1.12
-golang.org/x/image/bmp
-golang.org/x/image/ccitt
-golang.org/x/image/tiff
-golang.org/x/image/tiff/lzw
 # golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a
 ## explicit; go 1.17
 golang.org/x/sys/internal/unsafeheader

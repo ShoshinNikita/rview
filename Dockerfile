@@ -10,12 +10,27 @@ COPY . .
 RUN make build && ./bin/rview --version
 
 
-FROM rclone/rclone:1.60
+
+FROM rclone/rclone:1.60 AS rclone-src
+
+RUN rclone --version
+
+
+
+FROM ubuntu:22.04
 
 LABEL org.opencontainers.image.source=https://github.com/ShoshinNikita/rview
 LABEL org.opencontainers.image.licenses=MIT
 
 WORKDIR /srv
+
+# Install vips
+RUN apt-get -q update && \
+	apt-get install -q --no-install-recommends -y libvips-tools ca-certificates && \
+	vips --version
+
+# Add rclone
+COPY --from=rclone-src /usr/local/bin/rclone /usr/local/bin/rclone
 
 COPY --from=builder /rview/bin .
 
