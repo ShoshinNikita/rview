@@ -15,8 +15,8 @@ type NoopCache struct{}
 func NewNoopCache() *NoopCache                             { return &NoopCache{} }
 func (NoopCache) Open(rview.FileID) (io.ReadCloser, error) { return nil, ErrNoopCache }
 func (NoopCache) Check(rview.FileID) error                 { return ErrNoopCache }
-func (NoopCache) GetSaveWriter(rview.FileID) (io.WriteCloser, error) {
-	return nopWriteCloser{io.Discard}, nil
+func (NoopCache) GetSaveWriter(rview.FileID) (io.WriteCloser, func(), error) {
+	return nopWriteCloser{io.Discard}, func() {}, nil
 }
 
 type nopWriteCloser struct {

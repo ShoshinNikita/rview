@@ -487,7 +487,7 @@ func (s *Server) getFileWriter(w http.ResponseWriter, rcloneHeaders http.Header,
 		return w, close
 	}
 
-	cacheWriter, err := s.cache.GetSaveWriter(fileID)
+	cacheWriter, _, err := s.cache.GetSaveWriter(fileID)
 	if err != nil {
 		// We can serve the file. So, just log the error.
 		rlog.Debugf("couldn't get cache writer for file %q: %s", fileID, err)

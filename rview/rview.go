@@ -53,7 +53,7 @@ var (
 type Cache interface {
 	Open(id FileID) (io.ReadCloser, error)
 	Check(id FileID) error
-	GetSaveWriter(id FileID) (io.WriteCloser, error)
+	GetSaveWriter(id FileID) (wc io.WriteCloser, remove func(), err error)
 }
 
 type CacheCleaner interface {

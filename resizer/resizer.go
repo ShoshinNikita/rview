@@ -132,7 +132,7 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats,
 		return stats{}, fmt.Errorf("couldn't load image: %w", err)
 	}
 
-	w, err := r.cache.GetSaveWriter(task.FileID)
+	w, removeCacheFile, err := r.cache.GetSaveWriter(task.FileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get cache writer: %w", err)
 	}
@@ -154,6 +154,8 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats,
 	cmd.Stderr = stderr
 
 	if err := cmd.Run(); err != nil {
+		removeCacheFile()
+
 		return stats{}, fmt.Errorf("couldn't resize image: %w, stderr: %q", err, stderr.String())
 	}
 	if stderr.Len() > 0 {

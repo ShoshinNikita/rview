@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"github.com/ShoshinNikita/rview/metrics"
+	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 )
 
@@ -63,20 +64,28 @@ func (c *DiskCache) Check(id rview.FileID) error {
 }
 
 // GetSaveWriter returns a [io.WriteCloser] that must be used for writing cache content.
-func (c *DiskCache) GetSaveWriter(id rview.FileID) (io.WriteCloser, error) {
+// Caller must remove a cache file in case of any error by calling the "remove" function.
+func (c *DiskCache) GetSaveWriter(id rview.FileID) (_ io.WriteCloser, remove func(), err error) {
 	path := c.generateFilepath(id)
 
 	dir := filepath.Dir(path)
-	err := os.MkdirAll(dir, 0o777)
+	err = os.MkdirAll(dir, 0o777)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't create dir %q: %w", dir, err)
+		return nil, nil, fmt.Errorf("couldn't create dir %q: %w", dir, err)
 	}
 
 	file, err := os.Create(path)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't create file %q: %w", path, err)
+		return nil, nil, fmt.Errorf("couldn't create file %q: %w", path, err)
 	}
-	return file, nil
+
+	remove = func() {
+		if err := os.Remove(path); err != nil {
+			rlog.Errorf("couldn't remove cache file %q via callback after error: %s", path, err)
+		}
+	}
+
+	return file, remove, nil
 }
 
 // generateFilepath generates a filepath of pattern '<dir>/<YYYY-MM>/<modTime>_<filename>'.

@@ -40,13 +40,13 @@ func (c *MemoryCache) Check(id rview.FileID) error {
 	return nil
 }
 
-func (c *MemoryCache) GetSaveWriter(id rview.FileID) (io.WriteCloser, error) {
+func (c *MemoryCache) GetSaveWriter(id rview.FileID) (io.WriteCloser, func(), error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	data := new([]byte)
 	c.cache[id] = data
-	return &writeCloser{data}, nil
+	return &writeCloser{data}, func() {}, nil
 }
 
 type readCloser struct {
