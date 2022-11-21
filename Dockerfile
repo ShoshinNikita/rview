@@ -17,7 +17,7 @@ RUN rclone --version
 
 
 
-FROM ubuntu:22.04
+FROM alpine:3.16
 
 LABEL org.opencontainers.image.source=https://github.com/ShoshinNikita/rview
 LABEL org.opencontainers.image.licenses=MIT
@@ -25,13 +25,15 @@ LABEL org.opencontainers.image.licenses=MIT
 WORKDIR /srv
 
 # Install vips
-RUN apt-get -q update && \
-	apt-get install -q --no-install-recommends -y libvips-tools ca-certificates && \
+RUN apk add --update --no-cache vips-dev vips-tools ca-certificates && \
 	vips --version
 
 # Add rclone
 COPY --from=rclone-src /usr/local/bin/rclone /usr/local/bin/rclone
 
 COPY --from=builder /rview/bin .
+
+# For rclone
+ENV XDG_CONFIG_HOME=/config
 
 ENTRYPOINT [ "./rview" ]
