@@ -1,9 +1,18 @@
 package testutil
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
+
+func IsError(t *testing.T, err, target error) {
+	t.Helper()
+
+	if !errors.Is(err, target) {
+		t.Fatalf("expected %v, got %v", target, err)
+	}
+}
 
 func NoError(t *testing.T, err error) {
 	t.Helper()
