@@ -24,7 +24,8 @@ var (
 )
 
 type ImageResizer struct {
-	cache rview.Cache
+	cache    rview.Cache
+	resizeFn func(io.Writer, io.Reader, rview.FileID) error
 
 	workersCount int
 
@@ -52,7 +53,8 @@ func CheckVips() error {
 
 func NewImageResizer(cache rview.Cache, workersCount int) *ImageResizer {
 	r := &ImageResizer{
-		cache: cache,
+		cache:    cache,
+		resizeFn: resizeWithVips,
 		//
 		workersCount: workersCount,
 		//
@@ -148,6 +150,20 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats,
 
 	writeCounter := &readWriteCounter{w: w}
 
+	err = r.resizeFn(writeCounter, tempFile, task.FileID)
+	if err != nil {
+		removeCacheFile()
+
+		return stats{}, err
+	}
+
+	return stats{
+		originalSize: originalSize,
+		resizedSize:  writeCounter.size,
+	}, nil
+}
+
+func resizeWithVips(dst io.Writer, src io.Reader, fileID rview.FileID) error {
 	// https://www.libvips.org/API/current/Using-vipsthumbnail.html
 	cmd := exec.Command(
 		"vips",
@@ -157,23 +173,17 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats,
 		"1024",
 	)
 	stderr := bytes.NewBuffer(nil)
-	cmd.Stdin = tempFile
-	cmd.Stdout = writeCounter
+	cmd.Stdin = src
+	cmd.Stdout = dst
 	cmd.Stderr = stderr
 
 	if err := cmd.Run(); err != nil {
-		removeCacheFile()
-
-		return stats{}, fmt.Errorf("couldn't resize image: %w, stderr: %q", err, stderr.String())
+		return fmt.Errorf("couldn't resize image: %w, stderr: %q", err, stderr.String())
 	}
 	if stderr.Len() > 0 {
-		rlog.Infof("vips stderr for %q: %q", task.FileID, stderr.String())
+		rlog.Infof("vips stderr for %q: %q", fileID, stderr.String())
 	}
-
-	return stats{
-		originalSize: originalSize,
-		resizedSize:  writeCounter.size,
-	}, nil
+	return nil
 }
 
 // CanResize detects if a file can be resized based on its filename.
@@ -210,7 +220,7 @@ func (r *ImageResizer) OpenResized(ctx context.Context, id rview.FileID) (io.Rea
 		return inProgress
 	}
 
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
 		// Check immediately
