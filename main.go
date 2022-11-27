@@ -38,6 +38,13 @@ func main() {
 		rlog.Fatalf("couldn't prepare icons: %s", err)
 	}
 
+	if cfg.Resizer {
+		err := resizer.CheckVips()
+		if err != nil {
+			rlog.Fatal(err)
+		}
+	}
+
 	termCtx, termCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	// Rclone Instance

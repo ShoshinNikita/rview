@@ -42,6 +42,14 @@ type resizeTask struct {
 	openFileFn rview.OpenFileFn
 }
 
+func CheckVips() error {
+	cmd := exec.Command("vips", "--version")
+	if err := cmd.Run(); err != nil {
+		return fmt.Errorf("vips is not installed: %w", err)
+	}
+	return nil
+}
+
 func NewImageResizer(cache rview.Cache, workersCount int) *ImageResizer {
 	r := &ImageResizer{
 		cache: cache,
