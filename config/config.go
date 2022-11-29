@@ -24,10 +24,6 @@ type Config struct {
 	ResizerMaxTotalSize int64
 	ResizerWorkersCount int
 
-	WebCache             bool
-	WebCacheMaxAge       time.Duration
-	WebCacheMaxTotalSize int64
-
 	// Debug options
 
 	DebugLogLevel           bool
@@ -55,10 +51,6 @@ func Parse() (cfg Config, err error) {
 	flag.DurationVar(&cfg.ResizerMaxAge, "resizer-max-age", 180*24*time.Hour, "max age of resized images")
 	flag.Int64Var(&cfg.ResizerMaxTotalSize, "resizer-max-total-size", 200<<20, "max total size of resized images, bytes")
 	flag.IntVar(&cfg.ResizerWorkersCount, "resizer-workers-count", runtime.NumCPU(), "number of image resize workers")
-	//
-	flag.BoolVar(&cfg.WebCache, "web-cache", true, "enable or disable web cache")
-	flag.DurationVar(&cfg.WebCacheMaxAge, "web-cache-max-age", 180*24*time.Hour, "max age of web cache")
-	flag.Int64Var(&cfg.WebCacheMaxTotalSize, "web-cache-max-total-size", 200<<20, "max total size of web cache, bytes")
 	//
 	flag.BoolVar(&cfg.DebugLogLevel, "debug-log-level", false, "display debug log messages")
 	flag.BoolVar(&cfg.ReadStaticFilesFromDisk, "read-static-files-from-disk", false, "read static files directly from disk")

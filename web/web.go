@@ -26,8 +26,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
-const maxFileSizeForCache = 512 << 10 // 512 KiB
-
 type Server struct {
 	cfg       config.Config
 	rcloneURL *url.URL
@@ -36,14 +34,13 @@ type Server struct {
 	httpClient *http.Client
 
 	resizer rview.ImageResizer
-	cache   rview.Cache
 
 	iconsFS     fs.FS
 	fileIconsFS fs.FS
 	templatesFS fs.FS
 }
 
-func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache) (s *Server) {
+func NewServer(cfg config.Config, resizer rview.ImageResizer) (s *Server) {
 	s = &Server{
 		cfg: cfg,
 		rcloneURL: &url.URL{
@@ -56,7 +53,6 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer, cache rview.Cache)
 		},
 		//
 		resizer: resizer,
-		cache:   cache,
 		//
 		iconsFS:     static.NewIconsFS(cfg.ReadStaticFilesFromDisk),
 		fileIconsFS: static.NewFileIconsFS(cfg.ReadStaticFilesFromDisk),
@@ -179,7 +175,7 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 		return
 	}
 
-	copyResponse(w, w, buf)
+	copyResponse(w, buf)
 }
 
 func embedIcon(fs fs.FS, name string) (template.HTML, error) {
@@ -387,21 +383,6 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rc, err := s.cache.Open(fileID)
-	if err == nil {
-		rlog.Debugf("serve file %q from cache", fileID)
-		defer rc.Close()
-
-		contentType := mime.TypeByExtension(pkgFilepath.Ext(fileID.GetName()))
-		if contentType != "" {
-			w.Header().Set("Content-Type", contentType)
-		}
-		w.Header().Set("Last-Modified", fileID.GetModTime().Format(http.TimeFormat))
-
-		copyResponse(w, w, rc)
-		return
-	}
-
 	rc, rcloneHeaders, err := s.getFile(r.Context(), fileID)
 	if err != nil {
 		writeInternalServerError(w, "couldn't get file: %s", err)
@@ -439,10 +420,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	writer, close := s.getFileWriter(w, rcloneHeaders, fileID)
-	defer close() //nolint:errcheck
-
-	copyResponse(w, writer, rc)
+	copyResponse(w, rc)
 }
 
 func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
@@ -460,40 +438,6 @@ func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, h
 	}
 
 	return resp.Body, resp.Header, nil
-}
-
-// getFileWriter returns an [io.Writer] that caches small files.
-func (s *Server) getFileWriter(w http.ResponseWriter, rcloneHeaders http.Header, fileID rview.FileID) (_ io.Writer, close func() error) {
-	close = func() error { return nil }
-
-	rawSize := rcloneHeaders.Get("Content-Length")
-	if rawSize == "" {
-		rlog.Debugf(`file %q doesn't have "Content-Length" header, skip caching`, fileID)
-		return w, close
-	}
-	size, err := strconv.Atoi(rawSize)
-	if err != nil {
-		rlog.Debugf(`couldn't parse value of "Content-Length" of file %q: %s`, fileID, err)
-		return w, close
-	}
-
-	if size > maxFileSizeForCache {
-		rlog.Debugf("don't cache too large file %q (%.2f MiB)", fileID, float64(maxFileSizeForCache)/(1<<20))
-		return w, close
-	}
-
-	cacheWriter, _, err := s.cache.GetSaveWriter(fileID)
-	if err != nil {
-		// We can serve the file. So, just log the error.
-		rlog.Debugf("couldn't get cache writer for file %q: %s", fileID, err)
-		return w, close
-	}
-
-	rlog.Debugf("save file %q to cache", fileID)
-
-	res := io.MultiWriter(w, cacheWriter)
-
-	return res, cacheWriter.Close
 }
 
 // handleThumbnail returns the resized image.
@@ -519,7 +463,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	etag := strconv.Itoa(int(fileID.GetModTime().Unix()))
 	setCacheHeaders(w, 30*24*time.Hour, etag)
 
-	copyResponse(w, w, rc)
+	copyResponse(w, rc)
 }
 
 func fileIDToQuery(query url.Values, id rview.FileID) url.Values {
@@ -542,8 +486,8 @@ func fileIDFromQuery(r *http.Request) (rview.FileID, error) {
 	return rview.NewFileID(path, modTime), nil
 }
 
-func copyResponse(w http.ResponseWriter, dst io.Writer, src io.Reader) {
-	_, err := io.Copy(dst, src)
+func copyResponse(w http.ResponseWriter, src io.Reader) {
+	_, err := io.Copy(w, src)
 	if err != nil {
 		writeInternalServerError(w, "couldn't write response: %s", err)
 	}

@@ -65,25 +65,6 @@ func main() {
 		imageResizerCleaner = cache.NewNoopCleaner()
 	}
 
-	// Web Cache
-	var (
-		webCache        rview.Cache
-		webCacheCleaner rview.CacheCleaner
-	)
-	if cfg.WebCache {
-		webCacheDir := filepath.Join(cfg.Dir, "cache")
-		webCache, err = cache.NewDiskCache(webCacheDir)
-		if err != nil {
-			rlog.Fatalf("couldn't prepare disk cache for web: %s", err)
-		}
-		webCacheCleaner = cache.NewCleaner(webCacheDir, cfg.WebCacheMaxAge, cfg.WebCacheMaxTotalSize)
-	} else {
-		rlog.Info("web cache is disabled")
-
-		webCache = cache.NewNoopCache()
-		webCacheCleaner = cache.NewNoopCleaner()
-	}
-
 	termCtx, termCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 
 	// Rclone Instance
@@ -99,7 +80,7 @@ func main() {
 	}()
 
 	// Web Server
-	server := web.NewServer(cfg, imageResizer, webCache)
+	server := web.NewServer(cfg, imageResizer)
 	go func() {
 		if err := server.Start(); err != nil {
 			rlog.Errorf("web server error: %s", err)
@@ -122,9 +103,6 @@ func main() {
 	}
 	if err := imageResizerCleaner.Shutdown(shutdownCtx); err != nil {
 		rlog.Errorf("couldn't shutdown resizer cache cleaner gracefully: %s", err)
-	}
-	if err := webCacheCleaner.Shutdown(shutdownCtx); err != nil {
-		rlog.Errorf("couldn't shutdown web cache cleaner gracefully: %s", err)
 	}
 	if err := rcloneInstance.Shutdown(shutdownCtx); err != nil {
 		rlog.Errorf("couldn't shutdown rclone instance gracefully: %s", err)
