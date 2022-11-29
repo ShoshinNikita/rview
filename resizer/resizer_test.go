@@ -19,7 +19,8 @@ func TestImageResizer(t *testing.T) {
 
 	tempDir, err := os.MkdirTemp("", "rview-test-*")
 	testutil.NoError(t, err)
-	cache := cache.NewDiskCache(tempDir)
+	cache, err := cache.NewDiskCache(tempDir)
+	testutil.NoError(t, err)
 
 	resizer := NewImageResizer(cache, 2)
 

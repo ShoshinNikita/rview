@@ -45,20 +45,6 @@ func main() {
 		}
 	}
 
-	termCtx, termCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
-
-	// Rclone Instance
-	rcloneInstance, err := rclone.NewRclone(cfg.RclonePort, cfg.RcloneTarget)
-	if err != nil {
-		rlog.Fatalf("couldn't prepare rclone: %s", err)
-	}
-	go func() {
-		if err := rcloneInstance.Start(); err != nil {
-			rlog.Errorf("rclone instance error: %s", err)
-			termCtxCancel()
-		}
-	}()
-
 	// Resizer
 	var (
 		imageResizer        rview.ImageResizer
@@ -66,7 +52,10 @@ func main() {
 	)
 	if cfg.Resizer {
 		resizerCacheDir := filepath.Join(cfg.Dir, "thumbnails")
-		resizerCache := cache.NewDiskCache(resizerCacheDir)
+		resizerCache, err := cache.NewDiskCache(resizerCacheDir)
+		if err != nil {
+			rlog.Fatalf("couldn't prepare disk cache for image resizer: %s", err)
+		}
 		imageResizerCleaner = cache.NewCleaner(resizerCacheDir, cfg.ResizerMaxAge, cfg.ResizerMaxTotalSize)
 		imageResizer = resizer.NewImageResizer(resizerCache, cfg.ResizerWorkersCount)
 	} else {
@@ -83,7 +72,10 @@ func main() {
 	)
 	if cfg.WebCache {
 		webCacheDir := filepath.Join(cfg.Dir, "cache")
-		webCache = cache.NewDiskCache(webCacheDir)
+		webCache, err = cache.NewDiskCache(webCacheDir)
+		if err != nil {
+			rlog.Fatalf("couldn't prepare disk cache for web: %s", err)
+		}
 		webCacheCleaner = cache.NewCleaner(webCacheDir, cfg.WebCacheMaxAge, cfg.WebCacheMaxTotalSize)
 	} else {
 		rlog.Info("web cache is disabled")
@@ -91,6 +83,20 @@ func main() {
 		webCache = cache.NewNoopCache()
 		webCacheCleaner = cache.NewNoopCleaner()
 	}
+
+	termCtx, termCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+
+	// Rclone Instance
+	rcloneInstance, err := rclone.NewRclone(cfg.RclonePort, cfg.RcloneTarget)
+	if err != nil {
+		rlog.Fatalf("couldn't prepare rclone: %s", err)
+	}
+	go func() {
+		if err := rcloneInstance.Start(); err != nil {
+			rlog.Errorf("rclone instance error: %s", err)
+			termCtxCancel()
+		}
+	}()
 
 	// Web Server
 	server := web.NewServer(cfg, imageResizer, webCache)

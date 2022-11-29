@@ -16,7 +16,8 @@ func TestDiskCache(t *testing.T) {
 	modTime := time.Date(2022, time.April, 15, 13, 5, 1, 0, time.UTC).Unix()
 	fileID := rview.NewFileID("/home/users/1.txt", modTime)
 
-	cache := NewDiskCache(os.TempDir())
+	cache, err := NewDiskCache(os.TempDir())
+	testutil.NoError(t, err)
 
 	path := cache.generateFilepath(fileID)
 	testutil.Equal(t, os.TempDir()+"/2022-04/1650027901_1.txt", path)

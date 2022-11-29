@@ -15,20 +15,25 @@ import (
 )
 
 type DiskCache struct {
-	dir string
+	absDir string
 }
 
 var _ rview.Cache = (*DiskCache)(nil)
 
-func NewDiskCache(dir string) *DiskCache {
-	return &DiskCache{
-		dir: dir,
+func NewDiskCache(dir string) (*DiskCache, error) {
+	absDir, err := filepath.Abs(dir)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't get absolute path: %w", err)
 	}
+	return &DiskCache{
+		absDir: absDir,
+	}, nil
 }
 
 // Open return an [io.ReadCloser] with cache content. If the file is not cached, it returns [rview.ErrCacheMiss].
 func (c *DiskCache) Open(id rview.FileID) (io.ReadCloser, error) {
 	path := c.generateFilepath(id)
+
 	file, err := os.Open(path)
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
@@ -94,5 +99,5 @@ func (c *DiskCache) generateFilepath(id rview.FileID) string {
 	subdir := modTime.Format("2006-01")
 	res := strconv.Itoa(int(modTime.Unix())) + "_" + id.GetName()
 
-	return filepath.Join(c.dir, subdir, res)
+	return filepath.Join(c.absDir, subdir, res)
 }
