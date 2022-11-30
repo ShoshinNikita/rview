@@ -236,6 +236,7 @@ func resizeWithVips(originalFile, cacheFile string, fileID rview.FileID) error {
 
 	cmd := exec.Command(
 		"vipsthumbnail",
+		"--rotate", // auto-rotate
 		originalFile,
 		"--size", "1024>",
 		"-o", output,
