@@ -25,10 +25,9 @@ func TestImageResizer(t *testing.T) {
 	resizer := NewImageResizer(cache, 2)
 
 	var resizedCount int
-	resizer.resizeFn = func(w io.Writer, _ io.Reader, id rview.FileID) error {
+	resizer.resizeFn = func(originalFile, cacheFile string, id rview.FileID) error {
 		resizedCount++
-		_, err := w.Write([]byte("resized-content-" + id.GetName()))
-		return err
+		return os.WriteFile(cacheFile, []byte("resized-content-"+id.GetName()), 0o600)
 	}
 
 	fileID := rview.NewFileID("1.jpg", time.Now().Unix())
@@ -39,7 +38,7 @@ func TestImageResizer(t *testing.T) {
 
 	err = resizer.Resize(fileID, func(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
 		time.Sleep(110 * time.Millisecond)
-		return io.NopCloser(bytes.NewReader([]byte(id.String()))), nil
+		return io.NopCloser(bytes.NewReader([]byte("original-content-" + id.String()))), nil
 	})
 	testutil.NoError(t, err)
 
@@ -70,7 +69,12 @@ func TestImageResizer(t *testing.T) {
 	t.Run("remove resized file after error", func(t *testing.T) {
 		fileID := rview.NewFileID("2.jpg", time.Now().Unix())
 
-		resizer.resizeFn = func(w io.Writer, _ io.Reader, id rview.FileID) error {
+		resizer.resizeFn = func(originalFile, cacheFile string, id rview.FileID) error {
+			// File must be created by vips, emulate it.
+			f, err := os.Create(cacheFile)
+			testutil.NoError(t, err)
+			testutil.NoError(t, f.Close())
+
 			testutil.NoError(t, resizer.cache.Check(fileID))
 
 			return errors.New("some error")

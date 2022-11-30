@@ -19,13 +19,21 @@ import (
 	"github.com/ShoshinNikita/rview/rview"
 )
 
+type imageType int
+
+const (
+	unsupportedImageType imageType = iota
+	jpegImageType
+	pngImageType
+)
+
 var (
 	ErrUnsupportedImageFormat = errors.New("unsupported image format")
 )
 
 type ImageResizer struct {
 	cache    rview.Cache
-	resizeFn func(io.Writer, io.Reader, rview.FileID) error
+	resizeFn func(originalFile, cacheFile string, id rview.FileID) error
 
 	workersCount int
 
@@ -91,10 +99,16 @@ func (r *ImageResizer) startWorkers() {
 					metrics.ResizerProcessDuration.Observe(dur.Seconds())
 					metrics.ResizerDownloadedImageSizes.Observe(float64(stats.originalSize))
 
-					rlog.Debugf(
+					msg := fmt.Sprintf(
 						"file %q was resized in %s, original size: %.2f MiB, new size: %.2f MiB",
 						task.FileID, dur, float64(stats.originalSize)/(1<<20), float64(stats.resizedSize)/(1<<20),
 					)
+
+					if stats.resizedSize > stats.originalSize {
+						rlog.Errorf("resized file is greater than the original one: %s", msg)
+					} else {
+						rlog.Debug(msg)
+					}
 				}
 
 				cancel()
@@ -119,19 +133,11 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats,
 	}
 	defer rc.Close()
 
-	// We could pass file reader as stdin of [exec.Cmd], but it caused weird errors:
-	//
-	//	VipsJpeg: Corrupt JPEG data: premature end of data segment
-	//
-	// An approach with temp files works well, so stick to it.
 	tempFile, err := os.CreateTemp("", "rview-*")
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't create temp image file: %w", err)
 	}
 	defer func() {
-		if err := tempFile.Close(); err != nil {
-			rlog.Errorf("couldn't close temp image file: %s", err)
-		}
 		if err := os.Remove(tempFile.Name()); err != nil {
 			rlog.Errorf("couldn't remove temp image file: %s", err)
 		}
@@ -141,40 +147,58 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats,
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't load image: %w", err)
 	}
-
-	w, removeCacheFile, err := r.cache.GetSaveWriter(task.FileID)
-	if err != nil {
-		return stats{}, fmt.Errorf("couldn't get cache writer: %w", err)
+	if err := tempFile.Close(); err != nil {
+		return stats{}, fmt.Errorf("couldn't close temp image file: %w", err)
 	}
-	defer w.Close()
 
-	writeCounter := &readWriteCounter{w: w}
-
-	err = r.resizeFn(writeCounter, tempFile, task.FileID)
+	cacheFilepath, err := r.cache.GetFilepath(task.FileID)
 	if err != nil {
-		removeCacheFile()
+		return stats{}, fmt.Errorf("couldn't get path of a cache file: %w", err)
+	}
+
+	err = r.resizeFn(tempFile.Name(), cacheFilepath, task.FileID)
+	if err != nil {
+		if err := r.cache.Remove(task.FileID); err != nil {
+			rlog.Errorf("couldn't remove cache file for %s after resize error: %s", task.FileID, err)
+		}
 
 		return stats{}, err
 	}
 
+	info, err := os.Stat(cacheFilepath)
+	if err != nil {
+		return stats{}, fmt.Errorf("couldn't get stats of a cache file: %w", err)
+	}
 	return stats{
 		originalSize: originalSize,
-		resizedSize:  writeCounter.size,
+		resizedSize:  info.Size(),
 	}, nil
 }
 
-func resizeWithVips(dst io.Writer, src io.Reader, fileID rview.FileID) error {
-	// https://www.libvips.org/API/current/Using-vipsthumbnail.html
+// resizeWithVips resizes the original file with "vipsthumbnail" command. We can't use
+// "vips thumbnail_source" because it doesn't support conditional resizing (> or < after
+// the size). Without conditional resizing we could get resized images that are larger
+// than the original ones.
+//
+// See https://www.libvips.org/API/current/Using-vipsthumbnail.html for "vipsthumbnail" docs.
+func resizeWithVips(originalFile, cacheFile string, fileID rview.FileID) error {
+	output := cacheFile
+	switch getImageType(fileID) {
+	case jpegImageType:
+		output += "[Q=80,optimize_coding,strip]"
+	case pngImageType:
+		output += "[strip]"
+	default:
+		return errors.New("unsupported image type")
+	}
+
 	cmd := exec.Command(
-		"vips",
-		"thumbnail_source",
-		"[descriptor=0]",
-		".jpg[Q=80,optimize_coding,strip]",
-		"1024",
+		"vipsthumbnail",
+		originalFile,
+		"--size", "1024>",
+		"-o", output,
 	)
 	stderr := bytes.NewBuffer(nil)
-	cmd.Stdin = src
-	cmd.Stdout = dst
 	cmd.Stderr = stderr
 
 	if err := cmd.Run(); err != nil {
@@ -188,12 +212,23 @@ func resizeWithVips(dst io.Writer, src io.Reader, fileID rview.FileID) error {
 
 // CanResize detects if a file can be resized based on its filename.
 func (r *ImageResizer) CanResize(id rview.FileID) bool {
-	ext := strings.ToLower(filepath.Ext(id.GetName()))
-	switch ext {
-	case ".jpg", ".jpeg", ".png":
+	switch getImageType(id) {
+	case jpegImageType, pngImageType:
 		return true
 	default:
 		return false
+	}
+}
+
+func getImageType(id rview.FileID) imageType {
+	ext := strings.ToLower(filepath.Ext(id.GetName()))
+	switch ext {
+	case ".jpg", ".jpeg":
+		return jpegImageType
+	case ".png":
+		return pngImageType
+	default:
+		return unsupportedImageType
 	}
 }
 
@@ -289,22 +324,4 @@ func (r *ImageResizer) Shutdown(ctx context.Context) error {
 	case <-r.workersDoneCh:
 		return nil
 	}
-}
-
-type readWriteCounter struct {
-	r    io.Reader
-	w    io.Writer
-	size int64
-}
-
-func (rw *readWriteCounter) Read(p []byte) (int, error) {
-	n, err := rw.r.Read(p)
-	rw.size += int64(n)
-	return n, err
-}
-
-func (rw *readWriteCounter) Write(p []byte) (int, error) {
-	n, err := rw.w.Write(p)
-	rw.size += int64(n)
-	return n, err
 }

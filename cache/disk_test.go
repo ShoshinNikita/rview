@@ -34,30 +34,29 @@ func TestDiskCache(t *testing.T) {
 		testutil.IsError(t, err, rview.ErrCacheMiss)
 	})
 
-	t.Run("remove after error", func(t *testing.T) {
-		w, remove, err := cache.GetSaveWriter(fileID)
+	t.Run("remove", func(t *testing.T) {
+		path, err := cache.GetFilepath(fileID)
+		testutil.NoError(t, err)
+
+		err = cache.Check(fileID)
+		testutil.IsError(t, err, rview.ErrCacheMiss)
+
+		err = os.WriteFile(path, []byte("hello world"), 0o600)
 		testutil.NoError(t, err)
 
 		err = cache.Check(fileID)
 		testutil.NoError(t, err)
 
-		_, err = w.Write([]byte("hello world"))
-		testutil.NoError(t, err)
-
-		remove()
+		testutil.NoError(t, cache.Remove(fileID))
 		testutil.IsError(t, cache.Check(fileID), rview.ErrCacheMiss)
-
-		testutil.NoError(t, w.Close())
 	})
 
 	t.Run("read", func(t *testing.T) {
-		w, _, err := cache.GetSaveWriter(fileID)
+		path, err := cache.GetFilepath(fileID)
 		testutil.NoError(t, err)
 
-		_, err = w.Write([]byte("hello world"))
+		err = os.WriteFile(path, []byte("hello world"), 0o600)
 		testutil.NoError(t, err)
-
-		testutil.NoError(t, w.Close())
 
 		rc, err := cache.Open(fileID)
 		testutil.NoError(t, err)
