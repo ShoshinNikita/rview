@@ -146,7 +146,7 @@
 </style>
 
 <div class="preview-wrapper">
-	<a href="#" class="preview-close-layer" title="Close Preview" onclick="closePreview()"></a>
+	<a href="#" class="preview-close-layer" title="Close Preview" onclick="closePreview(); return false"></a>
 
 	<div class="preview card">
 		<div class="preview-image"></div>
@@ -181,7 +181,7 @@
 		{{ end }}
 
 		<li id="selector-thumbnail-{{ .Filename }}" class="selector-thumbnail-wrapper">
-			<a href="#" class="selector-thumbnail" title="{{ .Filename }}" onclick="updatePreview('{{ .Filename }}')">
+			<a href="#" class="selector-thumbnail" title="{{ .Filename }}" onclick="updatePreview('{{ .Filename }}'); return false">
 				<img src="{{ .ThumbnailURL }}">
 			</a>
 		</li>

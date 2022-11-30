@@ -279,7 +279,7 @@
 		<!-- Open preview for images and download other files -->
 		{{ $attrs := "" }}
 		{{ if .ThumbnailURL }}
-		{{ $attrs = printf `onclick="openPreview('%s')"` .Filename }}
+		{{ $attrs = printf `onclick="openPreview('%s'); return false"` .Filename }}
 		{{ else if not .IsDir }}
 		{{ $attrs = printf `download="%s"` .Filename }}
 		{{ end }}
