@@ -105,7 +105,7 @@ func (r *ImageResizer) startWorkers() {
 					)
 
 					if stats.resizedSize > stats.originalSize {
-						rlog.Errorf("resized file is greater than the original one: %s", msg)
+						rlog.Warnf("resized file is greater than the original one: %s", msg)
 					} else {
 						rlog.Debug(msg)
 					}
