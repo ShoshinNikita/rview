@@ -47,6 +47,43 @@
 		background-repeat: no-repeat;
 		background-size: contain;
 		width: 100%;
+		position: relative;
+	}
+
+	.switch-preview-button {
+		align-items: center;
+		display: flex;
+		justify-content: center;
+		height: 100%;
+		opacity: 0.3;
+		position: absolute;
+		top: 50%;
+		transform: translateY(-50%);
+	}
+
+	a.switch-preview-button:hover {
+		text-decoration: none;
+	}
+
+	.switch-preview-button>svg {
+		height: 50px;
+		width: 50px;
+	}
+
+	.switch-preview-button.prev>svg {
+		transform: rotate(90deg);
+	}
+
+	.switch-preview-button.next {
+		right: 0;
+	}
+
+	.switch-preview-button.next>svg {
+		transform: rotate(270deg);
+	}
+
+	.switch-preview-button.hidden {
+		display: none;
 	}
 
 	.preview-side-panel {
@@ -74,11 +111,6 @@
 		min-height: 30px;
 		min-width: 30px;
 		width: 30px;
-	}
-
-	.preview-download-button svg {
-		height: 100%;
-		width: 100%;
 	}
 
 	@media only screen and (max-width: 900px) {
@@ -149,7 +181,14 @@
 	<a href="#" class="preview-close-layer" title="Close Preview" onclick="closePreview(); return false"></a>
 
 	<div class="preview card">
-		<div class="preview-image"></div>
+		<div class="preview-image">
+			<a href="#" class="switch-preview-button prev" title="Previous" onclick="swipePreview(-1); return false">
+				{{ embedIcon "chevron-down" }}
+			</a>
+			<a href="#" class="switch-preview-button next" title="Next" onclick="swipePreview(1); return false">
+				{{ embedIcon "chevron-down" }}
+			</a>
+		</div>
 
 		<div class="preview-side-panel">
 			<div class="preview-file-info">
@@ -196,11 +235,14 @@
 	const previewWrapper = document.getElementsByClassName("preview-wrapper")[0];
 	const previewImage = document.getElementsByClassName("preview-image")[0];
 	const fileInfos = document.getElementsByClassName("preview-file-info-value");
+	const previousPreviewButton = document.querySelector(".switch-preview-button.prev");
+	const nextPreviewButton = document.querySelector(".switch-preview-button.next");
 
 	const thumbnailIDPrefix = "selector-thumbnail-";
 
 	let isPreviewOpened = false;
 	let currentFilename = null;
+	let currentIndex = null;
 	let scrollIntervalID = 0;
 	let prevScrollLeft = null;
 
@@ -208,7 +250,11 @@
 		// Stop scroll animation to avoid any conflicts.
 		clearInterval(scrollIntervalID);
 
-		const entry = entries.find(v => v.filename == filename) || entries[0];
+		currentIndex = entries.findIndex(v => v.filename == filename);
+		if (currentIndex === -1) {
+			currentIndex = 0;
+		}
+		const entry = entries[currentIndex];
 
 		// Scroll to the chosen file.
 		const thumbnail = document.getElementById(thumbnailIDPrefix + entry.filename);
@@ -274,13 +320,23 @@
 		}
 		currentFilename = entry.filename;
 		document.getElementById(thumbnailIDPrefix + currentFilename).classList.add("chosen");
+
+		// Hide switch preview buttons if necessary.
+		if (currentIndex === 0) {
+			previousPreviewButton.classList.add("hidden");
+		} else {
+			previousPreviewButton.classList.remove("hidden");
+		}
+
+		if (currentIndex === entries.length - 1) {
+			nextPreviewButton.classList.add("hidden");
+		} else {
+			nextPreviewButton.classList.remove("hidden");
+		}
 	};
 
 	const swipePreview = (direction) => {
-		let newIndex = entries.findIndex(v => v.filename === currentFilename);
-		if (newIndex === -1) {
-			newIndex = 0;
-		}
+		let newIndex = currentIndex;
 
 		if (direction > 0) {
 			newIndex++;
@@ -327,16 +383,28 @@
 
 	let touchStartX = 0, touchStartY = 0, animation = "", swipeDirection = 0;
 
-	const shouldIgnoreTouch = (ev, ignoreTouchStarts = false) => {
-		let ignore = ev.target !== previewImage || ev.touches.length > 1;
-		if (!ignoreTouchStarts) {
-			ignore = ignore || !(touchStartX && touchStartY);
+	const shouldIgnoreTouch = (ev) => {
+		if (ev.touches.length > 1) {
+			return true;
+		}
+
+		let ignore = ev.target !== previewImage;
+		if (ignore) {
+			const path = ev.path || (ev.composedPath && ev.composedPath());
+			if (path) {
+				for (const elem of path) {
+					if (elem === previewImage) {
+						ignore = false;
+						break;
+					}
+				}
+			}
 		}
 		return ignore;
 	};
 
 	window.addEventListener("touchstart", ev => {
-		if (shouldIgnoreTouch(ev, true)) {
+		if (shouldIgnoreTouch(ev)) {
 			return;
 		}
 
@@ -351,20 +419,32 @@
 		let diffX = ev.changedTouches[0].clientX - touchStartX;
 		let diffY = ev.changedTouches[0].clientY - touchStartY;
 
-		if (Math.abs(diffY) > 30 && (!animation || animation === closeAnimation)) {
+		if (animation === closeAnimation || (!animation && Math.abs(diffY) > 20)) {
 			animation = closeAnimation;
 
 			if (diffY > 0) {
 				diffY = 0;
 			}
+			const maxDiff = previewWrapper.clientHeight / 4;
+			if (Math.abs(diffY) > maxDiff) {
+				diffY = Math.sign(diffY) * maxDiff;
+			}
 
-			previewWrapper.style["top"] = `${diffY / 3}px`;
-			previewWrapper.style["opacity"] = `${100 - (Math.abs(diffY) / previewWrapper.clientHeight * 100) / 3}%`;
+			previewWrapper.style["top"] = `${diffY / 2}px`;
 		}
-		if (Math.abs(diffX) > 30 && (!animation || animation === swipeAnimation)) {
+		if (animation === swipeAnimation || (!animation && Math.abs(diffX) > 30)) {
 			animation = swipeAnimation;
 
-			previewImage.style["background-position-x"] = `calc(50% + ${diffX / 3}px)`;
+			const maxDiff = previewImage.clientWidth / 2;
+			if (Math.abs(diffX) > maxDiff) {
+				diffX = Math.sign(diffX) * maxDiff;
+			}
+			if ((currentIndex === 0 && diffX > 0) || (currentIndex === entries.length - 1 && diffX < 0)) {
+				// Don't scroll first and last previews.
+				diffX = 0;
+			}
+
+			previewImage.style["background-position-x"] = `calc(50% + ${diffX / 2}px)`;
 		}
 	});
 	window.addEventListener("touchend", ev => {
@@ -374,7 +454,6 @@
 
 		// Reset all changes.
 		previewWrapper.style.removeProperty("top");
-		previewWrapper.style.removeProperty("opacity");
 		//
 		previewImage.style.removeProperty("background-position-x");
 
@@ -382,13 +461,13 @@
 		const diffY = ev.changedTouches[0].clientY - touchStartY;
 		switch (animation) {
 			case swipeAnimation:
-				if (Math.abs(diffX) > previewImage.clientWidth / 4) {
+				if (Math.abs(diffX) > previewImage.clientWidth / 5) {
 					swipePreview(-diffX);
 				}
 				break;
 
 			case closeAnimation:
-				if (diffY < 0 && Math.abs(diffY) > previewWrapper.clientHeight / 3) {
+				if (diffY < 0 && Math.abs(diffY) > previewWrapper.clientHeight / 5) {
 					closePreview();
 				}
 				break;

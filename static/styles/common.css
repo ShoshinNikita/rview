@@ -82,6 +82,11 @@ a:hover {
 	text-decoration: underline;
 }
 
+svg {
+	height: 100%;
+	width: 100%;
+}
+
 .card {
 	background-color: var(--background-color);
 	border-radius: 3px;
