@@ -83,6 +83,14 @@ var (
 			Buckets:   []float64{0.2, 0.5, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120},
 		},
 	)
+	ResizerSizeRatio = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: "resizer",
+			Name:      "size_ratio",
+			Buckets:   []float64{0.7, 0.9, 1, 2, 5, 10, 20, 30, 50, 70, 100, 150},
+		},
+	)
 )
 
 // Cache

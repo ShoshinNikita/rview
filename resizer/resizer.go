@@ -85,7 +85,7 @@ func NewImageResizer(cache rview.Cache, workersCount int) *ImageResizer {
 
 func (r *ImageResizer) startWorkers() {
 	toMiB := func(v int64) string {
-		return fmt.Sprintf("%.2f MiB", float64(v)/(1<<20))
+		return fmt.Sprintf("%.3f MiB", float64(v)/(1<<20))
 	}
 
 	var wg sync.WaitGroup
@@ -112,18 +112,21 @@ func (r *ImageResizer) startWorkers() {
 
 				case stats.originalImageUsed:
 					metrics.ResizerOriginalImageUsed.Inc()
-					rlog.Debugf("use original image for %q, size: %s", task.FileID, toMiB(stats.originalSize))
+					rlog.Debugf("use original image for %q, size: %s", task.GetPath(), toMiB(stats.originalSize))
 
 				default:
 					metrics.ResizerProcessDuration.Observe(dur.Seconds())
+					metrics.ResizerSizeRatio.Observe(float64(stats.originalSize) / float64(stats.resizedSize))
 
 					msg := fmt.Sprintf(
 						"file %q was resized in %s, original size: %s, new size: %s",
-						task.FileID, dur, toMiB(stats.originalSize), toMiB(stats.resizedSize),
+						task.GetPath(), dur, toMiB(stats.originalSize), toMiB(stats.resizedSize),
 					)
 
-					if stats.resizedSize > stats.originalSize {
-						rlog.Warnf("resized file is greater than the original one: %s", msg)
+					const reportThreshold = 10 << 10 // 10 Kib
+
+					if diff := stats.resizedSize - stats.originalSize; diff > reportThreshold {
+						rlog.Warnf("resized file is greater than the original one by %s: %s", toMiB(diff), msg)
 					} else {
 						rlog.Debug(msg)
 					}
