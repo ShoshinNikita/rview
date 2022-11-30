@@ -112,7 +112,10 @@ func (r *ImageResizer) startWorkers() {
 				}
 
 				cancel()
+
+				r.inProgressTasksMu.Lock()
 				delete(r.inProgressTasks, task.FileID)
+				r.inProgressTasksMu.Unlock()
 			}
 		}()
 	}
