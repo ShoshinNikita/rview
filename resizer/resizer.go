@@ -34,6 +34,10 @@ var (
 type ImageResizer struct {
 	cache    rview.Cache
 	resizeFn func(originalFile, cacheFile string, id rview.FileID) error
+	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
+	// used without resizing. The main purpose of resizing is to reduce image size, and with small
+	// files it is not always possible - after resizing they become just larger.
+	useOriginalImageThresholdSize int64
 
 	workersCount int
 
@@ -61,8 +65,9 @@ func CheckVips() error {
 
 func NewImageResizer(cache rview.Cache, workersCount int) *ImageResizer {
 	r := &ImageResizer{
-		cache:    cache,
-		resizeFn: resizeWithVips,
+		cache:                         cache,
+		resizeFn:                      resizeWithVips,
+		useOriginalImageThresholdSize: 200 << 10, // 200 KiB
 		//
 		workersCount: workersCount,
 		//
@@ -79,6 +84,10 @@ func NewImageResizer(cache rview.Cache, workersCount int) *ImageResizer {
 }
 
 func (r *ImageResizer) startWorkers() {
+	toMiB := func(v int64) string {
+		return fmt.Sprintf("%.2f MiB", float64(v)/(1<<20))
+	}
+
 	var wg sync.WaitGroup
 	for i := 0; i < r.workersCount; i++ {
 		wg.Add(1)
@@ -92,16 +101,25 @@ func (r *ImageResizer) startWorkers() {
 				stats, err := r.processTask(ctx, task)
 				dur := time.Since(now)
 
-				if err != nil {
+				if stats.originalSize > 0 {
+					metrics.ResizerDownloadedImageSizes.Observe(float64(stats.originalSize))
+				}
+
+				switch {
+				case err != nil:
 					metrics.ResizerErrors.Inc()
 					rlog.Errorf("couldn't process task to resize %q: %s", task.GetPath(), err)
-				} else {
+
+				case stats.originalImageUsed:
+					metrics.ResizerOriginalImageUsed.Inc()
+					rlog.Debugf("use original image for %q, size: %s", task.FileID, toMiB(stats.originalSize))
+
+				default:
 					metrics.ResizerProcessDuration.Observe(dur.Seconds())
-					metrics.ResizerDownloadedImageSizes.Observe(float64(stats.originalSize))
 
 					msg := fmt.Sprintf(
-						"file %q was resized in %s, original size: %.2f MiB, new size: %.2f MiB",
-						task.FileID, dur, float64(stats.originalSize)/(1<<20), float64(stats.resizedSize)/(1<<20),
+						"file %q was resized in %s, original size: %s, new size: %s",
+						task.FileID, dur, toMiB(stats.originalSize), toMiB(stats.resizedSize),
 					)
 
 					if stats.resizedSize > stats.originalSize {
@@ -125,11 +143,12 @@ func (r *ImageResizer) startWorkers() {
 }
 
 type stats struct {
-	originalSize int64
-	resizedSize  int64
+	originalSize      int64
+	resizedSize       int64
+	originalImageUsed bool
 }
 
-func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats, error) {
+func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalStats stats, err error) {
 	rc, err := task.openFileFn(ctx, task.FileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get image reader: %w", err)
@@ -141,6 +160,11 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats,
 		return stats{}, fmt.Errorf("couldn't create temp image file: %w", err)
 	}
 	defer func() {
+		if finalStats.originalImageUsed {
+			// Temp file was renamed.
+			return
+		}
+
 		if err := os.Remove(tempFile.Name()); err != nil {
 			rlog.Errorf("couldn't remove temp image file: %s", err)
 		}
@@ -157,6 +181,18 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (stats,
 	cacheFilepath, err := r.cache.GetFilepath(task.FileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get path of a cache file: %w", err)
+	}
+
+	if originalSize < r.useOriginalImageThresholdSize {
+		err := os.Rename(tempFile.Name(), cacheFilepath)
+		if err != nil {
+			return stats{}, fmt.Errorf("couldn't rename temp image file: %w", err)
+		}
+		return stats{
+			originalSize:      originalSize,
+			resizedSize:       originalSize,
+			originalImageUsed: true,
+		}, nil
 	}
 
 	err = r.resizeFn(tempFile.Name(), cacheFilepath, task.FileID)

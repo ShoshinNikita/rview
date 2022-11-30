@@ -23,6 +23,7 @@ func TestImageResizer(t *testing.T) {
 	testutil.NoError(t, err)
 
 	resizer := NewImageResizer(cache, 2)
+	resizer.useOriginalImageThresholdSize = 10
 
 	var resizedCount int
 	resizer.resizeFn = func(originalFile, cacheFile string, id rview.FileID) error {
@@ -81,7 +82,7 @@ func TestImageResizer(t *testing.T) {
 		}
 
 		err = resizer.Resize(fileID, func(context.Context, rview.FileID) (io.ReadCloser, error) {
-			return io.NopCloser(bytes.NewReader([]byte("hello"))), nil
+			return io.NopCloser(bytes.NewReader([]byte("long phrase to exceed threshold"))), nil
 		})
 		testutil.NoError(t, err)
 
@@ -90,6 +91,28 @@ func TestImageResizer(t *testing.T) {
 
 		// Cache file must be removed.
 		testutil.IsError(t, resizer.cache.Check(fileID), rview.ErrCacheMiss)
+	})
+
+	t.Run("use original file", func(t *testing.T) {
+		fileID := rview.NewFileID("3.jpg", time.Now().Unix())
+
+		var resizeCalled bool
+		resizer.resizeFn = func(_, _ string, _ rview.FileID) error {
+			resizeCalled = true
+			return errors.New("should not be called")
+		}
+
+		err = resizer.Resize(fileID, func(context.Context, rview.FileID) (io.ReadCloser, error) {
+			return io.NopCloser(bytes.NewReader([]byte("x"))), nil
+		})
+		testutil.NoError(t, err)
+
+		rc, err = resizer.OpenResized(context.Background(), fileID)
+		testutil.NoError(t, err)
+		data, err := io.ReadAll(rc)
+		testutil.NoError(t, err)
+		testutil.Equal(t, "x", string(data))
+		testutil.Equal(t, false, resizeCalled)
 	})
 
 	testutil.NoError(t, resizer.Shutdown(context.Background()))

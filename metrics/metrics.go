@@ -49,6 +49,13 @@ var (
 			Name:      "errors_total",
 		},
 	)
+	ResizerOriginalImageUsed = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "resizer",
+			Name:      "original_image_used",
+		},
+	)
 	ResizerDownloadedImageSizes = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: namespace,
