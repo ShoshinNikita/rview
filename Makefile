@@ -8,8 +8,7 @@ run: build
 			--port=8090 \
 			--dir=_var \
 			--rclone-target=${RCLONE_TARGET} \
-			--read-static-files-from-disk \
-			--debug-log-level
+			--read-static-files-from-disk
 
 build:
 	@ echo "Build..."
@@ -19,7 +18,7 @@ docker-build:
 	@ echo "Build Docker Image..."
 	@ docker build -t rview .
 
-check: lint test build docker-build
+check: build lint test build docker-build
 
 test:
 	@ echo "Run tests..."
