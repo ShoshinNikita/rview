@@ -5,8 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"reflect"
 	"runtime"
 	"runtime/debug"
+	"sort"
 	"time"
 )
 
@@ -35,25 +37,72 @@ type BuildInfo struct {
 	CommitTime   string
 }
 
+type flagParams struct {
+	// p is a pointer to a value.
+	p            any
+	defaultValue any
+	desc         string
+}
+
+func (cfg *Config) getFlagParams() map[string]flagParams {
+	return map[string]flagParams{
+		"port": {
+			p: &cfg.ServerPort, defaultValue: 8080, desc: "server port",
+		},
+		"dir": {
+			p: &cfg.Dir, defaultValue: "./var", desc: "data dir",
+		},
+		//
+		"rclone-port": {
+			p: &cfg.RclonePort, defaultValue: 8181, desc: "port of a rclone instance",
+		},
+		"rclone-target": {
+			p: &cfg.RcloneTarget, defaultValue: "", desc: "rclone target",
+		},
+		//
+		"resizer": {
+			p: &cfg.Resizer, defaultValue: true, desc: "enable or disable image resizer",
+		},
+		"resizer-max-age": {
+			p: &cfg.ResizerMaxAge, defaultValue: 180 * 24 * time.Hour, desc: "max age of resized images",
+		},
+		"resizer-max-total-size": {
+			p: &cfg.ResizerMaxTotalSize, defaultValue: int64(200 << 20), desc: "max total size of resized images, bytes",
+		},
+		"resizer-workers-count": {
+			p: &cfg.ResizerWorkersCount, defaultValue: runtime.NumCPU(), desc: "number of image resize workers",
+		},
+		//
+		"debug-log-level": {
+			p: &cfg.DebugLogLevel, defaultValue: false, desc: "display debug log messages",
+		},
+		"read-static-files-from-disk": {
+			p: &cfg.ReadStaticFilesFromDisk, defaultValue: false, desc: "read static files directly from disk",
+		},
+	}
+}
+
 func Parse() (cfg Config, err error) {
 	cfg.BuildInfo = readBuildInfo()
 
 	var printVersion bool
 	flag.BoolVar(&printVersion, "version", false, "print version and exit")
-	//
-	flag.IntVar(&cfg.ServerPort, "port", 8080, "server port")
-	flag.StringVar(&cfg.Dir, "dir", "./var", "data dir")
-	//
-	flag.IntVar(&cfg.RclonePort, "rclone-port", 8181, "port of a rclone instance")
-	flag.StringVar(&cfg.RcloneTarget, "rclone-target", "", "rclone target")
-	//
-	flag.BoolVar(&cfg.Resizer, "resizer", true, "enable or disable image resizer")
-	flag.DurationVar(&cfg.ResizerMaxAge, "resizer-max-age", 180*24*time.Hour, "max age of resized images")
-	flag.Int64Var(&cfg.ResizerMaxTotalSize, "resizer-max-total-size", 200<<20, "max total size of resized images, bytes")
-	flag.IntVar(&cfg.ResizerWorkersCount, "resizer-workers-count", runtime.NumCPU(), "number of image resize workers")
-	//
-	flag.BoolVar(&cfg.DebugLogLevel, "debug-log-level", false, "display debug log messages")
-	flag.BoolVar(&cfg.ReadStaticFilesFromDisk, "read-static-files-from-disk", false, "read static files directly from disk")
+
+	flags := cfg.getFlagParams()
+	for name, params := range flags {
+		switch p := params.p.(type) {
+		case *bool:
+			flag.BoolVar(p, name, params.defaultValue.(bool), params.desc)
+		case *int:
+			flag.IntVar(p, name, params.defaultValue.(int), params.desc)
+		case *int64:
+			flag.Int64Var(p, name, params.defaultValue.(int64), params.desc)
+		case *string:
+			flag.StringVar(p, name, params.defaultValue.(string), params.desc)
+		case *time.Duration:
+			flag.DurationVar(p, name, params.defaultValue.(time.Duration), params.desc)
+		}
+	}
 
 	flag.Parse()
 
@@ -120,4 +169,26 @@ func PrintBuildInfo(info BuildInfo) {
 		info.ShortGitHash,
 		info.CommitTime,
 	)
+}
+
+func PrintConfig(cfg Config) {
+	flags := cfg.getFlagParams()
+
+	var (
+		names         = make([]string, 0, len(flags))
+		maxNameLength int
+	)
+	for name := range flags {
+		if len(name) > maxNameLength {
+			maxNameLength = len(name)
+		}
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	fmt.Print("    Config:\n\n")
+	for _, name := range names {
+		fmt.Printf("        --%-*s = %v\n", maxNameLength, name, reflect.ValueOf(flags[name].p).Elem())
+	}
+	fmt.Print("\n")
 }
