@@ -163,11 +163,11 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalS
 		return stats{}, fmt.Errorf("couldn't create temp image file: %w", err)
 	}
 	defer func() {
-		if finalStats.originalImageUsed {
-			// Temp file was renamed.
-			return
-		}
+		if err := tempFile.Close(); err != nil {
+			rlog.Errorf("couldn't close temp image file: %s", err)
 
+			// Don't exit - try to remove the temp file.
+		}
 		if err := os.Remove(tempFile.Name()); err != nil {
 			rlog.Errorf("couldn't remove temp image file: %s", err)
 		}
@@ -177,9 +177,8 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalS
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't load image: %w", err)
 	}
-	if err := tempFile.Close(); err != nil {
-		return stats{}, fmt.Errorf("couldn't close temp image file: %w", err)
-	}
+
+	// Don't close temp file right after the copy operation because we still may use it.
 
 	cacheFilepath, err := r.cache.GetFilepath(task.FileID)
 	if err != nil {
@@ -187,10 +186,11 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalS
 	}
 
 	if originalSize < r.useOriginalImageThresholdSize {
-		err := os.Rename(tempFile.Name(), cacheFilepath)
+		err := createCacheFileFromTempFile(tempFile, cacheFilepath, originalSize)
 		if err != nil {
-			return stats{}, fmt.Errorf("couldn't rename temp image file: %w", err)
+			return stats{}, err
 		}
+
 		return stats{
 			originalSize:      originalSize,
 			resizedSize:       originalSize,
@@ -215,6 +215,34 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalS
 		originalSize: originalSize,
 		resizedSize:  info.Size(),
 	}, nil
+}
+
+// createCacheFileFromTempFile creates a cache file reading the content from a passed temp file.
+// We can't just use [os.Rename] because rename operation can fail in docker containers, see
+// https://stackoverflow.com/q/42392600/7752659.
+func createCacheFileFromTempFile(tempFile *os.File, cacheFilepath string, originalSize int64) error {
+	_, err := tempFile.Seek(0, 0)
+	if err != nil {
+		return fmt.Errorf("couldn't seek temp file: %w", err)
+	}
+
+	cacheFile, err := os.Create(cacheFilepath)
+	if err != nil {
+		return fmt.Errorf("couldn't create cache file: %w", err)
+	}
+
+	copied, err := io.Copy(cacheFile, tempFile)
+	if err != nil {
+		return fmt.Errorf("couldn't copy temp file content to a cache file: %w", err)
+	}
+	if copied != originalSize {
+		return fmt.Errorf("not all content was copied, original size: %d, copied: %d", originalSize, copied)
+	}
+
+	if err := cacheFile.Close(); err != nil {
+		return fmt.Errorf("couldn't close cache file: %w", err)
+	}
+	return nil
 }
 
 // resizeWithVips resizes the original file with "vipsthumbnail" command. We can't use
