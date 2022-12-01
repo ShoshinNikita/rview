@@ -149,7 +149,7 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 	// Parse templates every time because it doesn't affect performance but
-	// significantly increases the development process.
+	// significantly simplifies the development process.
 	template, err := template.New("base").
 		Funcs(template.FuncMap{
 			"attr": func(s string) template.HTMLAttr {
@@ -338,11 +338,11 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 
 func (s *Server) sendResizeImageTasks(info Info) Info {
 	for i, entry := range info.Entries {
-		id := rview.NewFileID(entry.filepath, entry.ModTime.Unix())
-
 		if entry.IsDir {
 			continue
 		}
+
+		id := rview.NewFileID(entry.filepath, entry.ModTime.Unix())
 		if !s.resizer.CanResize(id) {
 			continue
 		}
