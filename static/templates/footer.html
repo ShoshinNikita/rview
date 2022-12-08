@@ -37,23 +37,27 @@
 		width: 26px;
 	}
 
-	@media only screen and (max-width: 600px) {
+	@media only screen and (max-width: 500px) {
 		.footer {
 			grid-template-columns: repeat(2, 1fr);
 		}
 
-		.rview-info {
+		.footer-left-padding {
 			display: none;
+		}
+
+		.rview-info {
+			justify-content: left;
 		}
 	}
 </style>
 
 <div class="footer">
 	<!-- Empty element for grid -->
-	<div></div>
+	<div class="footer-left-padding"></div>
 
 	<div class="rview-info">
-		<span title="Commit time: {{ .CommitTime }}">Rview [rev. {{ .ShortGitHash }}]</span>
+		<span title="Commit time: {{ .CommitTime }}">Rview&nbsp;[rev.&nbsp;{{ .ShortGitHash }}]</span>
 		<span>•</span>
 		<a href="https://github.com/ShoshinNikita/rview" target="_blank" title="GitHub Repo" class="footer-icon">
 			{{ embedIcon "github" }}
