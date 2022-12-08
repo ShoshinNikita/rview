@@ -12,7 +12,7 @@ run: build
 
 build:
 	@ echo "Build..."
-	@ CGO_ENABLED=0 go build -ldflags "-s -w" -o ./bin/rview
+	@ CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ./bin/rview
 
 docker-build:
 	@ echo "Build Docker Image..."
