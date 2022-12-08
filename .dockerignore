@@ -4,13 +4,11 @@
 !.git/
 !cache/
 !config/
-!/metrics/
+!pkg/
 !rclone/
 !resizer/
-!rlog/
 !rview/
 !static/
-!util/
 !vendor/
 !web/
 

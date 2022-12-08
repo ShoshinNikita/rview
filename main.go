@@ -9,9 +9,9 @@ import (
 
 	"github.com/ShoshinNikita/rview/cache"
 	"github.com/ShoshinNikita/rview/config"
+	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/resizer"
-	"github.com/ShoshinNikita/rview/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
 	"github.com/ShoshinNikita/rview/web"

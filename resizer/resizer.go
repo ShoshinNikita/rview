@@ -14,8 +14,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/ShoshinNikita/rview/metrics"
-	"github.com/ShoshinNikita/rview/rlog"
+	"github.com/ShoshinNikita/rview/pkg/metrics"
+	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 )
 

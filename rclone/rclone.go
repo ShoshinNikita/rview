@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/ShoshinNikita/rview/rlog"
+	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/static"
 )
 

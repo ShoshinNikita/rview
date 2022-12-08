@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/ShoshinNikita/rview/metrics"
+	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/rview"
 )
 

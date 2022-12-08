@@ -1,3 +1,4 @@
+// Package static provides access to static assets and Go templates for UI rendering.
 package static
 
 import (

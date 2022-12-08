@@ -6,9 +6,9 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/cache"
+	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 	"github.com/ShoshinNikita/rview/resizer"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/ShoshinNikita/rview/util/testutil"
 )
 
 func TestServer_sendResizeImageTasks(t *testing.T) {

@@ -9,7 +9,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/ShoshinNikita/rview/rlog"
+	"github.com/ShoshinNikita/rview/pkg/rlog"
 )
 
 // Cleaner can be used remove old files and control the total size of cache.

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ShoshinNikita/rview/util/testutil"
+	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 )
 
 func TestCleaner_loadAllFilesAndRemove(t *testing.T) {

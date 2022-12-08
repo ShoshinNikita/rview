@@ -3,7 +3,7 @@ package static
 import (
 	"testing"
 
-	"github.com/ShoshinNikita/rview/util/testutil"
+	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 )
 
 func TestData(t *testing.T) {

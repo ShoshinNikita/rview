@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ShoshinNikita/rview/rlog"
-	"github.com/ShoshinNikita/rview/util/testutil"
+	"github.com/ShoshinNikita/rview/pkg/rlog"
+	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 )
 
 // TestPrepareFileIcons converts `material-icons.json` to a more convenient format and removes

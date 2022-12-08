@@ -19,8 +19,8 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/config"
-	"github.com/ShoshinNikita/rview/metrics"
-	"github.com/ShoshinNikita/rview/rlog"
+	"github.com/ShoshinNikita/rview/pkg/metrics"
+	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

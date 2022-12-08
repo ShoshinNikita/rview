@@ -3,7 +3,7 @@ package web
 import (
 	"testing"
 
-	"github.com/ShoshinNikita/rview/util/testutil"
+	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 )
 
 func TestFormatFileSize(t *testing.T) {

@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/cache"
+	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/ShoshinNikita/rview/util/testutil"
 )
 
 func TestImageResizer(t *testing.T) {

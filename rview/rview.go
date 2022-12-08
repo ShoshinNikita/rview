@@ -1,3 +1,4 @@
+// Package rview contains basic models and interfaces.
 package rview
 
 import (

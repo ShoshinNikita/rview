@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/ShoshinNikita/rview/util/testutil"
 )
 
 func TestDiskCache(t *testing.T) {
