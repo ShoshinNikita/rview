@@ -50,7 +50,7 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 			p: &cfg.ServerPort, defaultValue: 8080, desc: "server port",
 		},
 		"dir": {
-			p: &cfg.Dir, defaultValue: "./var", desc: "data dir",
+			p: &cfg.Dir, defaultValue: "./var", desc: "directory for app data",
 		},
 		//
 		"rclone-port": {
