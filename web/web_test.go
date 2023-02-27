@@ -53,8 +53,6 @@ func TestServer_handleDir(t *testing.T) {
 					{
 						Filename:             "todo",
 						IsDir:                true,
-						Size:                 0,
-						HumanReadableSize:    "0 B",
 						ModTime:              parseTime(t, "2023-02-28T01:07:12+04:00"),
 						HumanReadableModTime: "2023-02-27 21:07:12 UTC",
 						DirURL:               "/api/dir/images/arts/todo/",

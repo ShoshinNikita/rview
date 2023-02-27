@@ -308,7 +308,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		}
 		filepath := pkgPath.Join(info.Dir, filename)
 
-		var originalFileURL, dirURL, webDirURL string
+		var originalFileURL, dirURL, webDirURL, humanReadableSize string
 		if entry.IsDir {
 			escapedFilename := url.PathEscape(filename)
 
@@ -318,6 +318,8 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		} else {
 			id := rview.NewFileID(filepath, entry.ModTime)
 			originalFileURL = fileIDToURL("/api/file", info.dirURL, id)
+
+			humanReadableSize = FormatFileSize(entry.Size)
 		}
 
 		modTime := time.Unix(entry.ModTime, 0)
@@ -327,7 +329,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			Filename:             filename,
 			IsDir:                entry.IsDir,
 			Size:                 entry.Size,
-			HumanReadableSize:    FormatFileSize(entry.Size),
+			HumanReadableSize:    humanReadableSize,
 			ModTime:              modTime,
 			HumanReadableModTime: FormatModTime(modTime),
 			//
