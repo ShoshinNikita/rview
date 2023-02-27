@@ -14,13 +14,18 @@ type (
 		Sort  string `json:"sort"`
 		Order string `json:"order"`
 
-		Dir         string       `json:"dir"`
+		// Dir is the unescaped path of current directory. It is used for page title.
+		Dir string `json:"dir"`
+		// Breadcrumbs contains info about parent directories.
 		Breadcrumbs []Breadcrumb `json:"breadcrumbs"`
-		Entries     []Entry      `json:"entries"`
+		// Entries contains info about files or directories in the current directory.
+		Entries []Entry `json:"entries"`
 	}
 
 	Breadcrumb struct {
+		// Link is an escaped link to a directory.
 		Link string `json:"link"`
+		// Text is an unescaped name of a directory.
 		Text string `json:"text"`
 	}
 
@@ -28,10 +33,11 @@ type (
 		// filepath is an rclone filepath, only for internal use.
 		filepath string
 
-		Filename             string    `json:"filename,omitempty"`
+		// Filename is the unescaped filename of a file.
+		Filename             string    `json:"filename"`
 		IsDir                bool      `json:"is_dir,omitempty"`
 		Size                 int64     `json:"size,omitempty"`
-		HumanReadableSize    string    `json:"human_readable_size"`
+		HumanReadableSize    string    `json:"human_readable_size,omitempty"`
 		ModTime              time.Time `json:"mod_time"`
 		HumanReadableModTime string    `json:"human_readable_mod_time"`
 
@@ -44,7 +50,7 @@ type (
 		// ThumbnailURL is an url that should be used to open a thumbnail file (not empty only for images).
 		ThumbnailURL string `json:"thumbnail_url,omitempty"`
 		// IconName is an name of an file icon. The icon choice is based on filename and file extension.
-		IconName string `json:"icon_name,omitempty"`
+		IconName string `json:"icon_name"`
 	}
 )
 

@@ -280,7 +280,13 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		// Dir name must not be escaped.
 		info.Dir = pkgPath.Join(info.Dir, breadcrumb.Text)
 
-		uiDirURL = uiDirURL.JoinPath(url.PathEscape(breadcrumb.Text))
+		// It doesn't make any sense to add another trailing slash (especially, escaped).
+		if breadcrumb.Text != "/" {
+			uiDirURL = uiDirURL.JoinPath(url.PathEscape(breadcrumb.Text))
+		}
+
+		// All directory urls must end with slash.
+		uiDirURL = uiDirURL.JoinPath("/")
 
 		text := breadcrumb.Text
 		if text == "/" {
