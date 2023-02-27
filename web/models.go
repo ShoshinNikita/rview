@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net/url"
 	"time"
 
 	"github.com/ShoshinNikita/rview/config"
@@ -20,6 +21,9 @@ type (
 		Breadcrumbs []Breadcrumb `json:"breadcrumbs"`
 		// Entries contains info about files or directories in the current directory.
 		Entries []Entry `json:"entries"`
+
+		// dirURL is the url of current directory, only for internal use.
+		dirURL *url.URL
 	}
 
 	Breadcrumb struct {

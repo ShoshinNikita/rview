@@ -88,9 +88,9 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer) (s *Server) {
 	}
 
 	// API
-	mux.HandleFunc("/api/dir", s.handleDir)
-	mux.HandleFunc("/api/file", s.handleFile)
-	mux.HandleFunc("/api/thumbnail", s.handleThumbnail)
+	mux.HandleFunc("/api/dir/", s.handleDir)
+	mux.HandleFunc("/api/file/", s.handleFile)
+	mux.HandleFunc("/api/thumbnail/", s.handleThumbnail)
 
 	// Debug
 	mux.Handle("/debug/metrics", promhttp.Handler())
@@ -121,7 +121,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
-	dir := r.FormValue("dir")
+	dir := strings.TrimPrefix(r.URL.Path, "/api/dir/")
 
 	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
@@ -265,11 +265,8 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		//
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
-	}
-
-	uiDirURL, err := url.Parse("/ui")
-	if err != nil {
-		return Info{}, fmt.Errorf("couldn't parse root url: %w", err)
+		//
+		dirURL: mustParseURL("/"),
 	}
 
 	for _, breadcrumb := range rcloneInfo.Breadcrumbs {
@@ -282,19 +279,20 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 
 		// It doesn't make any sense to add another trailing slash (especially, escaped).
 		if breadcrumb.Text != "/" {
-			uiDirURL = uiDirURL.JoinPath(url.PathEscape(breadcrumb.Text))
+			info.dirURL = info.dirURL.JoinPath(url.PathEscape(breadcrumb.Text))
 		}
-
 		// All directory urls must end with slash.
-		uiDirURL = uiDirURL.JoinPath("/")
+		info.dirURL = info.dirURL.JoinPath("/")
 
 		text := breadcrumb.Text
 		if text == "/" {
 			text = "Root"
 		}
 
+		uiURL := mustParseURL("/ui").JoinPath(info.dirURL.String()).String()
+
 		info.Breadcrumbs = append(info.Breadcrumbs, Breadcrumb{
-			Link: uiDirURL.String(),
+			Link: uiURL,
 			Text: text,
 		})
 	}
@@ -308,28 +306,18 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		if err != nil {
 			return Info{}, fmt.Errorf("invalid url %q: %w", entry.URL, err)
 		}
-		filepath := pkgPath.Join(rcloneInfo.Path, filename)
+		filepath := pkgPath.Join(info.Dir, filename)
 
 		var originalFileURL, dirURL, webDirURL string
 		if entry.IsDir {
-			dirURL = (&url.URL{
-				Path: "/api/dir",
-				RawQuery: (url.Values{
-					"dir": []string{filepath + "/"},
-				}).Encode(),
-			}).String()
+			escapedFilename := url.PathEscape(filename)
 
-			webDirURL, err = url.JoinPath("/ui", filepath+"/")
-			if err != nil {
-				return Info{}, fmt.Errorf("couldn't prepare web directory url: %w", err)
-			}
+			dirURL = mustParseURL("/api/dir").JoinPath(info.dirURL.String(), escapedFilename, "/").String()
+			webDirURL = mustParseURL("/ui").JoinPath(info.dirURL.String(), escapedFilename, "/").String()
 
 		} else {
 			id := rview.NewFileID(filepath, entry.ModTime)
-			originalFileURL = (&url.URL{
-				Path:     "/api/file",
-				RawQuery: fileIDToQuery(make(url.Values), id).Encode(),
-			}).String()
+			originalFileURL = fileIDToURL("/api/file", info.dirURL, id)
 		}
 
 		modTime := time.Unix(entry.ModTime, 0)
@@ -365,13 +353,10 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 
 		// TODO: limit max image size?
 
-		thumbnailURL := &url.URL{
-			Path:     "/api/thumbnail",
-			RawQuery: fileIDToQuery(make(url.Values), id).Encode(),
-		}
+		thumbnailURL := fileIDToURL("/api/thumbnail", info.dirURL, id)
 
 		if s.resizer.IsResized(id) {
-			info.Entries[i].ThumbnailURL = thumbnailURL.String()
+			info.Entries[i].ThumbnailURL = thumbnailURL
 			continue
 		}
 
@@ -385,7 +370,7 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 			continue
 		}
 
-		info.Entries[i].ThumbnailURL = thumbnailURL.String()
+		info.Entries[i].ThumbnailURL = thumbnailURL
 	}
 
 	return info
@@ -393,7 +378,7 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 
 // handleFile proxy the original file from Rclone, copying some headers.
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
-	fileID, err := fileIDFromQuery(r)
+	fileID, err := fileIDFromRequest(r, "/api/file")
 	if err != nil {
 		writeBadRequestError(w, err.Error())
 		return
@@ -458,7 +443,7 @@ func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, h
 
 // handleThumbnail returns the resized image.
 func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
-	fileID, err := fileIDFromQuery(r)
+	fileID, err := fileIDFromRequest(r, "/api/thumbnail")
 	if err != nil {
 		writeBadRequestError(w, err.Error())
 		return
@@ -482,14 +467,18 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	copyResponse(w, rc)
 }
 
-func fileIDToQuery(query url.Values, id rview.FileID) url.Values {
-	query.Set("filepath", id.GetPath())
+func fileIDToURL(prefix string, dirURL *url.URL, id rview.FileID) string {
+	fileURL := mustParseURL(prefix).JoinPath(dirURL.String(), url.PathEscape(id.GetName()))
+
+	query := fileURL.Query()
 	query.Set("mod_time", strconv.FormatInt(id.GetModTime().Unix(), 10))
-	return query
+	fileURL.RawQuery = query.Encode()
+
+	return fileURL.String()
 }
 
-func fileIDFromQuery(r *http.Request) (rview.FileID, error) {
-	path := r.FormValue("filepath")
+func fileIDFromRequest(r *http.Request, endpointPrefix string) (rview.FileID, error) {
+	path := strings.TrimPrefix(r.URL.Path, endpointPrefix)
 	if path == "" {
 		return rview.FileID{}, errors.New("filepath can't be empty")
 	}
@@ -519,4 +508,12 @@ func writeInternalServerError(w http.ResponseWriter, format string, a ...any) {
 
 func writeError(w http.ResponseWriter, code int, format string, a ...any) {
 	http.Error(w, fmt.Sprintf(format, a...), code)
+}
+
+func mustParseURL(raw string) *url.URL {
+	u, err := url.Parse(raw)
+	if err != nil {
+		panic(fmt.Errorf("couldn't parse %q: %w", raw, err))
+	}
+	return u
 }

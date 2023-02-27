@@ -33,22 +33,22 @@ func TestServer_sendResizeImageTasks(t *testing.T) {
 			{filepath: "error.jpg", ModTime: zeroModTime},
 			{filepath: "resized.jpg", ModTime: zeroModTime},
 		},
+		dirURL: mustParseURL("/"),
 	})
 	testutil.Equal(t, 3, stub.resizeCount)
 
 	testutil.Equal(t,
-		Info{Entries: []Entry{
+		[]Entry{
 			{filepath: "a.txt", ModTime: zeroModTime}, // no thumbnail: text file
-			{filepath: "b.jpg", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail?filepath=b.jpg&mod_time=0"},
-			{filepath: "c.png", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail?filepath=c.png&mod_time=0"},
+			{filepath: "b.jpg", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail/b.jpg?mod_time=0"},
+			{filepath: "c.png", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail/c.png?mod_time=0"},
 			{filepath: "c.bmp", ModTime: zeroModTime},     // no thumbnail: unsupported image
 			{filepath: "d.zip", ModTime: zeroModTime},     // no thumbnail: archive
 			{filepath: "error.jpg", ModTime: zeroModTime}, // no thumbnail: got error
-			{filepath: "resized.jpg", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail?filepath=resized.jpg&mod_time=0"},
-		}},
-		gotInfo,
+			{filepath: "resized.jpg", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail/resized.jpg?mod_time=0"},
+		},
+		gotInfo.Entries,
 	)
-
 }
 
 type imageResizerStub struct {
