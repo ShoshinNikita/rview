@@ -30,7 +30,7 @@ func TestServer_handleDir(t *testing.T) {
 	parseTime := func(t *testing.T, s string) time.Time {
 		res, err := time.Parse(time.RFC3339, s)
 		testutil.NoError(t, err)
-		return res
+		return res.UTC()
 	}
 
 	tests := []struct {

@@ -322,7 +322,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			humanReadableSize = FormatFileSize(entry.Size)
 		}
 
-		modTime := time.Unix(entry.ModTime, 0)
+		modTime := time.Unix(entry.ModTime, 0).UTC()
 		info.Entries = append(info.Entries, Entry{
 			filepath: filepath,
 			//
