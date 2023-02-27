@@ -28,7 +28,7 @@ import (
 )
 
 type Server struct {
-	cfg       config.Config
+	buildInfo config.BuildInfo
 	rcloneURL *url.URL
 
 	httpServer *http.Server
@@ -43,7 +43,7 @@ type Server struct {
 
 func NewServer(cfg config.Config, resizer rview.ImageResizer) (s *Server) {
 	s = &Server{
-		cfg: cfg,
+		buildInfo: cfg.BuildInfo,
 		rcloneURL: &url.URL{
 			Scheme: "http",
 			Host:   "localhost:" + strconv.Itoa(cfg.RclonePort),
@@ -261,7 +261,7 @@ func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Value
 
 func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 	info := Info{
-		BuildInfo: s.cfg.BuildInfo,
+		BuildInfo: s.buildInfo,
 		//
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,

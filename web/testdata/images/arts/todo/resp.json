@@ -1,0 +1,40 @@
+{
+	"path": "/images/arts/todo",
+	"sort": "",
+	"order": "",
+	"breadcrumbs": [
+		
+		{
+			"link": "../../../",
+			"text": "/"
+		},
+		
+		{
+			"link": "../../",
+			"text": "images"
+		},
+		
+		{
+			"link": "../",
+			"text": "arts"
+		},
+		
+		{
+			"link": "",
+			"text": "todo"
+		},
+		
+		{ "_c": "add extra object to fix trailing comma problem" }
+	],
+	"entries": [
+		
+		{
+			"url": "test%20%27%20special%20%21%20characters.txt",
+			"is_dir": false,
+			"size": 0,
+			"mod_time": 1677532005
+		},
+		
+		{ "_c": "add extra object to fix trailing comma problem" }
+	]
+}
