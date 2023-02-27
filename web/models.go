@@ -51,7 +51,7 @@ type (
 // Rclone response.
 type (
 	RcloneInfo struct {
-		Name  string `json:"name"`
+		Path  string `json:"path"`
 		Sort  string `json:"sort"`
 		Order string `json:"order"`
 

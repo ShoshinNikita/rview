@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"html/template"
 	"io"
 	"io/fs"
@@ -248,6 +249,13 @@ func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Value
 		return RcloneInfo{}, fmt.Errorf("couldn't decode rclone response: %w", err)
 	}
 
+	// Rclone escapes the directory path and text of breadcrumbs: &#39; instead of ' and so on.
+	// So, we have to unescape them to build valid links.
+	rcloneInfo.Path = html.UnescapeString(rcloneInfo.Path)
+	for i := range rcloneInfo.Breadcrumbs {
+		rcloneInfo.Breadcrumbs[i].Text = html.UnescapeString(rcloneInfo.Breadcrumbs[i].Text)
+	}
+
 	return rcloneInfo, nil
 }
 
@@ -259,16 +267,20 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		Order: rcloneInfo.Order,
 	}
 
-	var dirParts []string
+	uiDirURL, err := url.Parse("/ui")
+	if err != nil {
+		return Info{}, fmt.Errorf("couldn't parse root url: %w", err)
+	}
+
 	for _, breadcrumb := range rcloneInfo.Breadcrumbs {
 		if breadcrumb.Text == "" {
 			continue
 		}
 
-		link, err := url.JoinPath("/ui", rcloneInfo.Name, breadcrumb.Link)
-		if err != nil {
-			return Info{}, fmt.Errorf("couldn't prepare breadcrumb link: %w", err)
-		}
+		// Dir name must not be escaped.
+		info.Dir = pkgPath.Join(info.Dir, breadcrumb.Text)
+
+		uiDirURL = uiDirURL.JoinPath(url.PathEscape(breadcrumb.Text))
 
 		text := breadcrumb.Text
 		if text == "/" {
@@ -276,12 +288,10 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		}
 
 		info.Breadcrumbs = append(info.Breadcrumbs, Breadcrumb{
-			Link: link,
+			Link: uiDirURL.String(),
 			Text: text,
 		})
-		dirParts = append(dirParts, breadcrumb.Text)
 	}
-	info.Dir = pkgPath.Join(dirParts...)
 
 	for _, entry := range rcloneInfo.Entries {
 		if entry.URL == "" {
@@ -292,7 +302,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		if err != nil {
 			return Info{}, fmt.Errorf("invalid url %q: %w", entry.URL, err)
 		}
-		filepath := pkgPath.Join(rcloneInfo.Name, filename)
+		filepath := pkgPath.Join(rcloneInfo.Path, filename)
 
 		var originalFileURL, dirURL, webDirURL string
 		if entry.IsDir {
@@ -455,7 +465,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rc.Close()
 
-	contentType := mime.TypeByExtension(pkgFilepath.Ext(fileID.GetName()))
+	contentType := mime.TypeByExtension(pkgPath.Ext(fileID.GetName()))
 	if contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
