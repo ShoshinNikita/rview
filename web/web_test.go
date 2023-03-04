@@ -1,8 +1,10 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -12,9 +14,9 @@ import (
 	"github.com/ShoshinNikita/rview/cache"
 	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/pkg/util/testutil"
-	"github.com/ShoshinNikita/rview/resizer"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
+	"github.com/ShoshinNikita/rview/thumbnails"
 )
 
 func TestMain(m *testing.M) {
@@ -165,9 +167,7 @@ func TestServer_handleDir(t *testing.T) {
 	for _, tt := range tests {
 		tt := tt
 		t.Run("", func(t *testing.T) {
-			stub := &imageResizerStub{
-				ImageResizer: resizer.NewImageResizer(cache.NewNoopCache(), 0),
-			}
+			stub := newThumbnailServiceStub()
 			s := NewServer(config.Config{}, stub)
 			s.rcloneURL = mustParseURL(testServer.URL)
 
@@ -190,17 +190,15 @@ func TestServer_handleDir(t *testing.T) {
 	}
 }
 
-func TestServer_sendResizeImageTasks(t *testing.T) {
+func TestServer_sendGenerateThumbnailTasks(t *testing.T) {
 	t.Parallel()
 
-	stub := &imageResizerStub{
-		ImageResizer: resizer.NewImageResizer(cache.NewNoopCache(), 0),
-	}
+	stub := newThumbnailServiceStub()
 	s := NewServer(config.Config{}, stub)
 
 	zeroModTime := time.Unix(0, 0)
 
-	gotInfo := s.sendResizeImageTasks(Info{
+	gotInfo := s.sendGenerateThumbnailTasks(Info{
 		Entries: []Entry{
 			{filepath: "a.txt", ModTime: zeroModTime},
 			{filepath: "b.jpg", ModTime: zeroModTime},
@@ -212,7 +210,7 @@ func TestServer_sendResizeImageTasks(t *testing.T) {
 		},
 		dirURL: mustParseURL("/"),
 	})
-	testutil.Equal(t, 3, stub.resizeCount)
+	testutil.Equal(t, 3, stub.taskCount)
 
 	testutil.Equal(t,
 		[]Entry{
@@ -228,21 +226,39 @@ func TestServer_sendResizeImageTasks(t *testing.T) {
 	)
 }
 
-type imageResizerStub struct {
-	rview.ImageResizer
+type thumbnailServiceStub struct {
+	s rview.ThumbnailService
 
-	resizeCount int
+	taskCount int
 }
 
-func (s *imageResizerStub) IsResized(id rview.FileID) bool {
+func newThumbnailServiceStub() *thumbnailServiceStub {
+	return &thumbnailServiceStub{
+		s: thumbnails.NewThumbnailService(cache.NewNoopCache(), 0),
+	}
+}
+
+func (s *thumbnailServiceStub) IsThumbnailReady(id rview.FileID) bool {
 	return id.GetName() == "resized.jpg"
 }
 
-func (s *imageResizerStub) Resize(id rview.FileID, openFileFn rview.OpenFileFn) error {
-	s.resizeCount++
+func (s *thumbnailServiceStub) SendTask(id rview.FileID, openFileFn rview.OpenFileFn) error {
+	s.taskCount++
 
 	if id.GetName() == "error.jpg" {
 		return errors.New("error")
 	}
 	return nil
+}
+
+func (s *thumbnailServiceStub) CanGenerateThumbnail(id rview.FileID) bool {
+	return s.s.CanGenerateThumbnail(id)
+}
+
+func (s *thumbnailServiceStub) OpenThumbnail(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+	return s.s.OpenThumbnail(ctx, id)
+}
+
+func (s *thumbnailServiceStub) Shutdown(ctx context.Context) error {
+	return s.s.Shutdown(ctx)
 }

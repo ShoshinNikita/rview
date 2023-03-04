@@ -1,4 +1,4 @@
-package resizer
+package thumbnails
 
 import (
 	"bytes"
@@ -32,7 +32,7 @@ var (
 	ErrUnsupportedImageFormat = errors.New("unsupported image format")
 )
 
-type ImageResizer struct {
+type ThumbnailService struct {
 	cache    rview.Cache
 	resizeFn func(originalFile, cacheFile string, id rview.FileID) error
 	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
@@ -42,7 +42,7 @@ type ImageResizer struct {
 
 	workersCount int
 
-	tasksCh           chan resizeTask
+	tasksCh           chan generateThumbnailTask
 	inProgressTasks   map[rview.FileID]struct{}
 	inProgressTasksMu sync.RWMutex
 
@@ -50,7 +50,7 @@ type ImageResizer struct {
 	workersDoneCh chan struct{}
 }
 
-type resizeTask struct {
+type generateThumbnailTask struct {
 	rview.FileID
 
 	openFileFn rview.OpenFileFn
@@ -64,15 +64,15 @@ func CheckVips() error {
 	return nil
 }
 
-func NewImageResizer(cache rview.Cache, workersCount int) *ImageResizer {
-	r := &ImageResizer{
+func NewThumbnailService(cache rview.Cache, workersCount int) *ThumbnailService {
+	r := &ThumbnailService{
 		cache:                         cache,
 		resizeFn:                      resizeWithVips,
 		useOriginalImageThresholdSize: 200 << 10, // 200 KiB
 		//
 		workersCount: workersCount,
 		//
-		tasksCh:         make(chan resizeTask, 200),
+		tasksCh:         make(chan generateThumbnailTask, 200),
 		inProgressTasks: make(map[rview.FileID]struct{}),
 		//
 		stopped:       new(atomic.Bool),
@@ -84,50 +84,50 @@ func NewImageResizer(cache rview.Cache, workersCount int) *ImageResizer {
 	return r
 }
 
-func (r *ImageResizer) startWorkers() {
+func (s *ThumbnailService) startWorkers() {
 	toMiB := func(v int64) string {
 		return fmt.Sprintf("%.3f MiB", float64(v)/(1<<20))
 	}
 
 	var wg sync.WaitGroup
-	for i := 0; i < r.workersCount; i++ {
+	for i := 0; i < s.workersCount; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 
-			for task := range r.tasksCh {
+			for task := range s.tasksCh {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
 				now := time.Now()
-				stats, err := r.processTask(ctx, task)
+				stats, err := s.processTask(ctx, task)
 				dur := time.Since(now)
 
 				if stats.originalSize > 0 {
-					metrics.ResizerDownloadedImageSizes.Observe(float64(stats.originalSize))
+					metrics.ThumbnailsOriginalImageSizes.Observe(float64(stats.originalSize))
 				}
 
 				switch {
 				case err != nil:
-					metrics.ResizerErrors.Inc()
-					rlog.Errorf("couldn't process task to resize %q: %s", task.GetPath(), err)
+					metrics.ThumbnailsErrors.Inc()
+					rlog.Errorf("couldn't process task for %q: %s", task.GetPath(), err)
 
 				case stats.originalImageUsed:
-					metrics.ResizerOriginalImageUsed.Inc()
+					metrics.ThumbnailsOriginalImageUsed.Inc()
 					rlog.Debugf("use original image for %q, size: %s", task.GetPath(), toMiB(stats.originalSize))
 
 				default:
-					metrics.ResizerProcessDuration.Observe(dur.Seconds())
-					metrics.ResizerSizeRatio.Observe(float64(stats.originalSize) / float64(stats.resizedSize))
+					metrics.ThumbnailsProcessTaskDuration.Observe(dur.Seconds())
+					metrics.ThumbnailsSizeRatio.Observe(float64(stats.originalSize) / float64(stats.thumbnailSize))
 
 					msg := fmt.Sprintf(
-						"file %q was resized in %s, original size: %s, new size: %s",
-						task.GetPath(), dur, toMiB(stats.originalSize), toMiB(stats.resizedSize),
+						"thumbnail for %q was generated in %s, original size: %s, new size: %s",
+						task.GetPath(), dur, toMiB(stats.originalSize), toMiB(stats.thumbnailSize),
 					)
 
 					const reportThreshold = 10 << 10 // 10 Kib
 
-					if diff := stats.resizedSize - stats.originalSize; diff > reportThreshold {
-						rlog.Warnf("resized file is greater than the original one by %s: %s", toMiB(diff), msg)
+					if diff := stats.thumbnailSize - stats.originalSize; diff > reportThreshold {
+						rlog.Warnf("thumbnail is greater than the original file by %s: %s", toMiB(diff), msg)
 					} else {
 						rlog.Debug(msg)
 					}
@@ -135,24 +135,24 @@ func (r *ImageResizer) startWorkers() {
 
 				cancel()
 
-				r.inProgressTasksMu.Lock()
-				delete(r.inProgressTasks, task.FileID)
-				r.inProgressTasksMu.Unlock()
+				s.inProgressTasksMu.Lock()
+				delete(s.inProgressTasks, task.FileID)
+				s.inProgressTasksMu.Unlock()
 			}
 		}()
 	}
 	wg.Wait()
 
-	close(r.workersDoneCh)
+	close(s.workersDoneCh)
 }
 
 type stats struct {
 	originalSize      int64
-	resizedSize       int64
+	thumbnailSize     int64
 	originalImageUsed bool
 }
 
-func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalStats stats, err error) {
+func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbnailTask) (finalStats stats, err error) {
 	rc, err := task.openFileFn(ctx, task.FileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get image reader: %w", err)
@@ -181,14 +181,14 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalS
 
 	// Don't close temp file right after the copy operation because we still may use it.
 
-	cacheFilepath, err := r.cache.GetFilepath(task.FileID)
+	cacheFilepath, err := s.cache.GetFilepath(task.FileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get path of a cache file: %w", err)
 	}
 
 	saveOriginal := false ||
 		// It doesn't make much sense to resize small files.
-		originalSize < r.useOriginalImageThresholdSize ||
+		originalSize < s.useOriginalImageThresholdSize ||
 		// Save the original file because vipsthumbnail can't resize gifs:
 		// https://github.com/libvips/libvips/issues/61#issuecomment-168169916
 		getImageType(task.FileID) == gifImageType
@@ -201,15 +201,15 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalS
 
 		return stats{
 			originalSize:      originalSize,
-			resizedSize:       originalSize,
+			thumbnailSize:     originalSize,
 			originalImageUsed: true,
 		}, nil
 	}
 
-	err = r.resizeFn(tempFile.Name(), cacheFilepath, task.FileID)
+	err = s.resizeFn(tempFile.Name(), cacheFilepath, task.FileID)
 	if err != nil {
-		if err := r.cache.Remove(task.FileID); err != nil {
-			rlog.Errorf("couldn't remove cache file for %s after resize error: %s", task.FileID, err)
+		if err := s.cache.Remove(task.FileID); err != nil {
+			rlog.Errorf("couldn't remove thumbnail for %s after resize error: %s", task.FileID, err)
 		}
 
 		return stats{}, err
@@ -220,8 +220,8 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalS
 		return stats{}, fmt.Errorf("couldn't get stats of a cache file: %w", err)
 	}
 	return stats{
-		originalSize: originalSize,
-		resizedSize:  info.Size(),
+		originalSize:  originalSize,
+		thumbnailSize: info.Size(),
 	}, nil
 }
 
@@ -289,8 +289,8 @@ func resizeWithVips(originalFile, cacheFile string, fileID rview.FileID) error {
 	return nil
 }
 
-// CanResize detects if a file can be resized based on its filename.
-func (r *ImageResizer) CanResize(id rview.FileID) bool {
+// CanGenerateThumbnail detects if we can generate a thumbnail for a file based on its filename.
+func (*ThumbnailService) CanGenerateThumbnail(id rview.FileID) bool {
 	return getImageType(id) != unsupportedImageType
 }
 
@@ -308,26 +308,26 @@ func getImageType(id rview.FileID) imageType {
 	}
 }
 
-// IsResized returns true if this file is already resized or is in the task queue.
-func (r *ImageResizer) IsResized(id rview.FileID) bool {
-	r.inProgressTasksMu.RLock()
-	_, inProgress := r.inProgressTasks[id]
-	r.inProgressTasksMu.RUnlock()
+// IsThumbnailReady returns true for files with ready thumbnails.
+func (s *ThumbnailService) IsThumbnailReady(id rview.FileID) bool {
+	s.inProgressTasksMu.RLock()
+	_, inProgress := s.inProgressTasks[id]
+	s.inProgressTasksMu.RUnlock()
 	if inProgress {
 		return true
 	}
 
-	return r.cache.Check(id) == nil
+	return s.cache.Check(id) == nil
 }
 
-// OpenResized returns io.ReadCloser for the resized image. It waits for the files in queue, but no longer
+// OpenThumbnail returns io.ReadCloser for the image thumbnail. It waits for the files in queue, but no longer
 // than context timeout.
-func (r *ImageResizer) OpenResized(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
 	isInProgress := func() (inProgress bool) {
-		r.inProgressTasksMu.RLock()
-		defer r.inProgressTasksMu.RUnlock()
+		s.inProgressTasksMu.RLock()
+		defer s.inProgressTasksMu.RUnlock()
 
-		_, inProgress = r.inProgressTasks[id]
+		_, inProgress = s.inProgressTasks[id]
 		return inProgress
 	}
 
@@ -347,38 +347,38 @@ func (r *ImageResizer) OpenResized(ctx context.Context, id rview.FileID) (io.Rea
 		}
 	}
 
-	return r.cache.Open(id)
+	return s.cache.Open(id)
 }
 
-// Resize sends a resize task to the queue. It returns an error if the image format
+// SendTask sends a task to the queue. It returns an error if the image format
 // is not supported (it is detected by filepath). Filepath is passed to getImageFn, so it
 // must be absolute.
 //
-// Resize ignores duplicate tasks. However, it doesn't check files on disk.
-func (r *ImageResizer) Resize(id rview.FileID, openFileFn rview.OpenFileFn) error {
-	if r.stopped.Load() {
-		return errors.New("can't send resize tasks after Shutdown call")
+// SendTask ignores duplicate tasks. However, it doesn't check files on disk.
+func (s *ThumbnailService) SendTask(id rview.FileID, openFileFn rview.OpenFileFn) error {
+	if s.stopped.Load() {
+		return errors.New("can't send tasks after Shutdown call")
 	}
-	if !r.CanResize(id) {
+	if !s.CanGenerateThumbnail(id) {
 		return ErrUnsupportedImageFormat
 	}
 
 	var ignore bool
 	func() {
-		r.inProgressTasksMu.Lock()
-		defer r.inProgressTasksMu.Unlock()
+		s.inProgressTasksMu.Lock()
+		defer s.inProgressTasksMu.Unlock()
 
-		if _, ok := r.inProgressTasks[id]; ok {
+		if _, ok := s.inProgressTasks[id]; ok {
 			ignore = true
 			return
 		}
-		r.inProgressTasks[id] = struct{}{}
+		s.inProgressTasks[id] = struct{}{}
 	}()
 	if ignore {
 		return nil
 	}
 
-	r.tasksCh <- resizeTask{
+	s.tasksCh <- generateThumbnailTask{
 		FileID:     id,
 		openFileFn: openFileFn,
 	}
@@ -387,17 +387,17 @@ func (r *ImageResizer) Resize(id rview.FileID, openFileFn rview.OpenFileFn) erro
 
 // Shutdown drops all tasks in the queue and waits for ones that are in progress
 // with respect of the passed context.
-func (r *ImageResizer) Shutdown(ctx context.Context) error {
-	r.stopped.Store(true)
+func (s *ThumbnailService) Shutdown(ctx context.Context) error {
+	s.stopped.Store(true)
 
-	close(r.tasksCh)
-	for range r.tasksCh {
+	close(s.tasksCh)
+	for range s.tasksCh {
 	}
 
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-r.workersDoneCh:
+	case <-s.workersDoneCh:
 		return nil
 	}
 }

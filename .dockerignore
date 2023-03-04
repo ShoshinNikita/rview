@@ -6,9 +6,9 @@
 !config/
 !pkg/
 !rclone/
-!resizer/
 !rview/
 !static/
+!thumbnails/
 !vendor/
 !web/
 

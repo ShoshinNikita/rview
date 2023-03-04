@@ -34,14 +34,14 @@ type Server struct {
 	httpServer *http.Server
 	httpClient *http.Client
 
-	resizer rview.ImageResizer
+	thumbnailService rview.ThumbnailService
 
 	iconsFS     fs.FS
 	fileIconsFS fs.FS
 	templatesFS fs.FS
 }
 
-func NewServer(cfg config.Config, resizer rview.ImageResizer) (s *Server) {
+func NewServer(cfg config.Config, thumbnailService rview.ThumbnailService) (s *Server) {
 	s = &Server{
 		buildInfo: cfg.BuildInfo,
 		rcloneURL: &url.URL{
@@ -53,7 +53,7 @@ func NewServer(cfg config.Config, resizer rview.ImageResizer) (s *Server) {
 			Timeout: time.Minute,
 		},
 		//
-		resizer: resizer,
+		thumbnailService: thumbnailService,
 		//
 		iconsFS:     static.NewIconsFS(cfg.ReadStaticFilesFromDisk),
 		fileIconsFS: static.NewFileIconsFS(cfg.ReadStaticFilesFromDisk),
@@ -197,7 +197,7 @@ func embedIcon(fs fs.FS, name string) (template.HTML, error) {
 }
 
 // getDirInfo requests the directory information from Rclone and converts it into
-// the appropriate format. It also sends resize tasks for the images.
+// the appropriate format. It also sends tasks to generate thumbnail for the images.
 func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (Info, error) {
 	rcloneInfo, err := s.getRcloneInfo(ctx, dir, query)
 	if err != nil {
@@ -209,7 +209,7 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 		return Info{}, fmt.Errorf("couldn't convert rclone info: %w", err)
 	}
 
-	info = s.sendResizeImageTasks(info)
+	info = s.sendGenerateThumbnailTasks(info)
 
 	return info, nil
 }
@@ -342,14 +342,14 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 	return info, nil
 }
 
-func (s *Server) sendResizeImageTasks(info Info) Info {
+func (s *Server) sendGenerateThumbnailTasks(info Info) Info {
 	for i, entry := range info.Entries {
 		if entry.IsDir {
 			continue
 		}
 
 		id := rview.NewFileID(entry.filepath, entry.ModTime.Unix())
-		if !s.resizer.CanResize(id) {
+		if !s.thumbnailService.CanGenerateThumbnail(id) {
 			continue
 		}
 
@@ -357,7 +357,7 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 
 		thumbnailURL := fileIDToURL("/api/thumbnail", info.dirURL, id)
 
-		if s.resizer.IsResized(id) {
+		if s.thumbnailService.IsThumbnailReady(id) {
 			info.Entries[i].ThumbnailURL = thumbnailURL
 			continue
 		}
@@ -366,7 +366,7 @@ func (s *Server) sendResizeImageTasks(info Info) Info {
 			rc, _, err := s.getFile(ctx, id)
 			return rc, err
 		}
-		err := s.resizer.Resize(id, openFile)
+		err := s.thumbnailService.SendTask(id, openFile)
 		if err != nil {
 			rlog.Errorf("couldn't start resizing for file %q: %s", entry.filepath, err)
 			continue
@@ -443,7 +443,7 @@ func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, h
 	return resp.Body, resp.Header, nil
 }
 
-// handleThumbnail returns the resized image.
+// handleThumbnail returns the thumbnail.
 func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	fileID, err := fileIDFromRequest(r, "/api/thumbnail")
 	if err != nil {
@@ -451,9 +451,9 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rc, err := s.resizer.OpenResized(r.Context(), fileID)
+	rc, err := s.thumbnailService.OpenThumbnail(r.Context(), fileID)
 	if err != nil {
-		writeBadRequestError(w, "couldn't open resized image: %s", err)
+		writeBadRequestError(w, "couldn't open thumbnail: %s", err)
 		return
 	}
 	defer rc.Close()

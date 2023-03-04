@@ -41,27 +41,27 @@ var (
 	)
 )
 
-// Image Resizer
+// Thumbnails
 var (
-	ResizerErrors = promauto.NewCounter(
+	ThumbnailsErrors = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: namespace,
-			Subsystem: "resizer",
+			Subsystem: "thumbnails",
 			Name:      "errors_total",
 		},
 	)
-	ResizerOriginalImageUsed = promauto.NewCounter(
+	ThumbnailsOriginalImageUsed = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: namespace,
-			Subsystem: "resizer",
+			Subsystem: "thumbnails",
 			Name:      "original_image_used",
 		},
 	)
-	ResizerDownloadedImageSizes = promauto.NewHistogram(
+	ThumbnailsOriginalImageSizes = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: namespace,
-			Subsystem: "resizer",
-			Name:      "downloaded_image_size_bytes",
+			Subsystem: "thumbnails",
+			Name:      "original_image_size_bytes",
 			Buckets: []float64{
 				124 << 10, // 124 Kib
 				256 << 10, // 256 Kib
@@ -76,18 +76,18 @@ var (
 			},
 		},
 	)
-	ResizerProcessDuration = promauto.NewHistogram(
+	ThumbnailsProcessTaskDuration = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: namespace,
-			Subsystem: "resizer",
-			Name:      "process_duration_seconds",
+			Subsystem: "thumbnails",
+			Name:      "process_task_duration_seconds",
 			Buckets:   []float64{0.2, 0.5, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120},
 		},
 	)
-	ResizerSizeRatio = promauto.NewHistogram(
+	ThumbnailsSizeRatio = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: namespace,
-			Subsystem: "resizer",
+			Subsystem: "thumbnails",
 			Name:      "size_ratio",
 			Buckets:   []float64{0.7, 0.9, 1, 2, 5, 10, 20, 30, 50, 70, 100, 150},
 		},

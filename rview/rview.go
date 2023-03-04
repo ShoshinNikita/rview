@@ -62,12 +62,12 @@ type CacheCleaner interface {
 	Shutdown(ctx context.Context) error
 }
 
-type ImageResizer interface {
-	CanResize(id FileID) bool
-	IsResized(id FileID) bool
-	OpenResized(ctx context.Context, id FileID) (io.ReadCloser, error)
-	Resize(id FileID, openFileFn OpenFileFn) error
-	Shutdown(ctx context.Context) error
+type ThumbnailService interface {
+	CanGenerateThumbnail(FileID) bool
+	IsThumbnailReady(FileID) bool
+	OpenThumbnail(context.Context, FileID) (io.ReadCloser, error)
+	SendTask(id FileID, openFileFn OpenFileFn) error
+	Shutdown(context.Context) error
 }
 
 type OpenFileFn func(ctx context.Context, id FileID) (io.ReadCloser, error)

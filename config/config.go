@@ -21,10 +21,10 @@ type Config struct {
 	RcloneTarget string
 	RclonePort   int
 
-	Resizer             bool
-	ResizerMaxAge       time.Duration
-	ResizerMaxTotalSize int64
-	ResizerWorkersCount int
+	Thumbnails             bool
+	ThumbnailsMaxAge       time.Duration
+	ThumbnailsMaxTotalSize int64
+	ThumbnailsWorkersCount int
 
 	// Debug options
 
@@ -60,17 +60,17 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 			p: &cfg.RcloneTarget, defaultValue: "", desc: "rclone target",
 		},
 		//
-		"resizer": {
-			p: &cfg.Resizer, defaultValue: true, desc: "enable or disable image resizer",
+		"thumbnails": {
+			p: &cfg.Thumbnails, defaultValue: true, desc: "generate image thumbnails",
 		},
-		"resizer-max-age": {
-			p: &cfg.ResizerMaxAge, defaultValue: 180 * 24 * time.Hour, desc: "max age of resized images",
+		"thumbnails-max-age": {
+			p: &cfg.ThumbnailsMaxAge, defaultValue: 180 * 24 * time.Hour, desc: "max age of thumbnails",
 		},
-		"resizer-max-total-size": {
-			p: &cfg.ResizerMaxTotalSize, defaultValue: int64(200 << 20), desc: "max total size of resized images, bytes",
+		"thumbnails-max-total-size": {
+			p: &cfg.ThumbnailsMaxTotalSize, defaultValue: int64(200 << 20), desc: "max total size of thumbnails, bytes",
 		},
-		"resizer-workers-count": {
-			p: &cfg.ResizerWorkersCount, defaultValue: runtime.NumCPU(), desc: "number of image resize workers",
+		"thumbnails-workers-count": {
+			p: &cfg.ThumbnailsWorkersCount, defaultValue: runtime.NumCPU(), desc: "number of workers for thumbnail generation",
 		},
 		//
 		"debug-log-level": {

@@ -11,9 +11,9 @@ import (
 	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
-	"github.com/ShoshinNikita/rview/resizer"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
+	"github.com/ShoshinNikita/rview/thumbnails"
 	"github.com/ShoshinNikita/rview/web"
 )
 
@@ -37,31 +37,30 @@ func main() {
 		rlog.Fatalf("couldn't prepare icons: %s", err)
 	}
 
-	if cfg.Resizer {
-		err := resizer.CheckVips()
+	// Thumbnail Service
+	var (
+		thumbnailService rview.ThumbnailService
+		thumbnailCleaner rview.CacheCleaner
+	)
+	if cfg.Thumbnails {
+		err := thumbnails.CheckVips()
 		if err != nil {
 			rlog.Fatal(err)
 		}
-	}
 
-	// Resizer
-	var (
-		imageResizer        rview.ImageResizer
-		imageResizerCleaner rview.CacheCleaner
-	)
-	if cfg.Resizer {
-		resizerCacheDir := filepath.Join(cfg.Dir, "thumbnails")
-		resizerCache, err := cache.NewDiskCache(resizerCacheDir)
+		thumbnailsCacheDir := filepath.Join(cfg.Dir, "thumbnails")
+		thumbnailsCache, err := cache.NewDiskCache(thumbnailsCacheDir)
 		if err != nil {
-			rlog.Fatalf("couldn't prepare disk cache for image resizer: %s", err)
+			rlog.Fatalf("couldn't prepare disk cache for thumbnails: %s", err)
 		}
-		imageResizerCleaner = cache.NewCleaner(resizerCacheDir, cfg.ResizerMaxAge, cfg.ResizerMaxTotalSize)
-		imageResizer = resizer.NewImageResizer(resizerCache, cfg.ResizerWorkersCount)
-	} else {
-		rlog.Info("resizer is disabled")
+		thumbnailCleaner = cache.NewCleaner(thumbnailsCacheDir, cfg.ThumbnailsMaxAge, cfg.ThumbnailsMaxTotalSize)
+		thumbnailService = thumbnails.NewThumbnailService(thumbnailsCache, cfg.ThumbnailsWorkersCount)
 
-		imageResizer = resizer.NewNoopImageResizer()
-		imageResizerCleaner = cache.NewNoopCleaner()
+	} else {
+		rlog.Info("thumbnail service is disabled")
+
+		thumbnailService = thumbnails.NewNoopThumbnailService()
+		thumbnailCleaner = cache.NewNoopCleaner()
 	}
 
 	termCtx, termCtxCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -79,7 +78,7 @@ func main() {
 	}()
 
 	// Web Server
-	server := web.NewServer(cfg, imageResizer)
+	server := web.NewServer(cfg, thumbnailService)
 	go func() {
 		if err := server.Start(); err != nil {
 			rlog.Errorf("web server error: %s", err)
@@ -97,11 +96,11 @@ func main() {
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		rlog.Errorf("couldn't shutdown web server gracefully: %s", err)
 	}
-	if err := imageResizer.Shutdown(shutdownCtx); err != nil {
-		rlog.Errorf("couldn't shutdown image resizer gracefully: %s", err)
+	if err := thumbnailService.Shutdown(shutdownCtx); err != nil {
+		rlog.Errorf("couldn't shutdown thumbnail service gracefully: %s", err)
 	}
-	if err := imageResizerCleaner.Shutdown(shutdownCtx); err != nil {
-		rlog.Errorf("couldn't shutdown resizer cache cleaner gracefully: %s", err)
+	if err := thumbnailCleaner.Shutdown(shutdownCtx); err != nil {
+		rlog.Errorf("couldn't shutdown thumbnail cache cleaner gracefully: %s", err)
 	}
 	if err := rcloneInstance.Shutdown(shutdownCtx); err != nil {
 		rlog.Errorf("couldn't shutdown rclone instance gracefully: %s", err)

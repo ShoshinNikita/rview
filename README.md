@@ -49,10 +49,10 @@
 | `--rclone-port`                 | `8181`                     | port of a rclone instance                    |
 | `--rclone-target`               | no default value, required | rclone target                                |
 | `--read-static-files-from-disk` | `false`                    | read static files directly from disk         |
-| `--resizer`                     | `true`                     | enable or disable image resizer              |
-| `--resizer-max-age`             | `4320h` (180 days)         | max age of resized images                    |
-| `--resizer-max-total-size`      | `209715200` (200 MiB)      | max total size of resized images, bytes      |
-| `--resizer-workers-count`       | number of logical CPUs     | number of image resize workers               |
+| `--thumbnails`                  | `true`                     | generate image thumbnails                    |
+| `--thumbnails-max-age`          | `4320h` (180 days)         | max age of thumbnails                        |
+| `--thumbnails-max-total-size`   | `209715200` (200 MiB)      | max total size of thumbnails, bytes          |
+| `--thumbnails-workers-count`    | number of logical CPUs     | number of workers for thumbnail generation   |
 
 ## Development
 
