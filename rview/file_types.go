@@ -1,10 +1,5 @@
 package rview
 
-import (
-	"path"
-	"strings"
-)
-
 type FileType string
 
 const (
@@ -16,8 +11,7 @@ const (
 )
 
 func GetFileType(id FileID) FileType {
-	ext := strings.ToLower(path.Ext(id.GetName()))
-	return fileTypesByExtension[ext]
+	return fileTypesByExtension[id.GetExt()]
 }
 
 var fileTypesByExtension = map[string]FileType{
@@ -30,13 +24,14 @@ var fileTypesByExtension = map[string]FileType{
 	".jpeg": FileTypeImage,
 
 	// Audio
-	".aif": FileTypeAudio,
-	".mpa": FileTypeAudio,
-	".wma": FileTypeAudio,
-	".wpl": FileTypeAudio,
-	".ogg": FileTypeAudio,
-	".wav": FileTypeAudio,
-	".mp3": FileTypeAudio,
+	".flac": FileTypeAudio,
+	".aif":  FileTypeAudio,
+	".mpa":  FileTypeAudio,
+	".wma":  FileTypeAudio,
+	".wpl":  FileTypeAudio,
+	".ogg":  FileTypeAudio,
+	".wav":  FileTypeAudio,
+	".mp3":  FileTypeAudio,
 
 	// Video
 	".avi":  FileTypeVideo,

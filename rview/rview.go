@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -36,6 +37,11 @@ func (id FileID) GetPath() string {
 // GetName returns only filename (last path element).
 func (id FileID) GetName() string {
 	return id.name
+}
+
+// GetExt returns the filename extension in lower case with leading dot (.html).
+func (id FileID) GetExt() string {
+	return strings.ToLower(path.Ext(id.name))
 }
 
 // GetModTime returns the modification time.

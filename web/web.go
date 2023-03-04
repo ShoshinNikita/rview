@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"net/url"
 	pkgPath "path"
-	pkgFilepath "path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -330,9 +329,19 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			humanReadableSize = FormatFileSize(entry.Size)
 			fileType = rview.GetFileType(id)
 
-			canPreview = false ||
-				fileType == rview.FileTypeText ||
-				fileType == rview.FileTypeImage && s.thumbnailService.CanGenerateThumbnail(id)
+			switch fileType {
+			case rview.FileTypeText:
+				canPreview = true
+
+			case rview.FileTypeImage:
+				canPreview = s.thumbnailService.CanGenerateThumbnail(id)
+
+			case rview.FileTypeAudio:
+				switch id.GetExt() {
+				case ".mp3", ".ogg", ".wav":
+					canPreview = true
+				}
+			}
 		}
 
 		modTime := time.Unix(entry.ModTime, 0).UTC()
@@ -432,7 +441,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	if w.Header().Get("Content-Type") == "" {
-		contentType := mime.TypeByExtension(pkgFilepath.Ext(fileID.GetName()))
+		contentType := mime.TypeByExtension(fileID.GetExt())
 		if contentType != "" {
 			w.Header().Set("Content-Type", contentType)
 		}
@@ -473,7 +482,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rc.Close()
 
-	contentType := mime.TypeByExtension(pkgPath.Ext(fileID.GetName()))
+	contentType := mime.TypeByExtension(fileID.GetExt())
 	if contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}

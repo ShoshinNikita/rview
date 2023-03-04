@@ -50,6 +50,20 @@
 			"size": 1359962,
 			"mod_time": 1650813442
 		},
+
+		{
+			"url": "qwerty.mp3",
+			"is_dir": false,
+			"size": 1359962,
+			"mod_time": 1650813442
+		},
+
+		{
+			"url": "qwerty.flac",
+			"is_dir": false,
+			"size": 13599620,
+			"mod_time": 1650813442
+		},
 		
 		{ "_c": "add extra object to fix trailing comma problem" }
 	]

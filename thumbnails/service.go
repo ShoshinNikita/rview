@@ -8,8 +8,6 @@ import (
 	"io"
 	"os"
 	"os/exec"
-	"path/filepath"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -295,8 +293,7 @@ func (*ThumbnailService) CanGenerateThumbnail(id rview.FileID) bool {
 }
 
 func getImageType(id rview.FileID) imageType {
-	ext := strings.ToLower(filepath.Ext(id.GetName()))
-	switch ext {
+	switch id.GetExt() {
 	case ".jpg", ".jpeg":
 		return jpegImageType
 	case ".png":

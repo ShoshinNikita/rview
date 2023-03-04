@@ -61,6 +61,15 @@
 		white-space: pre-wrap;
 	}
 
+	.preview-audio {
+		display: none;
+		left: 50%;
+		position: absolute;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		width: 50%;
+	}
+
 	.switch-preview-button {
 		align-items: center;
 		display: flex;
@@ -207,6 +216,7 @@
 			</a>
 
 			<pre class="preview-text"></pre>
+			<audio class="preview-audio" controls></audio>
 		</div>
 
 		<div class="preview-side-panel">
@@ -257,6 +267,7 @@
 	const previewWrapper = document.getElementsByClassName("preview-wrapper")[0];
 	const previewContent = document.getElementsByClassName("preview-content")[0];
 	const previewText = document.getElementsByClassName("preview-text")[0];
+	const previewAudio = document.getElementsByClassName("preview-audio")[0];
 	const fileInfos = document.getElementsByClassName("preview-file-info-value");
 	const previousPreviewButton = document.querySelector(".switch-preview-button.prev");
 	const nextPreviewButton = document.querySelector(".switch-preview-button.next");
@@ -327,16 +338,24 @@
 			selector.scrollLeft = wantScrollLeft;
 		}
 
+		// Hide all previews.
+		previewContent.style["background-image"] = "";
+		previewText.style["display"] = "";
+		previewAudio.style["display"] = "";
+
 		// Update preview.
 		switch (entry.file_type) {
 			case "image":
-				previewText.style["display"] = "";
 				previewContent.style["background-image"] = `url(${entry.thumbnail_url})`;
+				break;
+
+			case "audio":
+				previewAudio.style["display"] = "block";
+				previewAudio.src = entry.original_file_url;
 				break;
 
 			case "text":
 				previewText.style["display"] = "block";
-				previewContent.style["background-image"] = "";
 
 				if (entry.size > 1 << 20) {
 					previewText.innerHTML = `* File is too big to preview: ${entry.human_readable_size}`;
