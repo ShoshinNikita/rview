@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/config"
+	"github.com/ShoshinNikita/rview/rview"
 )
 
 // Service response.
@@ -38,12 +39,14 @@ type (
 		filepath string
 
 		// Filename is the unescaped filename of a file.
-		Filename             string    `json:"filename"`
-		IsDir                bool      `json:"is_dir,omitempty"`
-		Size                 int64     `json:"size,omitempty"`
-		HumanReadableSize    string    `json:"human_readable_size,omitempty"`
-		ModTime              time.Time `json:"mod_time"`
-		HumanReadableModTime string    `json:"human_readable_mod_time"`
+		Filename             string         `json:"filename"`
+		IsDir                bool           `json:"is_dir,omitempty"`
+		Size                 int64          `json:"size,omitempty"`
+		HumanReadableSize    string         `json:"human_readable_size,omitempty"`
+		ModTime              time.Time      `json:"mod_time"`
+		HumanReadableModTime string         `json:"human_readable_mod_time"`
+		FileType             rview.FileType `json:"file_type,omitempty"`
+		CanPreview           bool           `json:"can_preview"`
 
 		// DirURL is an info url for the child directory (not empty only for directories).
 		DirURL string `json:"dir_url,omitempty"`

@@ -271,9 +271,9 @@
 		{{ $target = "" }}
 		{{ end }}
 
-		<!-- Open preview for images and download other files -->
+		<!-- Open preview or download -->
 		{{ $attrs := "" }}
-		{{ if .ThumbnailURL }}
+		{{ if .CanPreview }}
 		{{ $attrs = printf `onclick="openPreview('%s'); return false"` .Filename }}
 		{{ else if not .IsDir }}
 		{{ $attrs = printf `download="%s"` .Filename }}

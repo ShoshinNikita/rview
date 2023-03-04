@@ -2,7 +2,7 @@
 <style>
 	.preview-wrapper {
 		background-color: #00000000;
-		display: grid;
+		display: none;
 		grid-template-rows: auto min-content;
 		height: 100vh;
 		opacity: 0;
@@ -16,6 +16,7 @@
 	}
 
 	.preview-wrapper.opened {
+		display: grid;
 		opacity: 100%;
 		z-index: 3;
 	}
@@ -42,12 +43,22 @@
 		width: 100%;
 	}
 
-	.preview-image {
+	.preview-content {
 		background-position: 50%;
 		background-repeat: no-repeat;
 		background-size: contain;
 		width: 100%;
 		position: relative;
+	}
+
+	.preview-text {
+		border: 1px solid var(--border-color);
+		display: none;
+		margin: 0;
+		overflow-y: auto;
+		padding: 5px;
+		position: fixed;
+		white-space: pre-wrap;
 	}
 
 	.switch-preview-button {
@@ -120,8 +131,8 @@
 			row-gap: 10px;
 		}
 
-		.preview-image {
-			/* Move image to the bottom */
+		.preview-content {
+			/* Move content to the bottom */
 			grid-row-start: -1;
 		}
 
@@ -175,19 +186,27 @@
 		max-height: 100px;
 		max-width: 100px;
 	}
+
+	.selector-thumbnail svg {
+		align-self: center;
+		height: 50px;
+		width: 50px;
+	}
 </style>
 
 <div class="preview-wrapper">
 	<a href="#" class="preview-close-layer" title="Close Preview" onclick="closePreview(); return false"></a>
 
 	<div class="preview card">
-		<div class="preview-image">
+		<div class="preview-content">
 			<a href="#" class="switch-preview-button prev" title="Previous" onclick="swipePreview(-1); return false">
 				{{ embedIcon "chevron-down" }}
 			</a>
 			<a href="#" class="switch-preview-button next" title="Next" onclick="swipePreview(1); return false">
 				{{ embedIcon "chevron-down" }}
 			</a>
+
+			<pre class="preview-text"></pre>
 		</div>
 
 		<div class="preview-side-panel">
@@ -212,33 +231,51 @@
 		</div>
 	</div>
 
+	<!-- TODO: reuse code from index.html? -->
 	<ul class="selector card">
 		{{ range .Entries }}
 
-		{{ if not .ThumbnailURL }}
-		{{ continue }}
-		{{ end }}
-
+		{{ if .CanPreview }}
 		<li id="selector-thumbnail-{{ .Filename }}" class="selector-thumbnail-wrapper">
 			<a href="#" class="selector-thumbnail" title="{{ .Filename }}" onclick="updatePreview('{{ .Filename }}'); return false">
+				{{ if eq .FileType "image" }}
 				<img src="{{ .ThumbnailURL }}">
+				{{ else }}
+				{{ embedFileIcon .IconName }}
+				{{ end }}
 			</a>
 		</li>
+		{{ end }}
 
 		{{ end }}
 	</ul>
 </div>
 
 <script>
-	const entries = JSON.parse(`{{ .Entries }}`).filter(v => { return v.thumbnail_url; });
+	const entries = JSON.parse(`{{ .Entries }}`).filter(v => { return v.can_preview; });
 
 	const previewWrapper = document.getElementsByClassName("preview-wrapper")[0];
-	const previewImage = document.getElementsByClassName("preview-image")[0];
+	const previewContent = document.getElementsByClassName("preview-content")[0];
+	const previewText = document.getElementsByClassName("preview-text")[0];
 	const fileInfos = document.getElementsByClassName("preview-file-info-value");
 	const previousPreviewButton = document.querySelector(".switch-preview-button.prev");
 	const nextPreviewButton = document.querySelector(".switch-preview-button.next");
 
 	const thumbnailIDPrefix = "selector-thumbnail-";
+
+	// All attempts to set the right height for <pre> element using CSS have failed.
+	(
+		new ResizeObserver(() => {
+			// Use Math.max because one button can be hidden. If both buttons are hidden, use full width.
+			const halfMargin = Math.max(previousPreviewButton.clientWidth, nextPreviewButton.clientWidth);
+
+			const rect = previewContent.getBoundingClientRect();
+			previewText.style["height"] = `${rect.height}px`;
+			previewText.style["top"] = `${rect.top}px`;
+			previewText.style["width"] = `${rect.width - halfMargin * 2}px`;
+			previewText.style["left"] = `${rect.x + halfMargin}px`;
+		})
+	).observe(previewContent);
 
 	let isPreviewOpened = false;
 	let currentFilename = null;
@@ -291,7 +328,44 @@
 		}
 
 		// Update preview.
-		previewImage.style["background-image"] = `url(${entry.thumbnail_url})`;
+		switch (entry.file_type) {
+			case "image":
+				previewText.style["display"] = "";
+				previewContent.style["background-image"] = `url(${entry.thumbnail_url})`;
+				break;
+
+			case "text":
+				previewText.style["display"] = "block";
+				previewContent.style["background-image"] = "";
+
+				if (entry.size > 1 << 20) {
+					previewText.innerHTML = `* File is too big to preview: ${entry.human_readable_size}`;
+					break;
+				}
+
+				previewText.innerHTML = `* Loading "${entry.filename}"...\n`;
+
+				let statusCode = 0;
+				let textToShow = "";
+				fetch(entry.original_file_url).
+					then(resp => {
+						statusCode = resp.status;
+						return resp.text();
+					}).
+					then(text => textToShow = text).
+					catch(err => textToShow = `${err}`).
+					finally(() => {
+						if (statusCode != 200) {
+							textToShow = `* Error: ${textToShow}`;
+						} else {
+							previewText.innerHTML = "";
+						}
+
+						const escapedText = document.createTextNode(textToShow);
+						previewText.appendChild(escapedText);
+					});
+				break;
+		}
 
 		// Update file info.
 		for (const fileInfo of fileInfos) {
@@ -344,11 +418,8 @@
 			newIndex--;
 		}
 
-		if (newIndex < 0) {
-			newIndex = 0;
-		}
-		if (newIndex >= entries.length) {
-			newIndex = entries.length - 1;
+		if (newIndex < 0 || entries.length <= newIndex) {
+			return;
 		}
 
 		updatePreview(entries[newIndex].filename);
@@ -388,12 +459,12 @@
 			return true;
 		}
 
-		let ignore = ev.target !== previewImage;
+		let ignore = ev.target !== previewContent;
 		if (ignore) {
 			const path = ev.path || (ev.composedPath && ev.composedPath());
 			if (path) {
 				for (const elem of path) {
-					if (elem === previewImage) {
+					if (elem === previewContent) {
 						ignore = false;
 						break;
 					}
@@ -435,7 +506,7 @@
 		if (animation === swipeAnimation || (!animation && Math.abs(diffX) > 30)) {
 			animation = swipeAnimation;
 
-			const maxDiff = previewImage.clientWidth / 2;
+			const maxDiff = previewContent.clientWidth / 2;
 			if (Math.abs(diffX) > maxDiff) {
 				diffX = Math.sign(diffX) * maxDiff;
 			}
@@ -444,7 +515,7 @@
 				diffX = 0;
 			}
 
-			previewImage.style["background-position-x"] = `calc(50% + ${diffX / 2}px)`;
+			previewContent.style["background-position-x"] = `calc(50% + ${diffX / 2}px)`;
 		}
 	});
 	window.addEventListener("touchend", ev => {
@@ -455,13 +526,13 @@
 		// Reset all changes.
 		previewWrapper.style.removeProperty("top");
 		//
-		previewImage.style.removeProperty("background-position-x");
+		previewContent.style.removeProperty("background-position-x");
 
 		const diffX = ev.changedTouches[0].clientX - touchStartX;
 		const diffY = ev.changedTouches[0].clientY - touchStartY;
 		switch (animation) {
 			case swipeAnimation:
-				if (Math.abs(diffX) > previewImage.clientWidth / 5) {
+				if (Math.abs(diffX) > previewContent.clientWidth / 5) {
 					swipePreview(-diffX);
 				}
 				break;

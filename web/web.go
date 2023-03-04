@@ -265,6 +265,8 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		//
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
+		// Always encode entries as a slice.
+		Entries: []Entry{},
 		//
 		dirURL: mustParseURL("/"),
 	}
@@ -308,7 +310,13 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		}
 		filepath := pkgPath.Join(info.Dir, filename)
 
-		var originalFileURL, dirURL, webDirURL, humanReadableSize string
+		var (
+			dirURL, webDirURL string
+			//
+			originalFileURL, humanReadableSize string
+			fileType                           rview.FileType
+			canPreview                         bool
+		)
 		if entry.IsDir {
 			escapedFilename := url.PathEscape(filename)
 
@@ -317,9 +325,14 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 
 		} else {
 			id := rview.NewFileID(filepath, entry.ModTime)
-			originalFileURL = fileIDToURL("/api/file", info.dirURL, id)
 
+			originalFileURL = fileIDToURL("/api/file", info.dirURL, id)
 			humanReadableSize = FormatFileSize(entry.Size)
+			fileType = rview.GetFileType(id)
+
+			canPreview = false ||
+				fileType == rview.FileTypeText ||
+				fileType == rview.FileTypeImage && s.thumbnailService.CanGenerateThumbnail(id)
 		}
 
 		modTime := time.Unix(entry.ModTime, 0).UTC()
@@ -332,6 +345,8 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 			HumanReadableSize:    humanReadableSize,
 			ModTime:              modTime,
 			HumanReadableModTime: FormatModTime(modTime),
+			FileType:             fileType,
+			CanPreview:           canPreview,
 			//
 			DirURL:          dirURL,
 			WebDirURL:       webDirURL,
