@@ -25,6 +25,7 @@ const (
 	unsupportedImageType imageType = iota
 	jpegImageType
 	pngImageType
+	gifImageType
 )
 
 var (
@@ -185,7 +186,14 @@ func (r *ImageResizer) processTask(ctx context.Context, task resizeTask) (finalS
 		return stats{}, fmt.Errorf("couldn't get path of a cache file: %w", err)
 	}
 
-	if originalSize < r.useOriginalImageThresholdSize {
+	saveOriginal := false ||
+		// It doesn't make much sense to resize small files.
+		originalSize < r.useOriginalImageThresholdSize ||
+		// Save the original file because vipsthumbnail can't resize gifs:
+		// https://github.com/libvips/libvips/issues/61#issuecomment-168169916
+		getImageType(task.FileID) == gifImageType
+
+	if saveOriginal {
 		err := createCacheFileFromTempFile(tempFile, cacheFilepath, originalSize)
 		if err != nil {
 			return stats{}, err
@@ -283,12 +291,7 @@ func resizeWithVips(originalFile, cacheFile string, fileID rview.FileID) error {
 
 // CanResize detects if a file can be resized based on its filename.
 func (r *ImageResizer) CanResize(id rview.FileID) bool {
-	switch getImageType(id) {
-	case jpegImageType, pngImageType:
-		return true
-	default:
-		return false
-	}
+	return getImageType(id) != unsupportedImageType
 }
 
 func getImageType(id rview.FileID) imageType {
@@ -298,6 +301,8 @@ func getImageType(id rview.FileID) imageType {
 		return jpegImageType
 	case ".png":
 		return pngImageType
+	case ".gif":
+		return gifImageType
 	default:
 		return unsupportedImageType
 	}
@@ -347,7 +352,7 @@ func (r *ImageResizer) OpenResized(ctx context.Context, id rview.FileID) (io.Rea
 
 // Resize sends a resize task to the queue. It returns an error if the image format
 // is not supported (it is detected by filepath). Filepath is passed to getImageFn, so it
-// should be absolute.
+// must be absolute.
 //
 // Resize ignores duplicate tasks. However, it doesn't check files on disk.
 func (r *ImageResizer) Resize(id rview.FileID, openFileFn rview.OpenFileFn) error {

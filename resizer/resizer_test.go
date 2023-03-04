@@ -129,5 +129,6 @@ func TestImageResizer_CanResize(t *testing.T) {
 	testutil.Equal(t, true, resizer.CanResize(rview.NewFileID("/home/users/test.pNg", now)))
 	testutil.Equal(t, true, resizer.CanResize(rview.NewFileID("/home/users/test.JPG", now)))
 	testutil.Equal(t, true, resizer.CanResize(rview.NewFileID("/home/users/test with space.jpeg", now)))
+	testutil.Equal(t, true, resizer.CanResize(rview.NewFileID("/test.gif", now)))
 	testutil.Equal(t, false, resizer.CanResize(rview.NewFileID("/home/users/x.txt", now)))
 }
