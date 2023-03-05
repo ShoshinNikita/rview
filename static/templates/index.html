@@ -134,6 +134,16 @@
 			border: var(--hover-border);
 		}
 
+		.preview-icon {
+			cursor: help;
+			height: 20px;
+			opacity: 0.5;
+			position: absolute;
+			right: 0px;
+			top: 0px;
+			width: 20px;
+		}
+
 		.icon-wrapper {
 			text-align: center;
 			min-height: 60px;
@@ -291,6 +301,11 @@
 						loading="lazy"
 						onload="this.classList.add('loaded')"
 						onerror="this.classList.add('failed')">
+					{{ else if .CanPreview }}
+					<!-- Show preview icon only for non-obvious cases. -->
+					<span class="preview-icon" title="Can preview">
+						{{ embedIcon "eye" }}
+					</span>
 					{{ end }}
 
 					<div class="icon">
