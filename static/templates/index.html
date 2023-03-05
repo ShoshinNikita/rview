@@ -258,12 +258,12 @@
 
 		{{ $href := .WebDirURL }}
 		{{ $target := "_self" }}
-		{{ $title := .Filename }}
+		{{ $title := printf "Open %q" .Filename }}
 
 		{{ if not .IsDir }}
 		{{ $href = .OriginalFileURL }}
 		{{ $target = "_blank" }}
-		{{ $title = printf "%s\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
+		{{ $title = printf "%q\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
 		{{ end }}
 
 		{{ if .ThumbnailURL }}
@@ -275,8 +275,10 @@
 		{{ $attrs := "" }}
 		{{ if .CanPreview }}
 		{{ $attrs = printf `onclick="openPreview('%s'); return false"` .Filename }}
+		{{ $title = printf `Preview %s` $title }}
 		{{ else if not .IsDir }}
 		{{ $attrs = printf `download="%s"` .Filename }}
+		{{ $title = printf `Download %s` $title }}
 		{{ end }}
 
 		<div class="entry-wrapper">

@@ -341,6 +341,12 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 				case ".mp3", ".ogg", ".wav":
 					canPreview = true
 				}
+
+			case rview.FileTypeVideo:
+				switch id.GetExt() {
+				case ".mp4", ".webm":
+					canPreview = true
+				}
 			}
 		}
 

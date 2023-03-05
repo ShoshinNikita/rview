@@ -70,6 +70,12 @@
 		width: 50%;
 	}
 
+	.preview-video {
+		display: none;
+		position: fixed;
+		transform: translateY(-50%);
+	}
+
 	.switch-preview-button {
 		align-items: center;
 		display: flex;
@@ -217,6 +223,7 @@
 
 			<pre class="preview-text"></pre>
 			<audio class="preview-audio" controls></audio>
+			<video class="preview-video" controls></video>
 		</div>
 
 		<div class="preview-side-panel">
@@ -268,6 +275,7 @@
 	const previewContent = document.getElementsByClassName("preview-content")[0];
 	const previewText = document.getElementsByClassName("preview-text")[0];
 	const previewAudio = document.getElementsByClassName("preview-audio")[0];
+	const previewVideo = document.getElementsByClassName("preview-video")[0];
 	const fileInfos = document.getElementsByClassName("preview-file-info-value");
 	const previousPreviewButton = document.querySelector(".switch-preview-button.prev");
 	const nextPreviewButton = document.querySelector(".switch-preview-button.next");
@@ -281,12 +289,28 @@
 			const halfMargin = Math.max(previousPreviewButton.clientWidth, nextPreviewButton.clientWidth);
 
 			const rect = previewContent.getBoundingClientRect();
+
+			// Text must fill all available space.
 			previewText.style["height"] = `${rect.height}px`;
 			previewText.style["top"] = `${rect.top}px`;
 			previewText.style["width"] = `${rect.width - halfMargin * 2}px`;
 			previewText.style["left"] = `${rect.x + halfMargin}px`;
+
+			// Set "max-height" instead of "height" to avoid gap between controls and video.
+			previewVideo.style["max-height"] = `${rect.height}px`;
+			// Center video vertically. Height of the video is taken into account by "translateY";
+			previewVideo.style["top"] = `${rect.top + rect.height / 2}px`;
+			previewVideo.style["width"] = `${rect.width - halfMargin * 2}px`;
+			previewVideo.style["left"] = `${rect.x + halfMargin}px`;
 		})
 	).observe(previewContent);
+
+	const stopAnyPlayback = () => {
+		for (const v of [previewAudio, previewVideo]) {
+			v.pause();
+			v.currentTime = 0;
+		}
+	};
 
 	let isPreviewOpened = false;
 	let currentFilename = null;
@@ -295,6 +319,10 @@
 	let prevScrollLeft = null;
 
 	const updatePreview = (filename) => {
+		if (currentFilename === filename) {
+			return;
+		}
+
 		// Stop scroll animation to avoid any conflicts.
 		clearInterval(scrollIntervalID);
 
@@ -342,6 +370,9 @@
 		previewContent.style["background-image"] = "";
 		previewText.style["display"] = "";
 		previewAudio.style["display"] = "";
+		previewVideo.style["display"] = "";
+
+		stopAnyPlayback();
 
 		// Update preview.
 		switch (entry.file_type) {
@@ -352,6 +383,11 @@
 			case "audio":
 				previewAudio.style["display"] = "block";
 				previewAudio.src = entry.original_file_url;
+				break;
+
+			case "video":
+				previewVideo.style["display"] = "block";
+				previewVideo.src = entry.original_file_url;
 				break;
 
 			case "text":
@@ -445,6 +481,8 @@
 	};
 
 	const closePreview = () => {
+		stopAnyPlayback();
+
 		isPreviewOpened = false;
 
 		previewWrapper.classList.remove("opened");
