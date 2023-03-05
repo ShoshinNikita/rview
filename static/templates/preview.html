@@ -44,11 +44,14 @@
 	}
 
 	.preview-content {
-		background-position: 50%;
-		background-repeat: no-repeat;
-		background-size: contain;
 		width: 100%;
 		position: relative;
+	}
+
+	.preview-image {
+		display: none;
+		position: fixed;
+		object-fit: contain;
 	}
 
 	.preview-text {
@@ -221,6 +224,7 @@
 				{{ embedIcon "chevron-down" }}
 			</a>
 
+			<img class="preview-image"></img>
 			<pre class="preview-text"></pre>
 			<audio class="preview-audio" controls></audio>
 			<video class="preview-video" controls></video>
@@ -273,6 +277,7 @@
 
 	const previewWrapper = document.getElementsByClassName("preview-wrapper")[0];
 	const previewContent = document.getElementsByClassName("preview-content")[0];
+	const previewImage = document.getElementsByClassName("preview-image")[0];
 	const previewText = document.getElementsByClassName("preview-text")[0];
 	const previewAudio = document.getElementsByClassName("preview-audio")[0];
 	const previewVideo = document.getElementsByClassName("preview-video")[0];
@@ -290,18 +295,18 @@
 
 			const rect = previewContent.getBoundingClientRect();
 
-			// Text must fill all available space.
-			previewText.style["height"] = `${rect.height}px`;
-			previewText.style["top"] = `${rect.top}px`;
-			previewText.style["width"] = `${rect.width - halfMargin * 2}px`;
-			previewText.style["left"] = `${rect.x + halfMargin}px`;
+			for (const v of [previewImage, previewText, previewVideo]) {
+				v.style["height"] = `${rect.height}px`;
+				v.style["top"] = `${rect.top}px`;
+				v.style["width"] = `${rect.width - halfMargin * 2}px`;
+				v.style["left"] = `${rect.x + halfMargin}px`;
+			}
 
 			// Set "max-height" instead of "height" to avoid gap between controls and video.
+			previewVideo.style["height"] = "";
 			previewVideo.style["max-height"] = `${rect.height}px`;
 			// Center video vertically. Height of the video is taken into account by "translateY";
 			previewVideo.style["top"] = `${rect.top + rect.height / 2}px`;
-			previewVideo.style["width"] = `${rect.width - halfMargin * 2}px`;
-			previewVideo.style["left"] = `${rect.x + halfMargin}px`;
 		})
 	).observe(previewContent);
 
@@ -367,7 +372,7 @@
 		}
 
 		// Hide all previews.
-		previewContent.style["background-image"] = "";
+		previewImage.style["display"] = "";
 		previewText.style["display"] = "";
 		previewAudio.style["display"] = "";
 		previewVideo.style["display"] = "";
@@ -377,7 +382,8 @@
 		// Update preview.
 		switch (entry.file_type) {
 			case "image":
-				previewContent.style["background-image"] = `url(${entry.thumbnail_url})`;
+				previewImage.style["display"] = "block";
+				previewImage.src = entry.thumbnail_url;
 				break;
 
 			case "audio":
