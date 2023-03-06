@@ -3,12 +3,12 @@ package static
 import (
 	"testing"
 
-	"github.com/ShoshinNikita/rview/pkg/util/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestData(t *testing.T) {
 	err := Prepare()
-	testutil.NoError(t, err)
+	require.NoError(t, err)
 
 	checkIcon := func(m map[string]string) {
 		for _, iconName := range m {
@@ -34,7 +34,7 @@ func TestData(t *testing.T) {
 
 func TestGetFileIcon(t *testing.T) {
 	err := Prepare()
-	testutil.NoError(t, err)
+	require.NoError(t, err)
 
 	t.Run("files", func(t *testing.T) {
 		for filename, wantIconPath := range map[string]string{
@@ -47,7 +47,7 @@ func TestGetFileIcon(t *testing.T) {
 			"x.js": "file.svg",
 			"x.ts": "file.svg",
 		} {
-			testutil.Equal(t, wantIconPath, GetFileIcon(filename, false))
+			require.Equal(t, wantIconPath, GetFileIcon(filename, false))
 		}
 	})
 
@@ -62,7 +62,7 @@ func TestGetFileIcon(t *testing.T) {
 			"dir": "folder.svg",
 			"ui":  "folder.svg",
 		} {
-			testutil.Equal(t, wantIconPath, GetFileIcon(filename, true))
+			require.Equal(t, wantIconPath, GetFileIcon(filename, true))
 		}
 	})
 }

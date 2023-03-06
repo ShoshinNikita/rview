@@ -6,21 +6,23 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 	"github.com/ShoshinNikita/rview/rview"
+	"github.com/stretchr/testify/require"
 )
 
 func TestDiskCache(t *testing.T) {
 	t.Parallel()
 
+	r := require.New(t)
+
 	modTime := time.Date(2022, time.April, 15, 13, 5, 1, 0, time.UTC).Unix()
 	fileID := rview.NewFileID("/home/users/1.txt", modTime)
 
 	cache, err := NewDiskCache(os.TempDir())
-	testutil.NoError(t, err)
+	r.NoError(err)
 
 	path := cache.generateFilepath(fileID)
-	testutil.Equal(t, os.TempDir()+"/2022-04/1650027901_1.txt", path)
+	r.Equal(os.TempDir()+"/2022-04/1650027901_1.txt", path)
 
 	t.Cleanup(func() {
 		os.Remove(path)
@@ -28,43 +30,43 @@ func TestDiskCache(t *testing.T) {
 
 	t.Run("check", func(t *testing.T) {
 		err := cache.Check(fileID)
-		testutil.IsError(t, err, rview.ErrCacheMiss)
+		r.ErrorIs(err, rview.ErrCacheMiss)
 
 		_, err = cache.Open(fileID)
-		testutil.IsError(t, err, rview.ErrCacheMiss)
+		r.ErrorIs(err, rview.ErrCacheMiss)
 	})
 
 	t.Run("remove", func(t *testing.T) {
 		path, err := cache.GetFilepath(fileID)
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		err = cache.Check(fileID)
-		testutil.IsError(t, err, rview.ErrCacheMiss)
+		r.ErrorIs(err, rview.ErrCacheMiss)
 
 		err = os.WriteFile(path, []byte("hello world"), 0o600)
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		err = cache.Check(fileID)
-		testutil.NoError(t, err)
+		r.NoError(err)
 
-		testutil.NoError(t, cache.Remove(fileID))
-		testutil.IsError(t, cache.Check(fileID), rview.ErrCacheMiss)
+		r.NoError(cache.Remove(fileID))
+		r.ErrorIs(cache.Check(fileID), rview.ErrCacheMiss)
 	})
 
 	t.Run("read", func(t *testing.T) {
 		path, err := cache.GetFilepath(fileID)
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		err = os.WriteFile(path, []byte("hello world"), 0o600)
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		rc, err := cache.Open(fileID)
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		data, err := io.ReadAll(rc)
-		testutil.NoError(t, err)
-		testutil.Equal(t, "hello world", string(data))
+		r.NoError(err)
+		r.Equal("hello world", string(data))
 
-		testutil.NoError(t, rc.Close())
+		r.NoError(rc.Close())
 	})
 }

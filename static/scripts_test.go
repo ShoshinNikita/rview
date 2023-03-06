@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/ShoshinNikita/rview/pkg/rlog"
-	"github.com/ShoshinNikita/rview/pkg/util/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 // TestPrepareFileIcons converts `material-icons.json` to a more convenient format and removes
@@ -23,13 +23,15 @@ import (
 func TestPrepareFileIcons(t *testing.T) {
 	t.Skip("script")
 
+	r := require.New(t)
+
 	f, err := os.Open("material-icons/material-icons.json")
-	testutil.NoError(t, err)
+	r.NoError(err)
 	defer f.Close()
 
 	var old OriginalIconsData
 	err = json.NewDecoder(f).Decode(&old)
-	testutil.NoError(t, err)
+	r.NoError(err)
 
 	new := FileIconsData{
 		IconDefinitions: make(map[string]string),
@@ -51,11 +53,11 @@ func TestPrepareFileIcons(t *testing.T) {
 	}
 
 	f, err = os.Create("material-icons/icons.json")
-	testutil.NoError(t, err)
+	r.NoError(err)
 	defer f.Close()
 
 	err = json.NewEncoder(f).Encode(new)
-	testutil.NoError(t, err)
+	r.NoError(err)
 
 	var removedIconsCount int
 	err = filepath.Walk("material-icons/icons", func(path string, info fs.FileInfo, err error) error {
@@ -86,7 +88,7 @@ func TestPrepareFileIcons(t *testing.T) {
 		}
 		return nil
 	})
-	testutil.NoError(t, err)
+	r.NoError(err)
 
 	rlog.Infof(`%d "*-open" icons were removed`, openIconsCount)
 	rlog.Infof(`%d "*_light" icons were removed`, lightIconsCount)

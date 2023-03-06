@@ -10,17 +10,19 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/cache"
-	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 	"github.com/ShoshinNikita/rview/rview"
+	"github.com/stretchr/testify/require"
 )
 
 func TestThumbnailService(t *testing.T) {
 	t.Parallel()
 
+	r := require.New(t)
+
 	tempDir, err := os.MkdirTemp("", "rview-test-*")
-	testutil.NoError(t, err)
+	r.NoError(err)
 	cache, err := cache.NewDiskCache(tempDir)
-	testutil.NoError(t, err)
+	r.NoError(err)
 
 	service := NewThumbnailService(cache, 2)
 	service.useOriginalImageThresholdSize = 10
@@ -33,7 +35,7 @@ func TestThumbnailService(t *testing.T) {
 
 	fileID := rview.NewFileID("1.jpg", time.Now().Unix())
 
-	testutil.Equal(t, false, service.IsThumbnailReady(fileID))
+	r.False(service.IsThumbnailReady(fileID))
 
 	resizeStart := time.Now()
 
@@ -41,42 +43,44 @@ func TestThumbnailService(t *testing.T) {
 		time.Sleep(110 * time.Millisecond)
 		return io.NopCloser(bytes.NewReader([]byte("original-content-" + id.String()))), nil
 	})
-	testutil.NoError(t, err)
+	r.NoError(err)
 
 	// Must take into account in-progress tasks.
-	testutil.Equal(t, true, service.IsThumbnailReady(fileID))
+	r.True(service.IsThumbnailReady(fileID))
 
 	// Must ignore duplicate tasks.
 	for i := 0; i < 3; i++ {
 		err = service.SendTask(fileID, nil)
-		testutil.NoError(t, err)
+		r.NoError(err)
 	}
 
 	rc, err := service.OpenThumbnail(context.Background(), fileID)
-	testutil.NoError(t, err)
+	r.NoError(err)
 
 	data, err := io.ReadAll(rc)
-	testutil.NoError(t, err)
-	testutil.Equal(t, "resized-content-1.jpg", string(data))
+	r.NoError(err)
+	r.Equal("resized-content-1.jpg", string(data))
 
 	dur := time.Since(resizeStart)
 	if dur < 200*time.Millisecond {
 		t.Fatalf("image must be opened in >=200ms, got: %s", dur)
 	}
 
-	testutil.Equal(t, 1, resizedCount)
-	testutil.Equal(t, true, service.IsThumbnailReady(fileID))
+	r.Equal(1, resizedCount)
+	r.True(service.IsThumbnailReady(fileID))
 
 	t.Run("remove resized file after error", func(t *testing.T) {
+		r := require.New(t)
+
 		fileID := rview.NewFileID("2.jpg", time.Now().Unix())
 
 		service.resizeFn = func(originalFile, cacheFile string, id rview.FileID) error {
 			// File must be created by vips, emulate it.
 			f, err := os.Create(cacheFile)
-			testutil.NoError(t, err)
-			testutil.NoError(t, f.Close())
+			r.NoError(err)
+			r.NoError(f.Close())
 
-			testutil.NoError(t, service.cache.Check(fileID))
+			r.NoError(service.cache.Check(fileID))
 
 			return errors.New("some error")
 		}
@@ -84,16 +88,18 @@ func TestThumbnailService(t *testing.T) {
 		err = service.SendTask(fileID, func(context.Context, rview.FileID) (io.ReadCloser, error) {
 			return io.NopCloser(bytes.NewReader([]byte("long phrase to exceed threshold"))), nil
 		})
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		_, err = service.OpenThumbnail(context.Background(), fileID)
-		testutil.IsError(t, err, rview.ErrCacheMiss)
+		r.ErrorIs(err, rview.ErrCacheMiss)
 
 		// Cache file must be removed.
-		testutil.IsError(t, service.cache.Check(fileID), rview.ErrCacheMiss)
+		r.ErrorIs(service.cache.Check(fileID), rview.ErrCacheMiss)
 	})
 
 	t.Run("use original file", func(t *testing.T) {
+		r := require.New(t)
+
 		fileID := rview.NewFileID("3.jpg", time.Now().Unix())
 
 		var resizeCalled bool
@@ -105,30 +111,32 @@ func TestThumbnailService(t *testing.T) {
 		err = service.SendTask(fileID, func(context.Context, rview.FileID) (io.ReadCloser, error) {
 			return io.NopCloser(bytes.NewReader([]byte("x"))), nil
 		})
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		rc, err = service.OpenThumbnail(context.Background(), fileID)
-		testutil.NoError(t, err)
+		r.NoError(err)
 		data, err := io.ReadAll(rc)
-		testutil.NoError(t, err)
-		testutil.Equal(t, "x", string(data))
-		testutil.Equal(t, false, resizeCalled)
+		r.NoError(err)
+		r.Equal("x", string(data))
+		r.False(resizeCalled)
 	})
 
-	testutil.NoError(t, service.Shutdown(context.Background()))
+	r.NoError(service.Shutdown(context.Background()))
 }
 
 func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 	t.Parallel()
 
+	r := require.New(t)
+
 	now := time.Now().Unix()
 
 	canGenerate := NewThumbnailService(nil, 0).CanGenerateThumbnail
 
-	testutil.Equal(t, true, canGenerate(rview.NewFileID("/home/users/test.png", now)))
-	testutil.Equal(t, true, canGenerate(rview.NewFileID("/home/users/test.pNg", now)))
-	testutil.Equal(t, true, canGenerate(rview.NewFileID("/home/users/test.JPG", now)))
-	testutil.Equal(t, true, canGenerate(rview.NewFileID("/home/users/test with space.jpeg", now)))
-	testutil.Equal(t, true, canGenerate(rview.NewFileID("/test.gif", now)))
-	testutil.Equal(t, false, canGenerate(rview.NewFileID("/home/users/x.txt", now)))
+	r.True(canGenerate(rview.NewFileID("/home/users/test.png", now)))
+	r.True(canGenerate(rview.NewFileID("/home/users/test.pNg", now)))
+	r.True(canGenerate(rview.NewFileID("/home/users/test.JPG", now)))
+	r.True(canGenerate(rview.NewFileID("/home/users/test with space.jpeg", now)))
+	r.True(canGenerate(rview.NewFileID("/test.gif", now)))
+	r.False(canGenerate(rview.NewFileID("/home/users/x.txt", now)))
 }

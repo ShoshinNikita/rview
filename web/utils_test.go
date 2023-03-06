@@ -3,7 +3,7 @@ package web
 import (
 	"testing"
 
-	"github.com/ShoshinNikita/rview/pkg/util/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestFormatFileSize(t *testing.T) {
@@ -17,6 +17,6 @@ func TestFormatFileSize(t *testing.T) {
 		2 << 30:               "2 GiB",
 	} {
 		got := FormatFileSize(size)
-		testutil.Equal(t, wantRes, got)
+		require.Equal(t, wantRes, got)
 	}
 }

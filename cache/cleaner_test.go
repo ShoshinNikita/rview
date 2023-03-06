@@ -6,11 +6,13 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ShoshinNikita/rview/pkg/util/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCleaner_loadAllFilesAndRemove(t *testing.T) {
 	t.Parallel()
+
+	r := require.New(t)
 
 	dir := t.TempDir()
 	wantFiles := []fileInfo{
@@ -26,28 +28,28 @@ func TestCleaner_loadAllFilesAndRemove(t *testing.T) {
 		file := wantFiles[i]
 		dir := filepath.Dir(file.path)
 		err := os.MkdirAll(dir, 0o777)
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		f, err := os.Create(file.path)
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		_, err = f.Write(make([]byte, file.size))
-		testutil.NoError(t, err)
+		r.NoError(err)
 
 		err = f.Close()
-		testutil.NoError(t, err)
+		r.NoError(err)
 	}
 
 	c := Cleaner{dir: dir}
 
 	gotFiles, err := c.loadAllFiles()
-	testutil.NoError(t, err)
+	r.NoError(err)
 
 	for i := range gotFiles {
 		gotFiles[i].modTime = time.Time{}
-		testutil.Contains(t, gotFiles[i].path, dir)
+		r.Contains(gotFiles[i].path, dir)
 	}
-	testutil.ElementsMatch(t, wantFiles, gotFiles)
+	r.ElementsMatch(wantFiles, gotFiles)
 
 	errs := c.removeFiles(wantFiles[:3])
 	if len(errs) != 0 {
@@ -55,13 +57,12 @@ func TestCleaner_loadAllFilesAndRemove(t *testing.T) {
 	}
 
 	gotFilesAfterRemove, err := c.loadAllFiles()
-	testutil.NoError(t, err)
+	r.NoError(err)
 
 	for i := range gotFilesAfterRemove {
 		gotFilesAfterRemove[i].modTime = time.Time{}
 	}
-	testutil.ElementsMatch(
-		t,
+	r.ElementsMatch(
 		wantFiles[3:],
 		gotFilesAfterRemove,
 	)
@@ -153,7 +154,7 @@ func TestCleaner_getFilesToRemove(t *testing.T) {
 			for _, f := range got {
 				gotPaths = append(gotPaths, f.path)
 			}
-			testutil.ElementsMatch(t, tt.wantFilenames, gotPaths)
+			require.ElementsMatch(t, tt.wantFilenames, gotPaths)
 		})
 	}
 }

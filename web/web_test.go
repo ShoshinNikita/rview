@@ -13,10 +13,10 @@ import (
 
 	"github.com/ShoshinNikita/rview/cache"
 	"github.com/ShoshinNikita/rview/config"
-	"github.com/ShoshinNikita/rview/pkg/util/testutil"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
 	"github.com/ShoshinNikita/rview/thumbnails"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMain(m *testing.M) {
@@ -31,7 +31,7 @@ func TestMain(m *testing.M) {
 func TestServer_handleDir(t *testing.T) {
 	parseTime := func(t *testing.T, s string) time.Time {
 		res, err := time.Parse(time.RFC3339, s)
-		testutil.NoError(t, err)
+		require.NoError(t, err)
 		return res.UTC()
 	}
 
@@ -179,7 +179,7 @@ func TestServer_handleDir(t *testing.T) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		data, err := os.ReadFile("testdata" + r.URL.Path + "resp.json")
-		testutil.NoError(t, err)
+		require.NoError(t, err)
 		w.Write(data)
 	})
 	mux.HandleFunc("/404", func(w http.ResponseWriter, r *http.Request) {
@@ -204,22 +204,24 @@ func TestServer_handleDir(t *testing.T) {
 
 			s.handleDir(w, req)
 
-			testutil.Equal(t, tt.wantStatusCode, w.Result().StatusCode)
+			require.Equal(t, tt.wantStatusCode, w.Result().StatusCode)
 			if tt.wantStatusCode != http.StatusOK {
-				testutil.Equal(t, tt.wantErrorBody, w.Body.String())
+				require.Equal(t, tt.wantErrorBody, w.Body.String())
 				return
 			}
 
 			var gotInfo Info
 			err := json.NewDecoder(w.Body).Decode(&gotInfo)
-			testutil.NoError(t, err)
-			testutil.Equal(t, tt.wantInfo, gotInfo)
+			require.NoError(t, err)
+			require.Equal(t, tt.wantInfo, gotInfo)
 		})
 	}
 }
 
 func TestServer_sendGenerateThumbnailTasks(t *testing.T) {
 	t.Parallel()
+
+	r := require.New(t)
 
 	stub := newThumbnailServiceStub()
 	s := NewServer(config.Config{}, stub)
@@ -238,9 +240,9 @@ func TestServer_sendGenerateThumbnailTasks(t *testing.T) {
 		},
 		dirURL: mustParseURL("/"),
 	})
-	testutil.Equal(t, 3, stub.taskCount)
+	r.Equal(3, stub.taskCount)
 
-	testutil.Equal(t,
+	r.Equal(
 		[]Entry{
 			{filepath: "a.txt", ModTime: zeroModTime}, // no thumbnail: text file
 			{filepath: "b.jpg", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail/b.jpg?mod_time=0"},
