@@ -40,8 +40,12 @@ type Server struct {
 	templatesFS fs.FS
 }
 
-func NewServer(cfg config.Config, thumbnailService rview.ThumbnailService) (s *Server) {
-	s = &Server{
+func NewServer(cfg config.Config, thumbnailService rview.ThumbnailService) *Server {
+	if cfg.ReadStaticFilesFromDisk {
+		rlog.Info("static files will be read from disk")
+	}
+
+	s := &Server{
 		buildInfo: cfg.BuildInfo,
 		rcloneURL: &url.URL{
 			Scheme: "http",

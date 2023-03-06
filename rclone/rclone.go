@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strconv"
 	"sync"
+	"sync/atomic"
 
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/static"
@@ -18,9 +19,10 @@ import (
 
 // Rclone is an abstraction for an Rclone instance.
 type Rclone struct {
-	cmd       *exec.Cmd
-	stopCmd   func()
-	stoppedCh chan struct{}
+	cmd               *exec.Cmd
+	stopCmd           func()
+	stoppedByShutdown atomic.Bool
+	stoppedCh         chan struct{}
 }
 
 func NewRclone(rclonePort int, rcloneTarget string) (*Rclone, error) {
@@ -60,6 +62,10 @@ func NewRclone(rclonePort int, rcloneTarget string) (*Rclone, error) {
 }
 
 func (r *Rclone) Start() error {
+	defer func() {
+		close(r.stoppedCh)
+	}()
+
 	stdout, err := r.cmd.StdoutPipe()
 	if err != nil {
 		return fmt.Errorf("couldn't get rclone stdout: %w", err)
@@ -87,14 +93,17 @@ func (r *Rclone) Start() error {
 	}
 
 	err = r.cmd.Wait()
+	if r.stoppedByShutdown.Load() {
+		// Don't return errors like "signal: interrupt".
+		err = nil
+	}
 
-	// Close just in case
+	// Close just in case.
 	for _, pipe := range pipes {
 		pipe.Close()
 	}
 
 	wg.Wait()
-	close(r.stoppedCh)
 
 	return err
 }
@@ -110,6 +119,7 @@ func (r *Rclone) redirectRcloneLogs(pipe io.Reader) {
 }
 
 func (r *Rclone) Shutdown(ctx context.Context) error {
+	r.stoppedByShutdown.Store(true)
 	r.stopCmd()
 
 	select {

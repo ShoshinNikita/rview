@@ -3,6 +3,7 @@
 # Add .git for VCS info
 !.git/
 !cache/
+!cmd/
 !config/
 !pkg/
 !rclone/

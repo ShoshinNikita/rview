@@ -13,7 +13,6 @@ var (
 	info  = log.New(os.Stdout, "[INF] ", flags)
 	warn  = log.New(os.Stdout, "[WRN] ", flags)
 	err   = log.New(os.Stdout, "[ERR] ", flags)
-	fatal = log.New(os.Stdout, "[FAT] ", flags)
 )
 
 func EnableDebug() {
@@ -31,6 +30,3 @@ func Warnf(format string, v ...any) { warn.Printf(format, v...) }
 
 func Error(v ...any)                 { err.Println(v...) }
 func Errorf(format string, v ...any) { err.Printf(format, v...) }
-
-func Fatal(v ...any)                 { fatal.Fatal(v...) }
-func Fatalf(format string, v ...any) { fatal.Fatalf(format, v...) }
