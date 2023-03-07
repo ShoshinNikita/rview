@@ -69,6 +69,10 @@ func TestThumbnailService(t *testing.T) {
 	r.Equal(1, resizedCount)
 	r.True(service.IsThumbnailReady(fileID))
 
+	// Same path, but different mod time.
+	newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix()+5)
+	r.False(service.IsThumbnailReady(newFileID))
+
 	t.Run("remove resized file after error", func(t *testing.T) {
 		r := require.New(t)
 
