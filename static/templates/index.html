@@ -301,11 +301,19 @@
 						loading="lazy"
 						onload="this.classList.add('loaded')"
 						onerror="this.classList.add('failed')">
-					{{ else if .CanPreview }}
-					<!-- Show preview icon only for non-obvious cases. -->
-					<span class="preview-icon" title="Can preview">
-						{{ embedIcon "eye" }}
+
+					{{ else if not .IsDir }}
+
+					{{ $previewIcon := "download" }}
+					{{ $title := "Can download" }}
+					{{ if .CanPreview }}
+					{{ $previewIcon = "eye" }}
+					{{ $title = "Can preview" }}
+					{{ end }}
+					<span class="preview-icon" title="{{ $title }}">
+						{{ embedIcon $previewIcon }}
 					</span>
+
 					{{ end }}
 
 					<div class="icon">
