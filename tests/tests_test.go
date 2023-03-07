@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"io"
 	"log"
 	"net"
@@ -45,7 +47,8 @@ var TestDataModTimes = map[string]string{
 	"Video/traffic-53902.mp4": "2022-09-08 11:37:02",
 	//
 	"Other/": "2022-09-08 11:37:02",
-	"Other/spe'sial ! characters/x/y/file.txt": "2022-09-08 11:37:02",
+	"Other/spe'sial ! characters/x/y/file.txt":        "2022-09-08 11:37:02",
+	"Other/test-thumbnails/cloudy-g1a943401b_640.png": "2022-09-11 18:35:04",
 }
 
 var APIAddr string
@@ -75,10 +78,8 @@ func TestMain(m *testing.M) {
 		RcloneTarget: "./testdata",
 		RclonePort:   mustGetFreePort(),
 		//
-		// Enable thumbnails but use 0 workers to not process any tasks.
-		// TODO: increase workers count?
 		Thumbnails:             true,
-		ThumbnailsWorkersCount: 0,
+		ThumbnailsWorkersCount: 1,
 		//
 		DebugLogLevel: true,
 	}
@@ -137,12 +138,6 @@ func mustGetFreePort() int {
 }
 
 func TestGetDirInfo(t *testing.T) {
-	parseTime := func(t *testing.T, s string) time.Time {
-		res, err := time.Parse(time.DateTime, s)
-		require.NoError(t, err)
-		return res.UTC()
-	}
-
 	t.Run("check full info", func(t *testing.T) {
 		r := require.New(t)
 
@@ -157,7 +152,7 @@ func TestGetDirInfo(t *testing.T) {
 					{
 						Filename:             "Audio",
 						IsDir:                true,
-						ModTime:              parseTime(t, "2022-08-09 00:15:30"),
+						ModTime:              mustParseTime(t, "2022-08-09 00:15:30"),
 						HumanReadableModTime: "2022-08-09 00:15:30 UTC",
 						DirURL:               "/api/dir/Audio/",
 						WebDirURL:            "/ui/Audio/",
@@ -166,7 +161,7 @@ func TestGetDirInfo(t *testing.T) {
 					{
 						Filename:             "Images",
 						IsDir:                true,
-						ModTime:              parseTime(t, "2023-01-01 18:35:00"),
+						ModTime:              mustParseTime(t, "2023-01-01 18:35:00"),
 						HumanReadableModTime: "2023-01-01 18:35:00 UTC",
 						DirURL:               "/api/dir/Images/",
 						WebDirURL:            "/ui/Images/",
@@ -175,7 +170,7 @@ func TestGetDirInfo(t *testing.T) {
 					{
 						Filename:             "Other",
 						IsDir:                true,
-						ModTime:              parseTime(t, "2022-09-08 11:37:02"),
+						ModTime:              mustParseTime(t, "2022-09-08 11:37:02"),
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						DirURL:               "/api/dir/Other/",
 						WebDirURL:            "/ui/Other/",
@@ -184,7 +179,7 @@ func TestGetDirInfo(t *testing.T) {
 					{
 						Filename:             "Video",
 						IsDir:                true,
-						ModTime:              parseTime(t, "2022-09-08 11:37:02"),
+						ModTime:              mustParseTime(t, "2022-09-08 11:37:02"),
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						DirURL:               "/api/dir/Video/",
 						WebDirURL:            "/ui/Video/",
@@ -194,7 +189,7 @@ func TestGetDirInfo(t *testing.T) {
 						Filename:             "archive.7z",
 						Size:                 0,
 						HumanReadableSize:    "0 B",
-						ModTime:              parseTime(t, "2022-04-07 05:23:55"),
+						ModTime:              mustParseTime(t, "2022-04-07 05:23:55"),
 						HumanReadableModTime: "2022-04-07 05:23:55 UTC",
 						FileType:             rview.FileTypeUnknown,
 						CanPreview:           false,
@@ -205,7 +200,7 @@ func TestGetDirInfo(t *testing.T) {
 						Filename:             "Lorem ipsum.txt",
 						Size:                 943,
 						HumanReadableSize:    "943 B",
-						ModTime:              parseTime(t, "2023-02-27 15:00:00"),
+						ModTime:              mustParseTime(t, "2023-02-27 15:00:00"),
 						HumanReadableModTime: "2023-02-27 15:00:00 UTC",
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
@@ -216,7 +211,7 @@ func TestGetDirInfo(t *testing.T) {
 						Filename:             "main.go",
 						Size:                 73,
 						HumanReadableSize:    "73 B",
-						ModTime:              parseTime(t, "2022-04-07 18:23:55"),
+						ModTime:              mustParseTime(t, "2022-04-07 18:23:55"),
 						HumanReadableModTime: "2022-04-07 18:23:55 UTC",
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
@@ -227,7 +222,7 @@ func TestGetDirInfo(t *testing.T) {
 						Filename:             "test.gif",
 						Size:                 1833,
 						HumanReadableSize:    "1.79 KiB",
-						ModTime:              parseTime(t, "2023-01-01 15:00:00"),
+						ModTime:              mustParseTime(t, "2023-01-01 15:00:00"),
 						HumanReadableModTime: "2023-01-01 15:00:00 UTC",
 						FileType:             rview.FileTypeImage,
 						CanPreview:           true,
@@ -256,7 +251,7 @@ func TestGetDirInfo(t *testing.T) {
 						Filename:             "file.txt",
 						Size:                 0,
 						HumanReadableSize:    "0 B",
-						ModTime:              parseTime(t, "2022-09-08 11:37:02"),
+						ModTime:              mustParseTime(t, "2022-09-08 11:37:02"),
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
@@ -370,6 +365,87 @@ func TestGetFile(t *testing.T) {
 	r.Equal("audio/mpeg", headers.Get("Content-Type"))
 }
 
+func TestThumbnails(t *testing.T) {
+	r := require.New(t)
+
+	const (
+		testFile      = "Other/test-thumbnails/cloudy-g1a943401b_640.png"
+		generatedFile = "Other/test-thumbnails/generated.jpeg"
+	)
+
+	// Generate large image.
+	var generatedFileTime time.Time
+	func() {
+		filepath := path.Join("testdata", generatedFile)
+
+		img := image.NewRGBA(image.Rect(0, 0, 4000, 4000))
+		f, err := os.Create(filepath)
+		r.NoError(err)
+
+		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 1})
+		r.NoError(err)
+
+		r.NoError(f.Close())
+		t.Cleanup(func() {
+			r.NoError(os.Remove(f.Name()))
+		})
+
+		stats, err := os.Stat(filepath)
+		r.NoError(err)
+		generatedFileTime = stats.ModTime()
+	}()
+
+	testFileTime := mustParseTime(t, TestDataModTimes[testFile])
+	testFileThumbnailURL := "/api/thumbnail/" + testFile + "?mod_time=" + strconv.Itoa(int(testFileTime.Unix()))
+
+	generatedFileThumbnailURL := "/api/thumbnail/" + generatedFile + "?mod_time=" + strconv.Itoa(int(generatedFileTime.Unix()))
+
+	// Thumbnails were not generated yet.
+	for _, url := range []string{
+		testFileThumbnailURL,
+		generatedFileThumbnailURL,
+	} {
+		// TODO: use 404.
+		status, _, _ := makeRequest(t, url)
+		r.Equal(400, status)
+	}
+
+	// Requesting dir info must send tasks to generate thumbnails.
+	info := getDirInfo(t, path.Dir(testFile), "")
+	r.NotEmpty(info.Entries)
+	for _, entry := range info.Entries {
+		switch entry.Filename {
+		case path.Base(testFile):
+			r.Equal(testFileThumbnailURL, entry.ThumbnailURL)
+		case path.Base(generatedFile):
+			r.Equal(generatedFileThumbnailURL, entry.ThumbnailURL)
+		case "credits.txt":
+			// Ok
+		default:
+			t.Fatalf("unexpected file %q", entry.Filename)
+		}
+	}
+
+	// Thumbnails must be ready.
+	for thumbnailURL, originalFileUsed := range map[string]bool{
+		testFileThumbnailURL:      true,
+		generatedFileThumbnailURL: false,
+	} {
+		status, thumbnailBody, _ := makeRequest(t, thumbnailURL)
+		r.Equal(200, status)
+
+		fileURL := strings.Replace(thumbnailURL, "/api/thumbnail/", "/api/file/", 1)
+		status, fileBody, _ := makeRequest(t, fileURL)
+		r.Equal(200, status)
+
+		if originalFileUsed {
+			r.Equal(len(thumbnailBody), len(fileBody))
+		} else {
+			r.Less(len(thumbnailBody), len(fileBody))
+		}
+	}
+}
+
 func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {
 	t.Helper()
 
@@ -396,4 +472,10 @@ func makeRequest(t *testing.T, path string) (status int, body []byte, header htt
 	require.NoError(t, err)
 
 	return resp.StatusCode, body, resp.Header
+}
+
+func mustParseTime(t *testing.T, s string) time.Time {
+	res, err := time.Parse(time.DateTime, s)
+	require.NoError(t, err)
+	return res.UTC()
 }
