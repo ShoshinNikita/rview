@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"html/template"
 	"io"
 	"io/fs"
@@ -19,7 +18,6 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/config"
-	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
@@ -28,11 +26,10 @@ import (
 
 type Server struct {
 	buildInfo config.BuildInfo
-	rcloneURL *url.URL
 
 	httpServer *http.Server
-	httpClient *http.Client
 
+	rclone           rview.Rclone
 	thumbnailService rview.ThumbnailService
 
 	iconsFS     fs.FS
@@ -40,22 +37,15 @@ type Server struct {
 	templatesFS fs.FS
 }
 
-func NewServer(cfg config.Config, thumbnailService rview.ThumbnailService) *Server {
+func NewServer(cfg config.Config, rclone rview.Rclone, thumbnailService rview.ThumbnailService) (s *Server) {
 	if cfg.ReadStaticFilesFromDisk {
 		rlog.Info("static files will be read from disk")
 	}
 
-	s := &Server{
+	s = &Server{
 		buildInfo: cfg.BuildInfo,
-		rcloneURL: &url.URL{
-			Scheme: "http",
-			Host:   "localhost:" + strconv.Itoa(cfg.RclonePort),
-		},
 		//
-		httpClient: &http.Client{
-			Timeout: time.Minute,
-		},
-		//
+		rclone:           rclone,
 		thumbnailService: thumbnailService,
 		//
 		iconsFS:     static.NewIconsFS(cfg.ReadStaticFilesFromDisk),
@@ -201,15 +191,15 @@ func embedIcon(fs fs.FS, name string) (template.HTML, error) {
 
 // getDirInfo requests the directory information from Rclone and converts it into
 // the appropriate format. It also sends tasks to generate thumbnail for the images.
-func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (Info, error) {
-	rcloneInfo, err := s.getRcloneInfo(ctx, dir, query)
+func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (DirInfo, error) {
+	rcloneInfo, err := s.rclone.GetDirInfo(ctx, dir, query.Get("sort"), query.Get("order"))
 	if err != nil {
-		return Info{}, fmt.Errorf("couldn't get rclone info: %w", err)
+		return DirInfo{}, fmt.Errorf("couldn't get rclone info: %w", err)
 	}
 
 	info, err := s.convertRcloneInfo(rcloneInfo)
 	if err != nil {
-		return Info{}, fmt.Errorf("couldn't convert rclone info: %w", err)
+		return DirInfo{}, fmt.Errorf("couldn't convert rclone info: %w", err)
 	}
 
 	info = s.sendGenerateThumbnailTasks(info)
@@ -217,59 +207,14 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 	return info, nil
 }
 
-func (s *Server) getRcloneInfo(ctx context.Context, path string, query url.Values) (RcloneInfo, error) {
-	now := time.Now()
-	defer func() {
-		dur := time.Since(now)
-
-		metrics.RcloneResponseTime.Observe(dur.Seconds())
-		rlog.Debugf("rclone info for %q was loaded in %s", path, dur)
-	}()
-
-	rcloneURL := s.rcloneURL.JoinPath(path)
-	rcloneURL.RawQuery = url.Values{
-		"sort":  query["sort"],
-		"order": query["order"],
-	}.Encode()
-	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
-	if err != nil {
-		return RcloneInfo{}, fmt.Errorf("couldn't prepare request: %w", err)
-	}
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return RcloneInfo{}, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return RcloneInfo{}, fmt.Errorf("got unexpected status code from rclone: %d, body: %q", resp.StatusCode, body)
-	}
-
-	var rcloneInfo RcloneInfo
-	err = json.NewDecoder(resp.Body).Decode(&rcloneInfo)
-	if err != nil {
-		return RcloneInfo{}, fmt.Errorf("couldn't decode rclone response: %w", err)
-	}
-
-	// Rclone escapes the directory path and text of breadcrumbs: &#39; instead of ' and so on.
-	// So, we have to unescape them to build valid links.
-	rcloneInfo.Path = html.UnescapeString(rcloneInfo.Path)
-	for i := range rcloneInfo.Breadcrumbs {
-		rcloneInfo.Breadcrumbs[i].Text = html.UnescapeString(rcloneInfo.Breadcrumbs[i].Text)
-	}
-
-	return rcloneInfo, nil
-}
-
-func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
-	info := Info{
+func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo) (DirInfo, error) {
+	info := DirInfo{
 		BuildInfo: s.buildInfo,
 		//
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
 		// Always encode entries as a slice.
-		Entries: []Entry{},
+		Entries: []DirEntry{},
 		//
 		dirURL: mustParseURL("/"),
 	}
@@ -296,7 +241,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 
 		uiURL := mustParseURL("/ui").JoinPath(info.dirURL.String()).String()
 
-		info.Breadcrumbs = append(info.Breadcrumbs, Breadcrumb{
+		info.Breadcrumbs = append(info.Breadcrumbs, DirBreadcrumb{
 			Link: uiURL,
 			Text: text,
 		})
@@ -309,7 +254,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 
 		filename, err := url.QueryUnescape(pkgPath.Clean(entry.URL))
 		if err != nil {
-			return Info{}, fmt.Errorf("invalid url %q: %w", entry.URL, err)
+			return DirInfo{}, fmt.Errorf("invalid url %q: %w", entry.URL, err)
 		}
 		filepath := pkgPath.Join(info.Dir, filename)
 
@@ -355,7 +300,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 		}
 
 		modTime := time.Unix(entry.ModTime, 0).UTC()
-		info.Entries = append(info.Entries, Entry{
+		info.Entries = append(info.Entries, DirEntry{
 			filepath: filepath,
 			//
 			Filename:             filename,
@@ -376,7 +321,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo RcloneInfo) (Info, error) {
 	return info, nil
 }
 
-func (s *Server) sendGenerateThumbnailTasks(info Info) Info {
+func (s *Server) sendGenerateThumbnailTasks(info DirInfo) DirInfo {
 	for i, entry := range info.Entries {
 		if entry.IsDir {
 			continue
@@ -397,7 +342,7 @@ func (s *Server) sendGenerateThumbnailTasks(info Info) Info {
 		}
 
 		openFile := func(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
-			rc, _, err := s.getFile(ctx, id)
+			rc, _, err := s.rclone.GetFile(ctx, id)
 			return rc, err
 		}
 		err := s.thumbnailService.SendTask(id, openFile)
@@ -420,7 +365,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rc, rcloneHeaders, err := s.getFile(r.Context(), fileID)
+	rc, rcloneHeaders, err := s.rclone.GetFile(r.Context(), fileID)
 	if err != nil {
 		writeInternalServerError(w, "couldn't get file: %s", err)
 		return
@@ -458,23 +403,6 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	}
 
 	copyResponse(w, rc)
-}
-
-func (s *Server) getFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
-	rcloneURL := s.rcloneURL.JoinPath(id.GetPath())
-	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't prepare request: %w", err)
-	}
-	resp, err := s.httpClient.Do(req)
-	if err != nil {
-		return nil, nil, fmt.Errorf("request failed: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("got invalid status code: %d", resp.StatusCode)
-	}
-
-	return resp.Body, resp.Header, nil
 }
 
 // handleThumbnail returns the thumbnail.

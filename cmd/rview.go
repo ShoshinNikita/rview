@@ -69,7 +69,7 @@ func (r *Rview) Prepare() (err error) {
 	}
 
 	// Web Server
-	r.server = web.NewServer(r.cfg, r.thumbnailService)
+	r.server = web.NewServer(r.cfg, r.rcloneInstance, r.thumbnailService)
 
 	return nil
 }

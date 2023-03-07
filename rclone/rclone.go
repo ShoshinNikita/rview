@@ -3,17 +3,24 @@ package rclone
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"io/fs"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
 	"sync"
 	"sync/atomic"
+	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
+	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
 )
 
@@ -23,6 +30,9 @@ type Rclone struct {
 	stopCmd           func()
 	stoppedByShutdown atomic.Bool
 	stoppedCh         chan struct{}
+
+	httpClient *http.Client
+	rcloneURL  *url.URL
 }
 
 func NewRclone(rclonePort int, rcloneTarget string) (*Rclone, error) {
@@ -58,6 +68,14 @@ func NewRclone(rclonePort int, rcloneTarget string) (*Rclone, error) {
 		),
 		stopCmd:   cancel,
 		stoppedCh: make(chan struct{}),
+		//
+		httpClient: &http.Client{
+			Timeout: 2 * time.Minute,
+		},
+		rcloneURL: &url.URL{
+			Scheme: "http",
+			Host:   "localhost:" + strconv.Itoa(rclonePort),
+		},
 	}, nil
 }
 
@@ -128,4 +146,68 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 	case <-r.stoppedCh:
 		return nil
 	}
+}
+
+func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
+	rcloneURL := r.rcloneURL.JoinPath(id.GetPath())
+
+	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't prepare request: %w", err)
+	}
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("request failed: %w", err)
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil, nil, fmt.Errorf("got invalid status code: %d", resp.StatusCode)
+	}
+
+	return resp.Body, resp.Header, nil
+}
+
+func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string) (*rview.RcloneDirInfo, error) {
+	now := time.Now()
+	defer func() {
+		dur := time.Since(now)
+
+		metrics.RcloneResponseTime.Observe(dur.Seconds())
+		rlog.Debugf("rclone info for %q was loaded in %s", path, dur)
+	}()
+
+	rcloneURL := r.rcloneURL.JoinPath(path)
+	rcloneURL.RawQuery = url.Values{
+		"sort":  []string{sort},
+		"order": []string{order},
+	}.Encode()
+	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't prepare request: %w", err)
+	}
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("got unexpected status code from rclone: %d, body: %q", resp.StatusCode, body)
+	}
+
+	var rcloneInfo rview.RcloneDirInfo
+	err = json.NewDecoder(resp.Body).Decode(&rcloneInfo)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't decode rclone response: %w", err)
+	}
+
+	// Rclone escapes the directory path and text of breadcrumbs: &#39; instead of ' and so on.
+	// So, we have to unescape them.
+	rcloneInfo.Path = html.UnescapeString(rcloneInfo.Path)
+	for i := range rcloneInfo.Breadcrumbs {
+		rcloneInfo.Breadcrumbs[i].Text = html.UnescapeString(rcloneInfo.Breadcrumbs[i].Text)
+	}
+
+	return &rcloneInfo, nil
 }

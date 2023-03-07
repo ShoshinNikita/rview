@@ -20,12 +20,12 @@ func TestServer_sendGenerateThumbnailTasks(t *testing.T) {
 	r := require.New(t)
 
 	stub := newThumbnailServiceStub()
-	s := NewServer(config.Config{}, stub)
+	s := NewServer(config.Config{}, nil, stub)
 
 	zeroModTime := time.Unix(0, 0)
 
-	gotInfo := s.sendGenerateThumbnailTasks(Info{
-		Entries: []Entry{
+	gotInfo := s.sendGenerateThumbnailTasks(DirInfo{
+		Entries: []DirEntry{
 			{filepath: "a.txt", ModTime: zeroModTime},
 			{filepath: "b.jpg", ModTime: zeroModTime},
 			{filepath: "c.png", ModTime: zeroModTime},
@@ -39,7 +39,7 @@ func TestServer_sendGenerateThumbnailTasks(t *testing.T) {
 	r.Equal(3, stub.taskCount)
 
 	r.Equal(
-		[]Entry{
+		[]DirEntry{
 			{filepath: "a.txt", ModTime: zeroModTime}, // no thumbnail: text file
 			{filepath: "b.jpg", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail/b.jpg?mod_time=0"},
 			{filepath: "c.png", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail/c.png?mod_time=0"},

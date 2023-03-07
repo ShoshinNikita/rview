@@ -10,7 +10,7 @@ import (
 
 // Service response.
 type (
-	Info struct {
+	DirInfo struct {
 		config.BuildInfo `json:"-"`
 
 		Sort  string `json:"sort"`
@@ -19,22 +19,22 @@ type (
 		// Dir is the unescaped path of current directory. It is used for page title.
 		Dir string `json:"dir"`
 		// Breadcrumbs contains info about parent directories.
-		Breadcrumbs []Breadcrumb `json:"breadcrumbs"`
+		Breadcrumbs []DirBreadcrumb `json:"breadcrumbs"`
 		// Entries contains info about files or directories in the current directory.
-		Entries []Entry `json:"entries"`
+		Entries []DirEntry `json:"entries"`
 
 		// dirURL is the url of current directory, only for internal use.
 		dirURL *url.URL
 	}
 
-	Breadcrumb struct {
+	DirBreadcrumb struct {
 		// Link is an escaped link to a directory.
 		Link string `json:"link"`
 		// Text is an unescaped name of a directory.
 		Text string `json:"text"`
 	}
 
-	Entry struct {
+	DirEntry struct {
 		// filepath is an rclone filepath, only for internal use.
 		filepath string
 
@@ -58,29 +58,5 @@ type (
 		ThumbnailURL string `json:"thumbnail_url,omitempty"`
 		// IconName is an name of an file icon. The icon choice is based on filename and file extension.
 		IconName string `json:"icon_name"`
-	}
-)
-
-// Rclone response.
-type (
-	RcloneInfo struct {
-		Path  string `json:"path"`
-		Sort  string `json:"sort"`
-		Order string `json:"order"`
-
-		Breadcrumbs []RcloneBreadcrumb `json:"breadcrumbs"`
-		Entries     []RcloneEntry      `json:"entries"`
-	}
-
-	RcloneBreadcrumb struct {
-		Link string `json:"link"`
-		Text string `json:"text"`
-	}
-
-	RcloneEntry struct {
-		URL     string `json:"url"`
-		IsDir   bool   `json:"is_dir"`
-		Size    int64  `json:"size"`
-		ModTime int64  `json:"mod_time"`
 	}
 )

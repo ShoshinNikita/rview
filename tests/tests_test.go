@@ -148,12 +148,12 @@ func TestGetDirInfo(t *testing.T) {
 
 		dirInfo := getDirInfo(t, "/", "")
 		r.Equal(
-			web.Info{
+			web.DirInfo{
 				Dir: "/",
-				Breadcrumbs: []web.Breadcrumb{
+				Breadcrumbs: []web.DirBreadcrumb{
 					{Link: "/ui/", Text: "Root"},
 				},
-				Entries: []web.Entry{
+				Entries: []web.DirEntry{
 					{
 						Filename:             "Audio",
 						IsDir:                true,
@@ -242,16 +242,16 @@ func TestGetDirInfo(t *testing.T) {
 
 		dirInfo = getDirInfo(t, "/Other/spe%27sial%20%21%20characters/x/y/", "")
 		r.Equal(
-			web.Info{
+			web.DirInfo{
 				Dir: "/Other/spe'sial ! characters/x/y",
-				Breadcrumbs: []web.Breadcrumb{
+				Breadcrumbs: []web.DirBreadcrumb{
 					{Link: "/ui/", Text: "Root"},
 					{Link: "/ui/Other/", Text: "Other"},
 					{Link: "/ui/Other/spe%27sial%20%21%20characters/", Text: "spe'sial ! characters"},
 					{Link: "/ui/Other/spe%27sial%20%21%20characters/x/", Text: "x"},
 					{Link: "/ui/Other/spe%27sial%20%21%20characters/x/y/", Text: "y"},
 				},
-				Entries: []web.Entry{
+				Entries: []web.DirEntry{
 					{
 						Filename:             "file.txt",
 						Size:                 0,
@@ -271,7 +271,7 @@ func TestGetDirInfo(t *testing.T) {
 
 	t.Run("check sort", func(t *testing.T) {
 		r := require.New(t)
-		extractNames := func(info web.Info) (res []string) {
+		extractNames := func(info web.DirInfo) (res []string) {
 			for _, e := range info.Entries {
 				res = append(res, e.Filename)
 			}
@@ -370,7 +370,7 @@ func TestGetFile(t *testing.T) {
 	r.Equal("audio/mpeg", headers.Get("Content-Type"))
 }
 
-func getDirInfo(t *testing.T, dir string, query string) (res web.Info) {
+func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {
 	t.Helper()
 
 	status, body, _ := makeRequest(t, path.Join("/api/dir", dir)+"/?"+query)
