@@ -468,6 +468,8 @@
 		} else {
 			nextPreviewButton.classList.remove("hidden");
 		}
+
+		setPreviewInQuery(filename);
 	};
 
 	const swipePreview = (direction) => {
@@ -488,11 +490,24 @@
 
 	const closePreview = () => {
 		stopAnyPlayback();
+		setPreviewInQuery("");
 
 		isPreviewOpened = false;
 
 		previewWrapper.classList.remove("opened");
 		document.body.classList.remove("noscroll");
+	};
+
+	const setPreviewInQuery = (filename) => {
+		const params = new URLSearchParams(window.location.search);
+		if (filename) {
+			params.set("preview", filename);
+		} else {
+			params.delete("preview");
+		}
+
+		// Use History API to avoid page reload: https://stackoverflow.com/a/41542008.
+		history.pushState(null, "", window.location.pathname + "?" + params.toString());
 	};
 
 	// Event listeners
@@ -617,7 +632,15 @@
 <!-- Exported API -->
 <script>
 	window.addEventListener("preview.open", ev => {
-		updatePreview(ev.detail.filename);
+		const filename = ev.detail.filename;
+
+		const index = entries.findIndex(v => v.filename == filename);
+		if (index === -1) {
+			console.warn(`can't open preview for "${filename}": no such file`);
+			return;
+		}
+
+		updatePreview(filename);
 
 		if (!isPreviewOpened) {
 			isPreviewOpened = true;

@@ -337,6 +337,14 @@
 		const openPreview = (filename) => {
 			window.dispatchEvent(new CustomEvent("preview.open", { detail: { filename: filename } }));
 		};
+
+		window.addEventListener("load", () => {
+			const params = new URLSearchParams(window.location.search);
+			const previewFilename = params.get("preview");
+			if (previewFilename) {
+				openPreview(previewFilename);
+			}
+		})
 	</script>
 </body>
 
