@@ -85,6 +85,14 @@ a:hover {
 	text-decoration: underline;
 }
 
+a.icon-button {
+	color: var(--border-color);
+}
+
+a.icon-button:hover {
+	color: var(--interactive-color--accent);
+}
+
 svg {
 	height: 100%;
 	width: 100%;

@@ -33,8 +33,8 @@
 	}
 
 	.footer-icon.chosen {
-		height: 26px;
-		width: 26px;
+		color: var(--interactive-color--accent);
+		cursor: default;
 	}
 
 	@media only screen and (max-width: 500px) {
@@ -59,19 +59,19 @@
 	<div class="rview-info">
 		<span title="Commit time: {{ .CommitTime }}">Rview&nbsp;[rev.&nbsp;{{ .ShortGitHash }}]</span>
 		<span>•</span>
-		<a href="https://github.com/ShoshinNikita/rview" target="_blank" title="GitHub Repo" class="footer-icon">
+		<a href="https://github.com/ShoshinNikita/rview" target="_blank" title="GitHub Repo" class="icon-button footer-icon">
 			{{ embedIcon "github" }}
 		</a>
 	</div>
 
 	<div class="theme-switcher">
-		<a id="light-theme-button" title="Light Theme" class="footer-icon" onclick="switchTheme(lightTheme)">
+		<a id="light-theme-button" title="Light Theme" class="icon-button footer-icon" onclick="switchTheme(lightTheme)">
 			{{ embedIcon "sun" }}
 		</a>
-		<a id="system-theme-button" title="System Theme" class="footer-icon" onclick="switchTheme(systemTheme)">
+		<a id="system-theme-button" title="System Theme" class="icon-button footer-icon" onclick="switchTheme(systemTheme)">
 			{{ embedIcon "disc" }}
 		</a>
-		<a id="dark-theme-button" title="Dark Theme" class="footer-icon" onclick="switchTheme(darkTheme)">
+		<a id="dark-theme-button" title="Dark Theme" class="icon-button footer-icon" onclick="switchTheme(darkTheme)">
 			{{ embedIcon "moon" }}
 		</a>
 	</div>
