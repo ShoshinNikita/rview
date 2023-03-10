@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/pkg/cache"
@@ -61,7 +62,11 @@ func (r *Rview) Prepare() (err error) {
 		if err != nil {
 			return fmt.Errorf("couldn't prepare disk cache for thumbnails: %w", err)
 		}
-		r.thumbnailCleaner = cache.NewCleaner(thumbnailsCacheDir, r.cfg.ThumbnailsMaxAge, r.cfg.ThumbnailsMaxTotalSize)
+
+		maxFileAge := 24 * time.Hour * time.Duration(r.cfg.ThumbnailsMaxAgeInDays)
+		maxTotalFileSize := int64(r.cfg.ThumbnailsMaxTotalSizeInMB * 1 << 20)
+
+		r.thumbnailCleaner = cache.NewCleaner(thumbnailsCacheDir, maxFileAge, maxTotalFileSize)
 		r.thumbnailService = thumbnails.NewThumbnailService(thumbnailsCache, r.cfg.ThumbnailsWorkersCount)
 
 	} else {

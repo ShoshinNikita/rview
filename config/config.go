@@ -21,10 +21,10 @@ type Config struct {
 	RcloneTarget string
 	RclonePort   int
 
-	Thumbnails             bool
-	ThumbnailsMaxAge       time.Duration
-	ThumbnailsMaxTotalSize int64
-	ThumbnailsWorkersCount int
+	Thumbnails                 bool
+	ThumbnailsMaxAgeInDays     int
+	ThumbnailsMaxTotalSizeInMB int
+	ThumbnailsWorkersCount     int
 
 	// Debug options
 
@@ -63,11 +63,11 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 		"thumbnails": {
 			p: &cfg.Thumbnails, defaultValue: true, desc: "generate image thumbnails",
 		},
-		"thumbnails-max-age": {
-			p: &cfg.ThumbnailsMaxAge, defaultValue: 180 * 24 * time.Hour, desc: "max age of thumbnails",
+		"thumbnails-max-age-days": {
+			p: &cfg.ThumbnailsMaxAgeInDays, defaultValue: 365, desc: "max age of thumbnails, days",
 		},
-		"thumbnails-max-total-size": {
-			p: &cfg.ThumbnailsMaxTotalSize, defaultValue: int64(200 << 20), desc: "max total size of thumbnails, bytes",
+		"thumbnails-max-total-size-mb": {
+			p: &cfg.ThumbnailsMaxTotalSizeInMB, defaultValue: 500, desc: "max total size of thumbnails, MiB",
 		},
 		"thumbnails-workers-count": {
 			p: &cfg.ThumbnailsWorkersCount, defaultValue: runtime.NumCPU(), desc: "number of workers for thumbnail generation",
@@ -99,8 +99,6 @@ func Parse() (cfg Config, err error) {
 			flag.Int64Var(p, name, params.defaultValue.(int64), params.desc)
 		case *string:
 			flag.StringVar(p, name, params.defaultValue.(string), params.desc)
-		case *time.Duration:
-			flag.DurationVar(p, name, params.defaultValue.(time.Duration), params.desc)
 		}
 	}
 

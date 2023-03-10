@@ -41,18 +41,18 @@
 
 ## Configuration
 
-| Flag                            | Default Value              | Description                                  |
-| ------------------------------- | -------------------------- | -------------------------------------------- |
-| `--debug-log-level`             | `false`                    | display debug log messages                   |
-| `--dir`                         | `./var`                    | directory for app data (thumbnails and etc.) |
-| `--port`                        | `8080`                     | server port                                  |
-| `--rclone-port`                 | `8181`                     | port of a rclone instance                    |
-| `--rclone-target`               | no default value, required | rclone target                                |
-| `--read-static-files-from-disk` | `false`                    | read static files directly from disk         |
-| `--thumbnails`                  | `true`                     | generate image thumbnails                    |
-| `--thumbnails-max-age`          | `4320h` (180 days)         | max age of thumbnails                        |
-| `--thumbnails-max-total-size`   | `209715200` (200 MiB)      | max total size of thumbnails, bytes          |
-| `--thumbnails-workers-count`    | number of logical CPUs     | number of workers for thumbnail generation   |
+| Flag                             | Default Value              | Description                                  |
+| -------------------------------- | -------------------------- | -------------------------------------------- |
+| `--debug-log-level`              | `false`                    | display debug log messages                   |
+| `--dir`                          | `./var`                    | directory for app data (thumbnails and etc.) |
+| `--port`                         | `8080`                     | server port                                  |
+| `--rclone-port`                  | `8181`                     | port of a rclone instance                    |
+| `--rclone-target`                | no default value, required | rclone target                                |
+| `--read-static-files-from-disk`  | `false`                    | read static files directly from disk         |
+| `--thumbnails`                   | `true`                     | generate image thumbnails                    |
+| `--thumbnails-max-age-days`      | `365`                      | max age of thumbnails, days                  |
+| `--thumbnails-max-total-size-mb` | `500`                      | max total size of thumbnails, MiB            |
+| `--thumbnails-workers-count`     | number of logical CPUs     | number of workers for thumbnail generation   |
 
 ## Development
 
