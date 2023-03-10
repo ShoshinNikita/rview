@@ -10,6 +10,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 )
@@ -157,6 +158,11 @@ func (s *Service) GetMinSearchLength() int {
 }
 
 func (s *Service) Search(ctx context.Context, search string, dirLimit, fileLimit int) (dirs, files []rview.SearchHit, err error) {
+	now := time.Now()
+	defer func() {
+		metrics.SearchDuration.Observe(time.Since(now).Seconds())
+	}()
+
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -173,9 +179,15 @@ func (s *Service) RefreshIndexes(ctx context.Context) (finalErr error) {
 		entriesCount int
 	)
 	defer func() {
-		if finalErr == nil {
-			rlog.Infof("indexes were refreshed in %s, entries count: %d", time.Since(now), entriesCount)
+		// Monitor duration even for errors.
+		dur := time.Since(now)
+		metrics.SearchRefreshIndexesDuration.Observe(dur.Seconds())
+
+		if finalErr != nil {
+			metrics.SearchRefreshIndexesErrors.Inc()
+			return
 		}
+		rlog.Infof("indexes were successfully refreshed in %s, entries count: %d", dur, entriesCount)
 	}()
 
 	allFilenames, err := s.rclone.GetAllFiles(ctx)

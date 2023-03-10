@@ -94,6 +94,46 @@ var (
 	)
 )
 
+var (
+	SearchDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: "search",
+			Name:      "duration_seconds",
+			Buckets: []float64{
+				0.001, // 1ms
+				0.002, // 2ms
+				0.005, // 5ms
+				0.01,  // 10ms
+				0.02,  // 20ms
+			},
+		},
+	)
+	SearchRefreshIndexesErrors = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "search",
+			Name:      "refresh_indexes_errors_total",
+		},
+	)
+	SearchRefreshIndexesDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: "search",
+			Name:      "refresh_indexes_duration_seconds",
+			Buckets: []float64{
+				0.5, // 500ms
+				1,   // 1s
+				2,   // 2s
+				5,   // 5s
+				10,  // 10s
+				20,  // 20s
+				30,  // 30s
+			},
+		},
+	)
+)
+
 // Cache
 var (
 	CacheHits = promauto.NewCounter(
