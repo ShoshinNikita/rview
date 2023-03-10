@@ -19,8 +19,8 @@ type prefixIndex struct {
 
 func newPrefixIndex(rawPaths []string, minPrefixLen, maxPrefixLen int) *prefixIndex {
 	paths := make(map[uint64]string, len(rawPaths))
-	for i, text := range rawPaths {
-		paths[uint64(i)] = text
+	for i, path := range rawPaths {
+		paths[uint64(i)] = path
 	}
 
 	prefixes := make(map[string][]uint64)

@@ -108,6 +108,9 @@ func TestMain(m *testing.M) {
 		}
 	}
 
+	// Wait for components to be ready.
+	time.Sleep(100 * time.Millisecond)
+
 	code := m.Run()
 
 	err = rview.Shutdown(context.Background())

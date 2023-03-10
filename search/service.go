@@ -166,6 +166,11 @@ func (s *Service) Search(ctx context.Context, search string, dirLimit, fileLimit
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
+	// Usually happens in integration tests.
+	if s.indexes == nil {
+		return nil, nil, errors.New("indexes are not ready")
+	}
+
 	dirs = s.indexes.Dirs.Search(search, dirLimit)
 	files = s.indexes.Files.Search(search, fileLimit)
 
