@@ -31,13 +31,14 @@ type Server struct {
 
 	rclone           rview.Rclone
 	thumbnailService rview.ThumbnailService
+	searchService    rview.SearchService
 
 	iconsFS     fs.FS
 	fileIconsFS fs.FS
 	templatesFS fs.FS
 }
 
-func NewServer(cfg config.Config, rclone rview.Rclone, thumbnailService rview.ThumbnailService) (s *Server) {
+func NewServer(cfg config.Config, rclone rview.Rclone, thumbnailService rview.ThumbnailService, searchService rview.SearchService) (s *Server) {
 	if cfg.ReadStaticFilesFromDisk {
 		rlog.Info("static files will be read from disk")
 	}
@@ -47,6 +48,7 @@ func NewServer(cfg config.Config, rclone rview.Rclone, thumbnailService rview.Th
 		//
 		rclone:           rclone,
 		thumbnailService: thumbnailService,
+		searchService:    searchService,
 		//
 		iconsFS:     static.NewIconsFS(cfg.ReadStaticFilesFromDisk),
 		fileIconsFS: static.NewFileIconsFS(cfg.ReadStaticFilesFromDisk),
@@ -84,6 +86,8 @@ func NewServer(cfg config.Config, rclone rview.Rclone, thumbnailService rview.Th
 	mux.HandleFunc("/api/dir/", s.handleDir)
 	mux.HandleFunc("/api/file/", s.handleFile)
 	mux.HandleFunc("/api/thumbnail/", s.handleThumbnail)
+	mux.HandleFunc("/api/search", s.handleSearch)
+	mux.HandleFunc("/api/search/refresh-indexes", s.handleRefreshIndexes)
 
 	// Debug
 	mux.Handle("/debug/metrics", promhttp.Handler())
@@ -156,7 +160,7 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 				return embedIcon(s.fileIconsFS, name)
 			},
 		}).
-		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html")
+		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html", "search-results.html")
 	if err != nil {
 		writeInternalServerError(w, "couldn't parse templates: %s", err)
 		return
@@ -169,6 +173,7 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/html")
 	copyResponse(w, buf)
 }
 
@@ -429,6 +434,94 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	setCacheHeaders(w, 30*24*time.Hour, etag)
 
 	copyResponse(w, rc)
+}
+
+func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
+	atoi := func(param string, defaultValue int) int {
+		res, err := strconv.Atoi(r.FormValue(param))
+		if err != nil {
+			return defaultValue
+		}
+		return res
+	}
+
+	search := r.FormValue("search")
+	minLength := s.searchService.GetMinSearchLength()
+	if len([]rune(search)) < minLength {
+		writeBadRequestError(w, `minimum "search" length is %d characters`, minLength)
+		return
+	}
+	dirLimit := atoi("dir-limit", 3)
+	fileLimit := atoi("file-limit", 5)
+	isUI := r.FormValue("ui") != ""
+
+	dirs, files, err := s.searchService.Search(r.Context(), search, dirLimit, fileLimit)
+	if err != nil {
+		writeInternalServerError(w, "search failed: %s", err)
+		return
+	}
+
+	convertSearchHits := func(hits []rview.SearchHit, isDir bool) []SearchHit {
+		res := make([]SearchHit, 0, len(hits))
+		for _, hit := range hits {
+			var webURL string
+
+			if isDir {
+				webURL = mustParseURL("/ui").JoinPath(hit.Path, "/").String()
+
+			} else {
+				dir := pkgPath.Dir(hit.Path)
+				filename := pkgPath.Base(hit.Path)
+
+				u := mustParseURL("/ui").JoinPath(dir, "/")
+				u.RawQuery = url.Values{
+					"preview": []string{filename},
+				}.Encode()
+				webURL = u.String()
+			}
+
+			res = append(res, SearchHit{
+				SearchHit: hit,
+				WebURL:    webURL,
+				Icon:      static.GetFileIcon(hit.Path, isDir),
+			})
+		}
+		return res
+	}
+	resp := SearchResponse{
+		Dirs:  convertSearchHits(dirs, true),
+		Files: convertSearchHits(files, false),
+	}
+
+	if isUI {
+		if len(resp.Dirs) == 0 && len(resp.Files) == 0 {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		s.executeTemplate(w, "search-results.html", resp)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+}
+
+func (s *Server) handleRefreshIndexes(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		code := http.StatusMethodNotAllowed
+		http.Error(w, http.StatusText(code), code)
+		return
+	}
+
+	// Use background context because index refresh can take a while, and
+	// we don't want to interrupt this process.
+	ctx := context.Background()
+	err := s.searchService.RefreshIndexes(ctx)
+	if err != nil {
+		writeInternalServerError(w, "couldn't refresh indexes: %s", err)
+		return
+	}
+	w.WriteHeader(http.StatusOK)
 }
 
 func fileIDToURL(prefix string, dirURL *url.URL, id rview.FileID) string {

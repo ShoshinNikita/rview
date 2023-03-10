@@ -12,6 +12,16 @@ import (
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 )
 
+type NoopCleaner struct{}
+
+func NewNoopCleaner() *NoopCleaner {
+	return &NoopCleaner{}
+}
+
+func (NoopCleaner) Shutdown(context.Context) error {
+	return nil
+}
+
 // Cleaner can be used remove old files and control the total size of cache.
 type Cleaner struct {
 	dir              string

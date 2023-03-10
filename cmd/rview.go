@@ -13,6 +13,7 @@ import (
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
+	"github.com/ShoshinNikita/rview/search"
 	"github.com/ShoshinNikita/rview/static"
 	"github.com/ShoshinNikita/rview/thumbnails"
 	"github.com/ShoshinNikita/rview/web"
@@ -23,6 +24,8 @@ type Rview struct {
 
 	thumbnailService rview.ThumbnailService
 	thumbnailCleaner rview.CacheCleaner
+
+	searchService *search.Service
 
 	rcloneInstance *rclone.Rclone
 
@@ -38,6 +41,12 @@ func NewRview(cfg config.Config) (r *Rview) {
 func (r *Rview) Prepare() (err error) {
 	if err := static.Prepare(); err != nil {
 		return fmt.Errorf("couldn't prepare icons: %w", err)
+	}
+
+	// Note: service cache doesn't need any cleanups.
+	serviceCache, err := cache.NewDiskCache(filepath.Join(r.cfg.Dir, "rview"))
+	if err != nil {
+		return fmt.Errorf("couldn't prepare disk cache for service needs: %w", err)
 	}
 
 	// Thumbnail Service
@@ -68,8 +77,11 @@ func (r *Rview) Prepare() (err error) {
 		return fmt.Errorf("couldn't prepare rclone: %w", err)
 	}
 
+	// Search Service
+	r.searchService = search.NewService(r.rcloneInstance, serviceCache)
+
 	// Web Server
-	r.server = web.NewServer(r.cfg, r.rcloneInstance, r.thumbnailService)
+	r.server = web.NewServer(r.cfg, r.rcloneInstance, r.thumbnailService, r.searchService)
 
 	return nil
 }
@@ -81,6 +93,7 @@ func (r *Rview) Start(onError func()) <-chan struct{} {
 		var wg sync.WaitGroup
 		for name, s := range map[string]interface{ Start() error }{
 			"rclone instance": r.rcloneInstance,
+			"search service":  r.searchService,
 			"web server":      r.server,
 		} {
 			name := name
@@ -111,6 +124,7 @@ func (r *Rview) Shutdown(ctx context.Context) error {
 		"web server":              r.server,
 		"thumbnail service":       r.thumbnailService,
 		"thumbnail cache cleaner": r.thumbnailCleaner,
+		"search service":          r.searchService,
 		"rclone instance":         r.rcloneInstance,
 	} {
 		err := safeShutdown(ctx, s)

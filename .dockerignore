@@ -8,6 +8,7 @@
 !pkg/
 !rclone/
 !rview/
+!search/
 !static/
 !thumbnails/
 !vendor/

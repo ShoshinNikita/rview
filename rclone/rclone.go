@@ -2,6 +2,7 @@ package rclone
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -31,8 +32,9 @@ type Rclone struct {
 	stoppedByShutdown atomic.Bool
 	stoppedCh         chan struct{}
 
-	httpClient *http.Client
-	rcloneURL  *url.URL
+	httpClient   *http.Client
+	rcloneURL    *url.URL
+	rcloneTarget string
 }
 
 func NewRclone(rclonePort int, rcloneTarget string) (*Rclone, error) {
@@ -76,6 +78,7 @@ func NewRclone(rclonePort int, rcloneTarget string) (*Rclone, error) {
 			Scheme: "http",
 			Host:   "localhost:" + strconv.Itoa(rclonePort),
 		},
+		rcloneTarget: rcloneTarget,
 	}, nil
 }
 
@@ -210,4 +213,36 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 	}
 
 	return &rcloneInfo, nil
+}
+
+func (r *Rclone) GetAllFiles(ctx context.Context) (res []string, err error) {
+	//nolint:gosec
+	cmd := exec.CommandContext(ctx,
+		"rclone",
+		"lsf",
+		"-R",
+		r.rcloneTarget,
+	)
+
+	data, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			stderr := string(exitErr.Stderr)
+			if len(stderr) > 50 {
+				stderr = stderr[:50] + "..."
+			}
+			err = fmt.Errorf("%s, stderr: %q", exitErr.ProcessState.String(), stderr)
+		}
+		return nil, fmt.Errorf("command error: %w", err)
+	}
+
+	s := bufio.NewScanner(bytes.NewReader(data))
+	for s.Scan() {
+		res = append(res, s.Text())
+	}
+	if err := s.Err(); err != nil {
+		return nil, fmt.Errorf("couldn't scan rclone output: %w", err)
+	}
+	return res, nil
 }
