@@ -156,20 +156,7 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
 	rcloneURL := r.rcloneURL.JoinPath(id.GetPath())
 
-	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
-	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't prepare request: %w", err)
-	}
-
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return nil, nil, fmt.Errorf("request failed: %w", err)
-	}
-	if resp.StatusCode != http.StatusOK {
-		return nil, nil, fmt.Errorf("got invalid status code: %d", resp.StatusCode)
-	}
-
-	return resp.Body, resp.Header, nil
+	return r.makRequest(ctx, rcloneURL)
 }
 
 func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string) (*rview.RcloneDirInfo, error) {
@@ -186,23 +173,14 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 		"sort":  []string{sort},
 		"order": []string{order},
 	}.Encode()
-	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
+	body, _, err := r.makRequest(ctx, rcloneURL)
 	if err != nil {
-		return nil, fmt.Errorf("couldn't prepare request: %w", err)
+		return nil, err
 	}
-	resp, err := r.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
-		return nil, fmt.Errorf("got unexpected status code from rclone: %d, body: %q", resp.StatusCode, body)
-	}
+	defer body.Close()
 
 	var rcloneInfo rview.RcloneDirInfo
-	err = json.NewDecoder(resp.Body).Decode(&rcloneInfo)
+	err = json.NewDecoder(body).Decode(&rcloneInfo)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't decode rclone response: %w", err)
 	}
@@ -215,6 +193,32 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 	}
 
 	return &rcloneInfo, nil
+}
+
+func (r *Rclone) makRequest(ctx context.Context, url *url.URL) (io.ReadCloser, http.Header, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't prepare request: %w", err)
+	}
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("request failed: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		defer resp.Body.Close()
+
+		bodyPrefix := make([]byte, 50)
+		n, _ := resp.Body.Read(bodyPrefix)
+		bodyPrefix = bodyPrefix[:n]
+
+		return nil, nil, &rview.RcloneError{
+			StatusCode: resp.StatusCode,
+			BodyPrefix: string(bodyPrefix),
+		}
+	}
+
+	return resp.Body, resp.Header, nil
 }
 
 func (r *Rclone) GetAllFiles(ctx context.Context) (res []string, err error) {

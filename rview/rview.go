@@ -54,6 +54,20 @@ func (id FileID) String() string {
 	return fmt.Sprintf("%d_%s", id.modTime, id.path)
 }
 
+type RcloneError struct {
+	StatusCode int
+	BodyPrefix string
+}
+
+func (err *RcloneError) Error() string {
+	return fmt.Sprintf("unexpected rclone response: status code: %d, body prefix: %q", err.StatusCode, err.BodyPrefix)
+}
+
+func IsRcloneNotFoundError(err error) bool {
+	var rcloneErr *RcloneError
+	return errors.As(err, &rcloneErr) && rcloneErr.StatusCode == http.StatusNotFound
+}
+
 type (
 	Rclone interface {
 		GetFile(ctx context.Context, id FileID) (io.ReadCloser, http.Header, error)

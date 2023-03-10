@@ -122,6 +122,11 @@ func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
 
 	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
+		if rview.IsRcloneNotFoundError(err) {
+			writeError(w, http.StatusNotFound, "dir %q not found", dir)
+			return
+		}
+
 		writeInternalServerError(w, "couldn't get dir info: %s", err)
 		return
 	}
@@ -138,6 +143,12 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 
 	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
+		if rview.IsRcloneNotFoundError(err) {
+			// TODO: render some error page?
+			writeError(w, http.StatusNotFound, "dir %q not found", dir)
+			return
+		}
+
 		writeInternalServerError(w, "couldn't get dir info: %s", err)
 		return
 	}
@@ -372,6 +383,11 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 
 	rc, rcloneHeaders, err := s.rclone.GetFile(r.Context(), fileID)
 	if err != nil {
+		if rview.IsRcloneNotFoundError(err) {
+			writeError(w, http.StatusNotFound, "file %q not found", fileID.GetPath())
+			return
+		}
+
 		writeInternalServerError(w, "couldn't get file: %s", err)
 		return
 	}
@@ -420,6 +436,10 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 
 	rc, err := s.thumbnailService.OpenThumbnail(r.Context(), fileID)
 	if err != nil {
+		if errors.Is(err, rview.ErrCacheMiss) {
+			writeError(w, http.StatusNotFound, "no thumbnail for file %q", fileID.GetPath())
+			return
+		}
 		writeBadRequestError(w, "couldn't open thumbnail: %s", err)
 		return
 	}

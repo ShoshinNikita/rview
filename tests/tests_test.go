@@ -327,13 +327,11 @@ func TestGetDirInfo(t *testing.T) {
 	t.Run("non-existent dirs", func(t *testing.T) {
 		r := require.New(t)
 
-		// TODO: use 404
 		status, _, _ := makeRequest(t, "/ui/qwerty/")
-		r.Equal(500, status)
+		r.Equal(404, status)
 
-		// TODO: use 404
 		status, _, _ = makeRequest(t, "/api/dir/qwerty/")
-		r.Equal(500, status)
+		r.Equal(404, status)
 	})
 }
 
@@ -341,9 +339,8 @@ func TestGetFile(t *testing.T) {
 	r := require.New(t)
 
 	// No file.
-	// TODO: use 404
 	status, _, _ := makeRequest(t, "/api/file/Video/credits.txt1?mod_time=1662637030")
-	r.Equal(500, status)
+	r.Equal(404, status)
 
 	// No mod_tim.
 	status, _, _ = makeRequest(t, "/api/file/Video/credits.txt")
@@ -410,9 +407,8 @@ func TestThumbnails(t *testing.T) {
 		testFileThumbnailURL,
 		generatedFileThumbnailURL,
 	} {
-		// TODO: use 404.
 		status, _, _ := makeRequest(t, url)
-		r.Equal(400, status)
+		r.Equal(404, status)
 	}
 
 	// Requesting dir info must send tasks to generate thumbnails.
