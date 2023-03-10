@@ -10,6 +10,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strconv"
@@ -49,6 +50,7 @@ var TestDataModTimes = map[string]string{
 	"Other/": "2022-09-08 11:37:02",
 	"Other/spe'sial ! characters/x/y/file.txt":        "2022-09-08 11:37:02",
 	"Other/test-thumbnails/cloudy-g1a943401b_640.png": "2022-09-11 18:35:04",
+	"Other/test-thumbnails/credits.txt":               "2022-09-11 18:35:04",
 }
 
 var APIAddr string
@@ -444,6 +446,56 @@ func TestThumbnails(t *testing.T) {
 			r.Less(len(thumbnailBody), len(fileBody))
 		}
 	}
+}
+
+func TestSearch(t *testing.T) {
+	search := func(t *testing.T, s string) (dirs, files []string) {
+		r := require.New(t)
+
+		status, body, _ := makeRequest(t, "/api/search?search="+url.QueryEscape(s))
+		r.Equal(200, status)
+
+		var resp web.SearchResponse
+		err := json.Unmarshal(body, &resp)
+		r.NoError(err)
+
+		for _, d := range resp.Dirs {
+			r.True(strings.HasSuffix(d.WebURL, "/"))
+			r.NotEmpty(d.Icon)
+
+			dirs = append(dirs, d.Path)
+		}
+		for _, f := range resp.Files {
+			r.True(strings.Contains(f.WebURL, "?preview="))
+			r.NotEmpty(f.Icon)
+
+			files = append(files, f.Path)
+		}
+		return dirs, files
+	}
+
+	r := require.New(t)
+
+	dirs, files := search(t, "birds")
+	r.Empty(dirs)
+	r.Equal([]string{"Images/birds-g64b44607c_640.jpg"}, files)
+
+	dirs, files = search(t, "credits.txt")
+	r.Empty(dirs)
+	r.Equal([]string{
+		"Audio/credits.txt",
+		"Images/credits.txt",
+		"Other/test-thumbnails/credits.txt",
+		"Video/credits.txt",
+	}, files)
+
+	dirs, files = search(t, "audio credits.txt")
+	r.Empty(dirs)
+	r.Equal([]string{"Audio/credits.txt"}, files)
+
+	dirs, files = search(t, "tests")
+	r.Equal([]string{"Other/test-thumbnails/"}, dirs)
+	r.Len(files, 3)
 }
 
 func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {

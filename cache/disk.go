@@ -82,6 +82,28 @@ func (c *DiskCache) GetFilepath(id rview.FileID) (path string, err error) {
 	return path, nil
 }
 
+// Write copies the content of the passed [io.Reader] to the cache file associated with [rview.FileID].
+func (c *DiskCache) Write(id rview.FileID, r io.Reader) error {
+	filepath, err := c.GetFilepath(id)
+	if err != nil {
+		return fmt.Errorf("couldn't get filepath: %w", err)
+	}
+
+	f, err := os.Create(filepath)
+	if err != nil {
+		return fmt.Errorf("couldn't create file: %w", err)
+	}
+	defer f.Close()
+
+	if _, err := io.Copy(f, r); err != nil {
+		return fmt.Errorf("couldn't write file: %w", err)
+	}
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("couldn't close file: %w", err)
+	}
+	return nil
+}
+
 // Remove removes the cache file associated with passed [rview.FileID]. To remove
 // cache files over time use [Cleaner], cache files should be manually removed only
 // in case of an error.

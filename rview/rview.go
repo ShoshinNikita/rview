@@ -90,6 +90,7 @@ type Cache interface {
 	Open(id FileID) (io.ReadCloser, error)
 	Check(id FileID) error
 	GetFilepath(id FileID) (path string, err error)
+	Write(id FileID, r io.Reader) (err error)
 	Remove(id FileID) error
 }
 
@@ -107,4 +108,17 @@ type (
 	}
 
 	OpenFileFn func(ctx context.Context, id FileID) (io.ReadCloser, error)
+)
+
+type (
+	SearchService interface {
+		GetMinSearchLength() int
+		Search(ctx context.Context, search string, dirLimit, fileLimit int) (dirs, files []SearchHit, err error)
+		RefreshIndexes(ctx context.Context) error
+	}
+
+	SearchHit struct {
+		Path  string  `json:"path"`
+		Score float64 `json:"score"`
+	}
 )

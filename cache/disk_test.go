@@ -3,6 +3,7 @@ package cache
 import (
 	"io"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -29,6 +30,8 @@ func TestDiskCache(t *testing.T) {
 	})
 
 	t.Run("check", func(t *testing.T) {
+		r := require.New(t)
+
 		err := cache.Check(fileID)
 		r.ErrorIs(err, rview.ErrCacheMiss)
 
@@ -37,13 +40,12 @@ func TestDiskCache(t *testing.T) {
 	})
 
 	t.Run("remove", func(t *testing.T) {
-		path, err := cache.GetFilepath(fileID)
-		r.NoError(err)
+		r := require.New(t)
 
 		err = cache.Check(fileID)
 		r.ErrorIs(err, rview.ErrCacheMiss)
 
-		err = os.WriteFile(path, []byte("hello world"), 0o600)
+		err := cache.Write(fileID, strings.NewReader("hello world"))
 		r.NoError(err)
 
 		err = cache.Check(fileID)
@@ -54,10 +56,9 @@ func TestDiskCache(t *testing.T) {
 	})
 
 	t.Run("read", func(t *testing.T) {
-		path, err := cache.GetFilepath(fileID)
-		r.NoError(err)
+		r := require.New(t)
 
-		err = os.WriteFile(path, []byte("hello world"), 0o600)
+		err := cache.Write(fileID, strings.NewReader("hello world"))
 		r.NoError(err)
 
 		rc, err := cache.Open(fileID)

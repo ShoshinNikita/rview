@@ -8,7 +8,7 @@ import (
 	"github.com/ShoshinNikita/rview/rview"
 )
 
-// Service response.
+// Directory Info.
 type (
 	DirInfo struct {
 		config.BuildInfo `json:"-"`
@@ -58,5 +58,20 @@ type (
 		ThumbnailURL string `json:"thumbnail_url,omitempty"`
 		// IconName is an name of an file icon. The icon choice is based on filename and file extension.
 		IconName string `json:"icon_name"`
+	}
+)
+
+// Search Response.
+type (
+	SearchResponse struct {
+		Dirs  []SearchHit `json:"dirs"`
+		Files []SearchHit `json:"files"`
+	}
+
+	SearchHit struct {
+		rview.SearchHit
+
+		WebURL string `json:"web_url"`
+		Icon   string `json:"icon"`
 	}
 )

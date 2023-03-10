@@ -20,7 +20,7 @@ func TestServer_sendGenerateThumbnailTasks(t *testing.T) {
 	r := require.New(t)
 
 	stub := newThumbnailServiceStub()
-	s := NewServer(config.Config{}, nil, stub)
+	s := NewServer(config.Config{}, nil, stub, nil)
 
 	zeroModTime := time.Unix(0, 0)
 
@@ -60,7 +60,7 @@ type thumbnailServiceStub struct {
 
 func newThumbnailServiceStub() *thumbnailServiceStub {
 	return &thumbnailServiceStub{
-		s: thumbnails.NewThumbnailService(cache.NewNoopCache(), 0),
+		s: thumbnails.NewThumbnailService(cache.NewInMemoryCache(), 0),
 	}
 }
 
