@@ -9,6 +9,7 @@
 	<script src="/static/js/theme.js"></script>
 
 	<link rel="stylesheet" href="/static/styles/common.css">
+	<link rel="stylesheet" href="/static/styles/search-results.css">
 
 	<style>
 		.noscroll {
@@ -19,13 +20,14 @@
 	<!-- Header -->
 	<style>
 		.header {
+			align-items: center;
 			background-color: var(--header-background-color);
 			backdrop-filter: blur(7px);
 			border-radius: 3px;
 			box-shadow: var(--header-box-shadow);
-			column-gap: 15px;
-			display: flex;
-			justify-content: space-between;
+			column-gap: 30px;
+			display: grid;
+			grid-template-columns: auto min-content min-content;
 			margin: 0 7px 10px;
 			padding: 10px 20px;
 			position: sticky;
@@ -44,6 +46,57 @@
 			.header {
 				background-color: var(--header-background-color--firefox);
 			}
+		}
+
+		.search {
+			column-gap: 10px;
+			display: flex;
+			position: relative;
+			width: 300px;
+		}
+
+		.search-icon {
+			color: var(--border-color);
+			height: 20px;
+			position: absolute;
+			top: 50%;
+			transform: translateY(-50%);
+			width: 20px;
+		}
+
+		.search-icon.right {
+			right: 0;
+		}
+
+		.search-input {
+			padding: 5px 25px;
+			width: 100%;
+		}
+
+		.search-input:focus~.search-icon:not(.right) {
+			color: var(--interactive-color);
+		}
+
+		.search-results {
+			backdrop-filter: blur(7px);
+			background-color: var(--header-background-color--firefox);
+			border: 1px solid var(--border-color);
+			box-shadow: var(--header-box-shadow);
+			display: none;
+			max-height: 500px;
+			min-height: 100px;
+			padding: 20px;
+			position: absolute;
+			right: 0;
+			top: 150%;
+			width: 700px;
+		}
+
+		.search-result-message {
+			align-items: center;
+			display: flex;
+			justify-content: center;
+			height: 100px;
 		}
 
 		.breadcrumb {
@@ -90,6 +143,16 @@
 
 		.sort.chosen.desc::after {
 			transform: rotate(270deg) scaleY(-1);
+		}
+
+		@media only screen and (max-width: 1000px) {
+			.header {
+				grid-template-columns: auto min-content;
+			}
+
+			.search {
+				display: none;
+			}
 		}
 
 		@media only screen and (max-width: 600px) {
@@ -233,6 +296,18 @@
 			{{ end }}
 		</ul>
 
+		<div class="search">
+			<input class="search-input" type="text" placeholder="Search for Files" autocomplete="off">
+			<span class="search-icon">
+				{{ embedIcon "search" }}
+			</span>
+			<a href="#" class="icon-button search-icon right" title="Refresh Search Indexes" onclick="refreshSearchIndexes(event); return false">
+				{{ embedIcon "refresh-cw" }}
+			</a>
+
+			<div class="search-results"></div>
+		</div>
+
 		<div class="sort-menu">
 			{{ $order := "asc" }}
 			{{ $oppositeOrder := "desc" }}
@@ -333,8 +408,166 @@
 
 	{{ template "preview.html" . }}
 
+	<!-- Search -->
 	<script>
-		const openPreview = (filename) => {
+		const searchInput = document.getElementsByClassName("search-input")[0];
+		const searchResultWindow = document.getElementsByClassName("search-results")[0];
+
+		let timeoutId = null;
+		let abortController = null;
+		let lastSearchValue = null;
+		function search() {
+			const searchValue = searchInput.value;
+			if (!searchValue || !searchValue.length || searchValue.length < 3) {
+				showSearchInfoMessage("Continue typing...");
+				return;
+			}
+
+			if (lastSearchValue === searchValue) {
+				return;
+			}
+
+			window.clearInterval(timeoutId);
+			if (abortController) {
+				abortController.abort();
+			}
+
+			timeoutId = window.setTimeout(() => {
+				abortController = new AbortController();
+
+				let statusCode = 0;
+				let result = "Unknown Error";
+				let aborted = false;
+				fetch(
+					"/api/search?" + new URLSearchParams({
+						search: searchValue,
+						"file-limit": 7,
+						ui: "true"
+					}),
+					{
+						signal: abortController.signal,
+					},
+				).
+					then(resp => {
+						statusCode = resp.status;
+						return resp.text();
+					}).
+					then(res => {
+						result = res;
+					}).
+					catch(err => {
+						if (err.name && err.name == "AbortError") {
+							aborted = true;
+						}
+						result = `${err}`;
+					}).
+					finally(() => {
+						if (aborted) {
+							return;
+						}
+
+						// Display error.
+						if (statusCode != 200) {
+							let textToShow = `Error: ${result}`;
+							if (statusCode == 204) {
+								textToShow = "No Results";
+							}
+							showSearchInfoMessage(textToShow);
+							return;
+						}
+
+						// Display results.
+						searchResultWindow.innerHTML = result;
+						lastSearchValue = searchValue;
+					});
+			}, 150);
+		};
+
+		function showSearchInfoMessage(text) {
+			searchResultWindow.innerHTML = "";
+
+			const div = document.createElement("div");
+			div.classList.add("search-result-message");
+			div.appendChild(document.createTextNode(text));
+
+			searchResultWindow.appendChild(div);
+		};
+
+		function onSearchInputFocus() {
+			searchResultWindow.style["display"] = "block";
+
+			search();
+
+			const onclick = (ev) => {
+				let target = ev.target;
+				let closeResultWindow = true;
+				while (target) {
+					if (target === searchResultWindow || target == searchInput) {
+						closeResultWindow = false;
+						break;
+					}
+					target = target.parentElement;
+				}
+				if (!closeResultWindow) {
+					return;
+				}
+
+				searchResultWindow.style["display"] = "";
+				window.removeEventListener("click", onclick);
+			};
+			window.addEventListener("click", onclick);
+		};
+
+		searchInput.addEventListener("focus", onSearchInputFocus);
+		searchInput.addEventListener("input", search);
+
+		let isSearchIndexRefreshInProgress = false;
+		function refreshSearchIndexes(ev) {
+			if (isSearchIndexRefreshInProgress) {
+				console.log("search index refresh is already in progress");
+				return;
+			}
+
+			const target = ev.target;
+			target.style["cursor"] = "progress";
+
+			isSearchIndexRefreshInProgress = true;
+
+			let errorText = "";
+			fetch("/api/search/refresh-indexes", {
+				method: "POST"
+			}).
+				then(resp => {
+					if (resp.status != 200) {
+						return resp.text();
+					}
+				}).
+				then(text => {
+					errorText = text;
+				}).
+				catch(err => {
+					errorText = `${err}`;
+				}).
+				finally(() => {
+					target.style["cursor"] = "";
+					isSearchIndexRefreshInProgress = false;
+
+					if (!errorText) {
+						return;
+					}
+
+					const msg = `couldn't refresh indexes: ${errorText}`;
+					console.error(msg);
+
+					// TODO: display error on page?
+					window.alert("Error: " + msg);
+				});
+		}
+	</script>
+
+	<!-- Preview -->
+	<script>
+		function openPreview(filename) {
 			window.dispatchEvent(new CustomEvent("preview.open", { detail: { filename: filename } }));
 		};
 

@@ -160,7 +160,7 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 				return embedIcon(s.fileIconsFS, name)
 			},
 		}).
-		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html")
+		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html", "search-results.html")
 	if err != nil {
 		writeInternalServerError(w, "couldn't parse templates: %s", err)
 		return
@@ -453,6 +453,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	dirLimit := atoi("dir-limit", 3)
 	fileLimit := atoi("file-limit", 5)
+	isUI := r.FormValue("ui") != ""
 
 	dirs, files, err := s.searchService.Search(r.Context(), search, dirLimit, fileLimit)
 	if err != nil {
@@ -490,6 +491,15 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	resp := SearchResponse{
 		Dirs:  convertSearchHits(dirs, true),
 		Files: convertSearchHits(files, false),
+	}
+
+	if isUI {
+		if len(resp.Dirs) == 0 && len(resp.Files) == 0 {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		s.executeTemplate(w, "search-results.html", resp)
+		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")

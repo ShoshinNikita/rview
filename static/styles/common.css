@@ -93,6 +93,18 @@ a.icon-button:hover {
 	color: var(--interactive-color--accent);
 }
 
+input {
+	background-color: #00000000;
+	border: none;
+	border-bottom: 1px solid var(--border-color);
+	color: var(--font-color);
+	outline: none;
+}
+
+input:focus {
+	border-color: var(--interactive-color--accent);
+}
+
 svg {
 	height: 100%;
 	width: 100%;

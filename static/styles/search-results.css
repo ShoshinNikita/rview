@@ -1,0 +1,42 @@
+.search-hits {
+	margin: 0;
+	padding: 0;
+}
+
+.search-hit {
+	align-items: center;
+	column-gap: 5px;
+	display: flex;
+	margin: 0;
+	margin-bottom: 7px;
+}
+
+.search-hit:last-child {
+	margin-bottom: 0;
+}
+
+.search-hit-icon {
+	height: 20px;
+	width: 20px;
+}
+
+.search-hit-link {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	width: 100%;
+}
+
+.search-hit-score {
+	cursor: default;
+	font-size: 13px;
+	font-style: italic;
+	margin-left: 10px;
+	opacity: 0.4;
+	white-space: pre;
+}
+
+.search-separator {
+	max-width: 80%;
+	margin: 15px auto;
+}

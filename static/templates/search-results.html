@@ -1,0 +1,32 @@
+<!-- For debugging -->
+<link rel="stylesheet" href="/static/styles/search-results.css">
+
+{{ define "hits" }}
+<ul class="search-hits">
+	{{ range . }}
+	<li class="search-hit">
+		<div class="search-hit-icon">
+			{{ embedFileIcon .Icon }}
+		</div>
+
+		{{ $title := printf `Go to "%s"` .Path }}
+		<a class="search-hit-link" href="{{ .WebURL }}" title="{{ $title }}">{{ .Path }}</a>
+		<span class="search-hit-score">score: {{ .Score }}</span>
+	</li>
+	{{ end }}
+</ul>
+{{ end }}
+
+<div>
+	{{ if .Dirs }}
+	{{ template "hits" .Dirs }}
+	{{ end }}
+
+	{{ if and .Dirs .Files }}
+	<hr class="search-separator">
+	{{ end }}
+
+	{{ if .Files }}
+	{{ template "hits" .Files }}
+	{{ end }}
+</div>
