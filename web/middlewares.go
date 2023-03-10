@@ -16,16 +16,23 @@ import (
 func loggingMiddleware(h http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		path := r.URL.Path
-		switch {
-		case path == "/favicon.ico" || strings.HasPrefix(path, "/debug"):
+		if path == "/favicon.ico" || strings.HasPrefix(path, "/debug") {
 			h.ServeHTTP(w, r)
 			return
+		}
 
-		case strings.HasPrefix(path, "/static/"):
-			path = "/static/"
-
-		case strings.HasPrefix(path, "/ui/"):
-			path = "/ui/"
+		prefixes := []string{
+			"/static/",
+			"/ui/",
+			"/api/dir/",
+			"/api/file/",
+			"/api/thumbnail/",
+		}
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(path, prefix) {
+				path = prefix + "*"
+				break
+			}
 		}
 
 		now := time.Now()
