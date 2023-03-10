@@ -97,6 +97,8 @@ func (r *Rclone) Start() error {
 	}
 	pipes := []io.ReadCloser{stdout, stderr}
 
+	rlog.Infof("start rclone on %q", r.rcloneURL.String())
+
 	err = r.cmd.Start()
 	if err != nil {
 		return fmt.Errorf("couldn't start rclone: %w", err)

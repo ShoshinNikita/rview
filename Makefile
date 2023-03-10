@@ -5,7 +5,7 @@ default: run
 run: build
 	@ echo "Run..."
 	@ ./bin/rview \
-			--port=8090 \
+			--port=${SERVER_PORT} \
 			--dir=_var \
 			--rclone-target=${RCLONE_TARGET} \
 			--read-static-files-from-disk

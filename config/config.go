@@ -165,6 +165,8 @@ func PrintBuildInfo(info BuildInfo) {
     Commit Hash: %q
     Commit Time: %q
 
+    GitHub Repo: https://github.com/ShoshinNikita/rview
+
 `,
 		info.ShortGitHash,
 		info.CommitTime,

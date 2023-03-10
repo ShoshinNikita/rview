@@ -25,7 +25,7 @@ import (
 )
 
 type Server struct {
-	buildInfo config.BuildInfo
+	cfg config.Config
 
 	httpServer *http.Server
 
@@ -44,7 +44,7 @@ func NewServer(cfg config.Config, rclone rview.Rclone, thumbnailService rview.Th
 	}
 
 	s = &Server{
-		buildInfo: cfg.BuildInfo,
+		cfg: cfg,
 		//
 		rclone:           rclone,
 		thumbnailService: thumbnailService,
@@ -104,7 +104,7 @@ func NewServer(cfg config.Config, rclone rview.Rclone, thumbnailService rview.Th
 }
 
 func (s *Server) Start() error {
-	rlog.Infof("start web server on %q", s.httpServer.Addr)
+	rlog.Infof(`start web server on "http://localhost:%d"`, s.cfg.ServerPort)
 
 	err := s.httpServer.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -122,7 +122,7 @@ func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
 
 	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
-		writeInternalServerError(w, err.Error())
+		writeInternalServerError(w, "couldn't get dir info: %s", err)
 		return
 	}
 
@@ -138,7 +138,7 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 
 	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
-		writeInternalServerError(w, err.Error())
+		writeInternalServerError(w, "couldn't get dir info: %s", err)
 		return
 	}
 
@@ -214,7 +214,7 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 
 func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo) (DirInfo, error) {
 	info := DirInfo{
-		BuildInfo: s.buildInfo,
+		BuildInfo: s.cfg.BuildInfo,
 		//
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
