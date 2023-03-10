@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ShoshinNikita/rview/cache"
+	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/stretchr/testify/require"
 )

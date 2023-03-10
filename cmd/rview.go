@@ -8,8 +8,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/ShoshinNikita/rview/cache"
 	"github.com/ShoshinNikita/rview/config"
+	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/ShoshinNikita/rview/cache"
+	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/stretchr/testify/require"
 )
 
