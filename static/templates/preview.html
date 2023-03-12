@@ -4,7 +4,6 @@
 		background-color: #00000000;
 		display: none;
 		grid-template-rows: auto min-content;
-		height: 100vh;
 		opacity: 0;
 		overflow: hidden;
 		position: fixed;
@@ -134,6 +133,7 @@
 		font-style: italic;
 	}
 
+	.preview-close-button,
 	.preview-download-button {
 		height: 30px;
 		margin: 0 auto;
@@ -142,7 +142,12 @@
 		width: 30px;
 	}
 
-	@media only screen and (max-width: 900px) {
+	/* Display close button only on medium and small displays. */
+	.preview-close-button {
+		display: none;
+	}
+
+	@media only screen and (max-width: 1200px) {
 		.preview {
 			grid-template-columns: none;
 			grid-template-rows: repeat(2, max-content);
@@ -155,16 +160,58 @@
 		}
 
 		.preview-side-panel {
+			display: grid;
+			grid-template:
+				"file-info close-button"
+				"file-info download-button";
 			column-gap: 10px;
 			flex-direction: row;
+		}
+
+		.preview-file-info {
+			grid-area: file-info;
 		}
 
 		.preview-file-info>* {
 			margin-bottom: 3px;
 		}
 
+		.preview-close-button,
 		.preview-download-button {
 			margin: 0;
+		}
+
+		.preview-close-button {
+			display: block;
+		}
+
+		.preview-download-button {
+			align-self: end;
+			grid-area: download-button;
+		}
+
+		.preview-close-button {
+			grid-area: close-button;
+		}
+	}
+
+	@media only screen and (max-width: 600px) {
+		.preview-wrapper {
+			padding: 0;
+		}
+
+		.preview-close-layer {
+			pointer-events: none;
+		}
+
+		.preview {
+			padding-left: 0;
+			padding-right: 0;
+		}
+
+		.preview-side-panel {
+			padding-left: 20px;
+			padding-right: 20px;
 		}
 	}
 </style>
@@ -246,6 +293,10 @@
 				</div>
 			</div>
 
+			<a class="icon-button preview-close-button" title="Close Preview" onclick="closePreview(); return false">
+				{{ embedIcon "x" }}
+			</a>
+
 			<a class="icon-button preview-download-button" title="Download the original file" href="" download="">
 				{{ embedIcon "download" }}
 			</a>
@@ -309,6 +360,18 @@
 			previewVideo.style["top"] = `${rect.top + rect.height / 2}px`;
 		})
 	).observe(previewContent);
+
+	// Set height of .preview-wrapper with JS as a workaround for this bug:
+	// https://bugzilla.mozilla.org/show_bug.cgi?id=1663634
+	//
+	// We can't use ResizeObserver because we want to get resize events for the window.
+	//
+	// More about mobile browser URL bars: https://github.com/bokand/URLBarSizing.
+	const changePreviewWindowHeightOnResize = () => {
+		previewWrapper.style["height"] = `${window.innerHeight}px`;
+	};
+	window.addEventListener("resize", changePreviewWindowHeightOnResize);
+	window.addEventListener("load", changePreviewWindowHeightOnResize);
 
 	const stopAnyPlayback = () => {
 		for (const v of [previewAudio, previewVideo]) {
@@ -500,17 +563,40 @@
 
 	const setPreviewInQuery = (filename) => {
 		const params = new URLSearchParams(window.location.search);
+		const firstTime = !params.get("preview");
 		if (filename) {
 			params.set("preview", filename);
 		} else {
 			params.delete("preview");
 		}
 
+		const currentPath = window.location.pathname + window.location.search;
+		const encodedParams = params.toString();
+		const newPath = window.location.pathname + (encodedParams ? "?" + encodedParams : "");
+		if (currentPath === newPath) {
+			return;
+		}
+
 		// Use History API to avoid page reload: https://stackoverflow.com/a/41542008.
-		history.pushState(null, "", window.location.pathname + "?" + params.toString());
+		if (firstTime) {
+			// Push state for first preview.
+			history.pushState(null, "", newPath);
+		} else {
+			// Replace state because we don't want to create a new history entry for every preview.
+			history.replaceState(null, "", newPath);
+		}
 	};
 
 	// Event listeners
+
+	window.addEventListener("popstate", (ev) => {
+		// Close preview on "Go back".
+		const params = new URLSearchParams(window.location.search);
+		if (!params.get("preview")) {
+			closePreview();
+		}
+	});
+
 
 	window.addEventListener("keydown", (ev) => {
 		if (!isPreviewOpened) {
@@ -526,106 +612,6 @@
 		} else if (ev.key === "Escape") {
 			closePreview();
 		}
-	});
-
-	const closeAnimation = "close", swipeAnimation = "swipe";
-
-	let touchStartX = 0, touchStartY = 0, animation = "", swipeDirection = 0;
-
-	const shouldIgnoreTouch = (ev) => {
-		if (ev.touches.length > 1) {
-			return true;
-		}
-
-		let ignore = ev.target !== previewContent;
-		if (ignore) {
-			const path = ev.path || (ev.composedPath && ev.composedPath());
-			if (path) {
-				for (const elem of path) {
-					if (elem === previewContent) {
-						ignore = false;
-						break;
-					}
-				}
-			}
-		}
-		return ignore;
-	};
-
-	window.addEventListener("touchstart", ev => {
-		if (shouldIgnoreTouch(ev)) {
-			return;
-		}
-
-		touchStartX = ev.changedTouches[0].clientX;
-		touchStartY = ev.changedTouches[0].clientY;
-	});
-	window.addEventListener("touchmove", ev => {
-		if (shouldIgnoreTouch(ev)) {
-			return;
-		}
-
-		let diffX = ev.changedTouches[0].clientX - touchStartX;
-		let diffY = ev.changedTouches[0].clientY - touchStartY;
-
-		if (animation === closeAnimation || (!animation && Math.abs(diffY) > 20)) {
-			animation = closeAnimation;
-
-			if (diffY > 0) {
-				diffY = 0;
-			}
-			const maxDiff = previewWrapper.clientHeight / 4;
-			if (Math.abs(diffY) > maxDiff) {
-				diffY = Math.sign(diffY) * maxDiff;
-			}
-
-			previewWrapper.style["top"] = `${diffY / 2}px`;
-		}
-		if (animation === swipeAnimation || (!animation && Math.abs(diffX) > 30)) {
-			animation = swipeAnimation;
-
-			const maxDiff = previewContent.clientWidth / 2;
-			if (Math.abs(diffX) > maxDiff) {
-				diffX = Math.sign(diffX) * maxDiff;
-			}
-			if ((currentIndex === 0 && diffX > 0) || (currentIndex === entries.length - 1 && diffX < 0)) {
-				// Don't scroll first and last previews.
-				diffX = 0;
-			}
-
-			previewContent.style["background-position-x"] = `calc(50% + ${diffX / 2}px)`;
-		}
-	});
-	window.addEventListener("touchend", ev => {
-		if (shouldIgnoreTouch(ev)) {
-			return;
-		}
-
-		// Reset all changes.
-		previewWrapper.style.removeProperty("top");
-		//
-		previewContent.style.removeProperty("background-position-x");
-
-		const diffX = ev.changedTouches[0].clientX - touchStartX;
-		const diffY = ev.changedTouches[0].clientY - touchStartY;
-		switch (animation) {
-			case swipeAnimation:
-				if (Math.abs(diffX) > previewContent.clientWidth / 5) {
-					swipePreview(-diffX);
-				}
-				break;
-
-			case closeAnimation:
-				if (diffY < 0 && Math.abs(diffY) > previewWrapper.clientHeight / 5) {
-					closePreview();
-				}
-				break;
-		}
-
-		touchStartX = 0;
-		touchStartY = 0;
-		animation = "";
-		swipeDirection = 0;
 	});
 </script>
 
