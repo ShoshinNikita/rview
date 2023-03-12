@@ -1,23 +1,25 @@
 <!-- Preview -->
 <style>
 	.preview-wrapper {
+		/*
+			Use "visibility: hidden" to be able to scroll selector on first open and
+			to prevent all pointer events: https://stackoverflow.com/a/34529598.
+		*/
 		background-color: #00000000;
-		display: none;
+		display: grid;
 		grid-template-rows: auto min-content;
-		opacity: 0;
 		overflow: hidden;
 		position: fixed;
 		padding: 3vh 5vw;
 		row-gap: 10px;
 		top: 0;
+		visibility: hidden;
 		width: 100%;
-		z-index: -1;
+		z-index: 3;
 	}
 
 	.preview-wrapper.opened {
-		display: grid;
-		opacity: 100%;
-		z-index: 3;
+		visibility: visible;
 	}
 
 	.preview-close-layer {

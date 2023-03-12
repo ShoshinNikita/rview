@@ -134,11 +134,11 @@
 			content: " ";
 			display: inline-block;
 			filter: var(--sort-order-icon-filter);
-			height: 20px;
+			height: 18px;
 			position: relative;
 			transform: rotate(90deg);
 			vertical-align: text-bottom;
-			width: 20px;
+			width: 18px;
 		}
 
 		.sort.chosen.desc::after {
@@ -297,11 +297,11 @@
 		</ul>
 
 		<div class="search">
-			<input class="search-input" type="text" placeholder="Search for Files" autocomplete="off">
+			<input class="search-input" type="text" placeholder="Search for files" autocomplete="off">
 			<span class="search-icon">
 				{{ embedIcon "search" }}
 			</span>
-			<a href="#" class="icon-button search-icon right" title="Refresh Search Indexes" onclick="refreshSearchIndexes(event); return false">
+			<a href="#" class="icon-button search-icon right" title="Manually refresh Search Indexes" onclick="refreshSearchIndexes(event); return false">
 				{{ embedIcon "refresh-cw" }}
 			</a>
 
