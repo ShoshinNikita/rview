@@ -185,7 +185,7 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 	}
 
 	w.Header().Set("Content-Type", "text/html")
-	copyResponse(w, buf)
+	io.Copy(w, buf)
 }
 
 func embedIcon(fs fs.FS, name string) (template.HTML, error) {
@@ -423,7 +423,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	copyResponse(w, rc)
+	io.Copy(w, rc)
 }
 
 // handleThumbnail returns the thumbnail.
@@ -453,7 +453,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	etag := strconv.Itoa(int(fileID.GetModTime().Unix()))
 	setCacheHeaders(w, 30*24*time.Hour, etag)
 
-	copyResponse(w, rc)
+	io.Copy(w, rc)
 }
 
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
@@ -566,13 +566,6 @@ func fileIDFromRequest(r *http.Request, endpointPrefix string) (rview.FileID, er
 	}
 
 	return rview.NewFileID(path, modTime), nil
-}
-
-func copyResponse(w http.ResponseWriter, src io.Reader) {
-	_, err := io.Copy(w, src)
-	if err != nil {
-		writeInternalServerError(w, "couldn't write response: %s", err)
-	}
 }
 
 func writeBadRequestError(w http.ResponseWriter, format string, a ...any) {
