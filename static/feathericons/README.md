@@ -1,3 +1,8 @@
+# README
+
+We use icons from [github.com/feathericons/feather](https://github.com/feathericons/feather).
+
+```
 The MIT License (MIT)
 
 Copyright (c) 2013-2017 Cole Bemis
@@ -19,3 +24,4 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
