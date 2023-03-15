@@ -11,7 +11,7 @@ RUN make build && ./bin/rview --version
 
 
 
-FROM rclone/rclone:1.60 AS rclone-src
+FROM rclone/rclone:1.62 AS rclone-src
 
 RUN rclone --version
 
