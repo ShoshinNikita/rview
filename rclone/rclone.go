@@ -66,6 +66,7 @@ func NewRclone(rclonePort int, rcloneTarget string) (*Rclone, error) {
 			"http",
 			"--addr", ":"+strconv.Itoa(rclonePort),
 			"--template", f.Name(),
+			"--dir-cache-time", "1m",
 			rcloneTarget,
 		),
 		stopCmd:   cancel,

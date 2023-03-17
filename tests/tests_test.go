@@ -383,6 +383,9 @@ func TestThumbnails(t *testing.T) {
 		img := image.NewRGBA(image.Rect(0, 0, 4000, 4000))
 		f, err := os.Create(filepath)
 		r.NoError(err)
+		t.Cleanup(func() {
+			os.Remove(filepath)
+		})
 
 		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 1})
 		r.NoError(err)
