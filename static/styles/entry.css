@@ -1,0 +1,106 @@
+.entry {
+	align-items: center;
+	border: 1px solid #00000000;
+	color: var(--font-color);
+	display: flex;
+	flex-flow: column;
+	justify-content: center;
+	padding: 5px;
+	text-align: center;
+	text-decoration: none;
+	width: 100%;
+}
+
+.selected .entry,
+.entry:hover,
+.entry:focus {
+	background-color: var(--hover-background-color);
+	border: var(--hover-border);
+}
+
+.preview-icon {
+	cursor: help;
+	height: 20px;
+	opacity: 0.5;
+	position: absolute;
+	right: 0px;
+	top: 0px;
+	width: 20px;
+	z-index: 2;
+}
+
+.icon-wrapper {
+	text-align: center;
+	min-height: 60px;
+	min-width: 100%;
+	position: relative;
+}
+
+.thumbnail {
+	box-shadow: var(--image-box-shadow);
+	max-height: 150px;
+	max-width: 90%;
+}
+
+.icon {
+	height: 100px;
+	margin: auto;
+	width: 100px;
+}
+
+.icon,
+.thumbnail {
+	position: relative;
+	z-index: 1;
+}
+
+.thumbnail~.icon {
+	/* Use thumbnail if available */
+	display: none;
+}
+
+.thumbnail.failed {
+	display: none;
+}
+
+.thumbnail.failed~.icon {
+	/* Fallback to icon in case of image load error */
+	display: block;
+}
+
+.loader {
+	animation: spin 1.2s linear infinite;
+	border: 5px solid var(--loader-border-color);
+	border-radius: 50%;
+	border-top: 5px solid var(--loader-border-color--accent);
+	height: 50px;
+	left: 50%;
+	position: absolute;
+	top: 50%;
+	width: 50px;
+}
+
+.thumbnail.loaded~.loader,
+.thumbnail.failed~.loader {
+	/* Hide loader after image load or error */
+	display: none;
+}
+
+@keyframes spin {
+	0% {
+		transform: translate(-50%, -50%) rotate(0deg);
+	}
+
+	100% {
+		transform: translate(-50%, -50%) rotate(360deg);
+	}
+}
+
+.entry-filename {
+	display: inline-block;
+	overflow: hidden;
+	text-align: center;
+	text-overflow: ellipsis;
+	width: 100%;
+	white-space: nowrap;
+}

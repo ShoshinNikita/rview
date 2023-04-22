@@ -221,41 +221,25 @@
 <!-- Selector -->
 <style>
 	.selector {
-		column-gap: 5px;
-		display: flex;
+		column-gap: 10px;
+		display: grid;
+		grid-auto-columns: 120px;
+		grid-auto-flow: column;
 		margin: 0;
 		overflow-x: auto;
 		padding: 5px;
+		scroll-behavior: smooth;
 	}
 
 	.selector-thumbnail-wrapper {
-		border: 1px solid #00000000;
-		display: inline-block;
+		display: contents;
 	}
 
-	.selector-thumbnail-wrapper:hover,
-	.selector-thumbnail-wrapper.chosen {
-		background-color: var(--hover-background-color);
-		border: var(--hover-border);
-	}
-
-	.selector-thumbnail {
-		border: 1px solid #00000000;
-		display: flex;
-		height: 100%;
-		padding: 10px;
-		width: 100%;
-	}
-
-	.selector-thumbnail img {
-		align-self: center;
-		box-shadow: var(--image-box-shadow);
+	.selector-thumbnail-wrapper .thumbnail {
 		max-height: 100px;
-		max-width: 100px;
 	}
 
-	.selector-thumbnail svg {
-		align-self: center;
+	.selector-thumbnail-wrapper .icon {
 		height: 50px;
 		width: 50px;
 	}
@@ -272,6 +256,8 @@
 			<a href="#" class="icon-button switch-preview-button next" title="Next" onclick="swipePreview(1); return false">
 				{{ embedIcon "chevron-down" }}
 			</a>
+
+			<!-- TODO: add loader -->
 
 			<img class="preview-image"></img>
 			<pre class="preview-text"></pre>
@@ -305,20 +291,20 @@
 		</div>
 	</div>
 
-	<!-- TODO: reuse code from index.html? -->
 	<ul class="selector card">
 		{{ range .Entries }}
 
 		{{ if .CanPreview }}
-		<li id="selector-thumbnail-{{ .Filename }}" class="selector-thumbnail-wrapper">
-			<a href="#" class="selector-thumbnail" title="{{ .Filename }}" onclick="updatePreview('{{ .Filename }}'); return false">
-				{{ if eq .FileType "image" }}
-				<img src="{{ .ThumbnailURL }}">
-				{{ else }}
-				{{ embedFileIcon .IconName }}
-				{{ end }}
-			</a>
-		</li>
+		<div id="selector-thumbnail-{{ .Filename }}" class="selector-thumbnail-wrapper">
+			{{
+				template "entry.html" (dict
+					"Entry" .
+					"Href" "#"
+					"Title" .Filename
+					"Onclick" (printf `updatePreview('%s'); return false` .Filename)
+				)
+			}}
+		</div>
 		{{ end }}
 
 		{{ end }}
@@ -385,16 +371,12 @@
 	let isPreviewOpened = false;
 	let currentFilename = null;
 	let currentIndex = null;
-	let scrollIntervalID = 0;
 	let prevScrollLeft = null;
 
 	const updatePreview = (filename) => {
 		if (currentFilename === filename) {
 			return;
 		}
-
-		// Stop scroll animation to avoid any conflicts.
-		clearInterval(scrollIntervalID);
 
 		currentIndex = entries.findIndex(v => v.filename == filename);
 		if (currentIndex === -1) {
@@ -403,38 +385,11 @@
 		const entry = entries[currentIndex];
 
 		// Scroll to the chosen file.
-		const thumbnail = document.getElementById(thumbnailIDPrefix + entry.filename);
-		const selector = thumbnail.parentElement;
+		const thumbnailWrapper = document.getElementById(thumbnailIDPrefix + entry.filename);
+		const thumbnail = thumbnailWrapper.children[0];
+		const selector = thumbnailWrapper.parentElement;
 
-		const wantScrollLeft = thumbnail.offsetLeft - selector.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;
-		if (isPreviewOpened) {
-			let delta = Math.abs(selector.scrollLeft - wantScrollLeft) / 15; // total scroll time will be 150ms
-			if (delta < 2) {
-				delta = 2;
-			}
-
-			scrollIntervalID = setInterval(() => {
-				const diff = selector.scrollLeft - wantScrollLeft;
-				if (Math.abs(diff) <= delta || selector.scrollLeft === prevScrollLeft) {
-					selector.scrollLeft = wantScrollLeft;
-					prevScrollLeft = null;
-					clearInterval(scrollIntervalID);
-					return;
-				}
-
-				prevScrollLeft = selector.scrollLeft;
-
-				if (diff > 0) {
-					selector.scrollLeft -= delta;
-				} else if (diff < 0) {
-					selector.scrollLeft += delta;
-				}
-			}, 10);
-
-		} else {
-			// Don't animate scroll on the preview open.
-			selector.scrollLeft = wantScrollLeft;
-		}
+		selector.scrollLeft = thumbnail.offsetLeft - selector.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;;
 
 		// Hide all previews.
 		previewImage.style["display"] = "";
@@ -516,10 +471,10 @@
 
 		// On the first open current filename is empty.
 		if (currentFilename) {
-			document.getElementById(thumbnailIDPrefix + currentFilename).classList.remove("chosen");
+			document.getElementById(thumbnailIDPrefix + currentFilename).classList.remove("selected");
 		}
 		currentFilename = entry.filename;
-		document.getElementById(thumbnailIDPrefix + currentFilename).classList.add("chosen");
+		document.getElementById(thumbnailIDPrefix + currentFilename).classList.add("selected");
 
 		// Hide switch preview buttons if necessary.
 		if (currentIndex === 0) {

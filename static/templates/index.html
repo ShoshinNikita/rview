@@ -10,6 +10,7 @@
 
 	<link rel="stylesheet" href="/static/styles/common.css">
 	<link rel="stylesheet" href="/static/styles/search-results.css">
+	<link rel="stylesheet" href="/static/styles/entry.css">
 
 	<style>
 		.noscroll {
@@ -172,117 +173,6 @@
 			padding: 5px;
 			row-gap: 20px;
 		}
-
-		.entry-wrapper {
-			display: flex;
-			align-items: center;
-		}
-
-		a.entry {
-			border: 1px solid #00000000;
-			color: var(--font-color);
-			display: block;
-			padding: 5px;
-			text-align: center;
-			text-decoration: none;
-			width: 100%;
-		}
-
-		.entry:hover,
-		.entry:hover .icon {
-			background-color: var(--hover-background-color)
-		}
-
-		.entry:hover {
-			border: var(--hover-border);
-		}
-
-		.preview-icon {
-			cursor: help;
-			height: 20px;
-			opacity: 0.5;
-			position: absolute;
-			right: 0px;
-			top: 0px;
-			width: 20px;
-		}
-
-		.icon-wrapper {
-			text-align: center;
-			min-height: 60px;
-			min-width: 100%;
-			position: relative;
-		}
-
-		.thumbnail {
-			box-shadow: var(--image-box-shadow);
-			max-height: 150px;
-			max-width: 90%;
-		}
-
-		.icon {
-			background-color: var(--background-color);
-			height: 100px;
-			margin: auto;
-			width: 100px;
-		}
-
-		.icon,
-		.thumbnail {
-			position: relative;
-			z-index: 1;
-		}
-
-		.thumbnail~.icon {
-			/* Use thumbnail if available */
-			display: none;
-		}
-
-		.thumbnail.failed {
-			display: none;
-		}
-
-		.thumbnail.failed+.icon {
-			/* Fallback to icon in case of image load error */
-			display: block;
-		}
-
-		.loader {
-			animation: spin 1.2s linear infinite;
-			border: 5px solid var(--loader-border-color);
-			border-radius: 50%;
-			border-top: 5px solid var(--loader-border-color--accent);
-			height: 50px;
-			left: 50%;
-			position: absolute;
-			top: 50%;
-			width: 50px;
-		}
-
-		.thumbnail.loaded~.loader,
-		.thumbnail.failed~.loader {
-			/* Hide loader after image load or error */
-			display: none;
-		}
-
-		@keyframes spin {
-			0% {
-				transform: translate(-50%, -50%) rotate(0deg);
-			}
-
-			100% {
-				transform: translate(-50%, -50%) rotate(360deg);
-			}
-		}
-
-		.entry-filename {
-			display: inline-block;
-			overflow: hidden;
-			text-align: center;
-			text-overflow: ellipsis;
-			width: 100%;
-			white-space: nowrap;
-		}
 	</style>
 </head>
 
@@ -344,6 +234,8 @@
 		{{ $href := .WebDirURL }}
 		{{ $target := "_self" }}
 		{{ $title := printf "Open %q" .Filename }}
+		{{ $onclick := "" }}
+		{{ $download := "" }}
 
 		{{ if not .IsDir }}
 		{{ $href = .OriginalFileURL }}
@@ -351,55 +243,29 @@
 		{{ $title = printf "%q\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
 		{{ end }}
 
-		{{ if .ThumbnailURL }}
+		<!-- Open preview or download -->
+
+		{{ if .CanPreview }}
+		{{ $onclick = printf `openPreview('%s'); return false` .Filename }}
+		{{ $title = printf `Preview %s` $title }}
 		{{ $href = "#" }}
 		{{ $target = "" }}
-		{{ end }}
-
-		<!-- Open preview or download -->
-		{{ $attrs := "" }}
-		{{ if .CanPreview }}
-		{{ $attrs = printf `onclick="openPreview('%s'); return false"` .Filename }}
-		{{ $title = printf `Preview %s` $title }}
 		{{ else if not .IsDir }}
-		{{ $attrs = printf `download="%s"` .Filename }}
+		{{ $download = .Filename }}
 		{{ $title = printf `Download %s` $title }}
 		{{ end }}
 
-		<div class="entry-wrapper">
-			<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}" {{ attr $attrs }}>
-				<div class="icon-wrapper">
-					{{ if .ThumbnailURL }}
-					<img
-						src="{{ .ThumbnailURL }}"
-						class="thumbnail"
-						loading="lazy"
-						onload="this.classList.add('loaded')"
-						onerror="this.classList.add('failed')">
-
-					{{ else if not .IsDir }}
-
-					{{ $previewIcon := "download" }}
-					{{ $title := "Can download" }}
-					{{ if .CanPreview }}
-					{{ $previewIcon = "eye" }}
-					{{ $title = "Can preview" }}
-					{{ end }}
-					<span class="preview-icon" title="{{ $title }}">
-						{{ embedIcon $previewIcon }}
-					</span>
-
-					{{ end }}
-
-					<div class="icon">
-						{{ embedFileIcon .IconName }}
-					</div>
-					<div class="loader"></div>
-				</div>
-
-				<span class="entry-filename">{{ .Filename }}</span>
-			</a>
-		</div>
+		{{
+			template "entry.html" (dict
+				"Entry" .
+				"Href" $href
+				"Target" $target
+				"Title" $title
+				"Onclick" $onclick
+				"Download" $download
+				"ShowPreviewIcon" true
+			)
+		}}
 
 		{{ end }}
 	</div>

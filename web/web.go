@@ -170,8 +170,25 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 			"embedFileIcon": func(name string) (template.HTML, error) {
 				return embedIcon(s.fileIconsFS, name)
 			},
+			"dict": func(kvs ...any) (map[string]any, error) {
+				if len(kvs)%2 != 0 {
+					return nil, errors.New("number of args must be even")
+				}
+
+				res := make(map[string]any)
+				for i := 0; i < len(kvs); i += 2 {
+					k, ok := kvs[i].(string)
+					if !ok {
+						return nil, fmt.Errorf("keys must be string (arg #%d)", i)
+					}
+					v := kvs[i+1]
+
+					res[k] = v
+				}
+				return res, nil
+			},
 		}).
-		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html", "search-results.html")
+		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html", "search-results.html", "entry.html")
 	if err != nil {
 		writeInternalServerError(w, "couldn't parse templates: %s", err)
 		return
