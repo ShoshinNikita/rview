@@ -1,4 +1,4 @@
-# `Rview` - web-based user interface for Rclone
+# `Rview` - web-based UI for Rclone
 
 <p align="center">
   <img src="./docs/screenshots/Images%20Dir.jpg?raw=true" width="90%">
@@ -17,14 +17,14 @@
 
 ## Features
 
-- **Automatic thumbnail generation**: You don't have to download hundreds of MiBs while browsing your files.
-  Thumbnails are generated with the help of [libvips](https://github.com/libvips/libvips), an extremely fast
-  image processing library.
-- **Search**: You can search for files by name. **Rview** supports two types of search: fuzzy search and exact
+- :framed_picture: **Automatic thumbnail generation**: You don't have to download hundreds of MiBs to preview your photos.
+  Image thumbnails are generated with the help of [libvips](https://github.com/libvips/libvips), an extremely
+  fast image processing library.
+- :mag: **Search**: You can search for files by name. **Rview** supports two types of search: fuzzy search and exact
   search (just use double quotes).
-- **Responsive**: UI is designed to be responsive, which means you can browse you files on both desktop
+- :iphone: **Responsive**: UI is designed to be responsive, which means you can browse you files on both desktop
   and mobile.
-- **Lightweight & minimalistic**: All pages are rendered on the server side using Go templates. JavaScript
+- :feather: **Lightweight & minimalistic**: All pages are rendered on the server side using Go templates. JavaScript
   is used only to make the UI interactive.
 
 ## Limitations
