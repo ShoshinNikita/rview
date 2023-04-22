@@ -1,14 +1,44 @@
-# Rview
+# `Rview` - web-based user interface for Rclone
 
-<!-- TODO: description, features, screenshot, no auth protection (!) -->
+<p align="center">
+  <img src="./docs/screenshots/Images%20Dir.jpg?raw=true" width="90%">
+  <br>
+  <i> More screenshots <a href="/docs/screenshots/">here</a> </i>
+</p>
 
+***
+
+- [Features](#features)
+- [Limitations](#limitations)
 - [Run](#run)
 - [Configuration](#configuration)
 - [Development](#development)
+- [Thanks](#thanks)
+
+## Features
+
+- **Automatic thumbnail generation**: You don't have to download hundreds of MiBs while browsing your files.
+  Thumbnails are generated with the help of [libvips](https://github.com/libvips/libvips), an extremely fast
+  image processing library.
+- **Search**: You can search for files by name. **Rview** supports two types of search: fuzzy search and exact
+  search (just use double quotes).
+- **Responsive**: UI is designed to be responsive, which means you can browse you files on both desktop
+  and mobile.
+- **Lightweight & minimalistic**: All pages are rendered on the server side using Go templates. JavaScript
+  is used only to make the UI interactive.
+
+## Limitations
+
+- **Rview** is read-only and there are no plans to change that. You should use Rclone directly
+  to upload, edit, or delete files.
+- **Rview** does not provide any authentication mechanism. It is therefore highly recommended to use a proxy
+  such as Nginx or Caddy. Placing **Rview** behind a proxy also allows gzip compression, which sometimes can
+  significantly improve response time.
 
 ## Run
 
-1. You have to install [docker](https://docs.docker.com/) and [docker compose](https://docs.docker.com/compose/) (optional, but recommended).
+1. You have to install [docker](https://docs.docker.com/) and [docker compose](https://docs.docker.com/compose/)
+   (optional, but recommended).
 2. Let's consider you use Rclone S3 backend, and your `~/.config/rclone/rclone.conf` looks like this:
 
 	```ini
@@ -29,7 +59,7 @@
 	    image: ghcr.io/shoshinnikita/rview:main
 	    container_name: rview
 	    volumes:
-	      - ./var:/srv/var # mount app data directory
+	      - ./var:/srv/var                                          # mount app data directory
 	      - ~/.config/rclone/rclone.conf:/config/rclone/rclone.conf # mount Rclone config file
 	    ports:
 	      - "127.0.0.1:8080:8080"
@@ -59,7 +89,7 @@
 First, you have to install the following dependencies:
 
 1. [rclone](https://github.com/rclone/rclone) - instructions can be found [here](https://rclone.org/install/).
-2. [vips](https://github.com/libvips/libvips) - you can install it with this command:
+2. [libvips](https://github.com/libvips/libvips) - you can install it with this command:
 
 	```bash
 	sudo apt-get install libvips-tools
@@ -78,3 +108,10 @@ make check
 ```
 
 By default `make run` uses environment variables from `.env` file. You can redefine these variables via `.env.local` file.
+
+## Thanks
+
+A special thanks to these open-source projects:
+
+- [Material Icon Theme](https://github.com/PKief/vscode-material-icon-theme) - Material Design icons for VS Code.
+- [Feather](https://github.com/feathericons/feather) - Simply beautiful open source icons.
