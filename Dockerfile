@@ -28,12 +28,13 @@ WORKDIR /srv
 RUN apk add --update --no-cache vips-dev vips-tools ca-certificates && \
 	vips --version
 
-# Add rclone
+# Add rclone, rview and demo files.
 COPY --from=rclone-src /usr/local/bin/rclone /usr/local/bin/rclone
-
 COPY --from=builder /rview/bin .
+COPY ./tests/testdata ./demo
 
 # For rclone
 ENV XDG_CONFIG_HOME=/config
 
 ENTRYPOINT [ "./rview" ]
+CMD [ "--rclone-target=./demo" ]

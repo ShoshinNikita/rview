@@ -11,6 +11,8 @@
 - [Features](#features)
 - [Limitations](#limitations)
 - [Run](#run)
+  - [With Demo Files](#with-demo-files)
+  - [With Your Files](#with-your-files)
 - [Configuration](#configuration)
 - [Development](#development)
 - [Thanks](#thanks)
@@ -37,8 +39,20 @@
 
 ## Run
 
-1. You have to install [docker](https://docs.docker.com/) and [docker compose](https://docs.docker.com/compose/)
-   (optional, but recommended).
+### With Demo Files
+
+1. You have to install [docker](https://docs.docker.com/).
+2. Run this command:
+
+   ```sh
+   docker run --rm -p 8080:8080 ghcr.io/shoshinnikita/rview:main
+   ```
+
+4. Go to http://localhost:8080.
+
+### With Your Files
+
+1. You have to install [docker](https://docs.docker.com/) and [docker compose](https://docs.docker.com/compose/).
 2. Let's consider you use Rclone S3 backend, and your `~/.config/rclone/rclone.conf` looks like this:
 
 	```ini
@@ -63,11 +77,16 @@
 	      - ~/.config/rclone/rclone.conf:/config/rclone/rclone.conf # mount Rclone config file
 	    ports:
 	      - "127.0.0.1:8080:8080"
-	    command: "--rclone-target=my-s3:" # specify Rclone target from the config file
+	    command: "--rclone-target=my-s3:" # pass Rclone target from the config file
 	```
 
-4. Run `docker compose up`
-5. Go to `http://localhost:8080`
+4. Run this command:
+
+   ```sh
+   docker compose up
+   ```
+
+5. Go to http://localhost:8080.
 
 ## Configuration
 
