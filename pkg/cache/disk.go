@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"strconv"
+	"unicode"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/rview"
@@ -111,11 +111,26 @@ func (c *DiskCache) Remove(id rview.FileID) error {
 	return os.Remove(c.generateFilepath(id))
 }
 
-// generateFilepath generates a filepath of pattern '<dir>/<YYYY-MM>/<modTime>_<filename>'.
+// generateFilepath generates a filepath of pattern '<dir>/<YYYY-MM>/<modTime>_<normalized filepath>'.
 func (c *DiskCache) generateFilepath(id rview.FileID) string {
 	modTime := id.GetModTime()
 	subdir := modTime.Format("2006-01")
-	res := strconv.Itoa(int(modTime.Unix())) + "_" + id.GetName()
 
-	return filepath.Join(c.absDir, subdir, res)
+	var path []rune
+	for _, r := range id.GetPath() {
+		switch {
+		case unicode.IsLetter(r):
+			r = unicode.ToLower(r)
+		case unicode.IsNumber(r) || r == '.':
+			// Ok
+		default:
+			r = '_'
+		}
+
+		path = append(path, r)
+	}
+
+	filename := fmt.Sprintf("%d_%s", modTime.Unix(), string(path))
+
+	return filepath.Join(c.absDir, subdir, filename)
 }
