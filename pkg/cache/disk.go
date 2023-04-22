@@ -121,7 +121,7 @@ func (c *DiskCache) generateFilepath(id rview.FileID) string {
 		switch {
 		case unicode.IsLetter(r):
 			r = unicode.ToLower(r)
-		case unicode.IsNumber(r) || r == '.':
+		case unicode.IsDigit(r) || r == '.':
 			// Ok
 		default:
 			r = '_'

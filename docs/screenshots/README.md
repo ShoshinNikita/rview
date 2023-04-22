@@ -1,35 +1,35 @@
 # Screenshots
 
 - [Dirs \& Files](#dirs--files)
-- [Search](#search)
 - [Previews](#previews)
   - [Image](#image)
   - [Text](#text)
   - [Video](#video)
+- [Search](#search)
 - [How to update screenshots](#how-to-update-screenshots)
 
 ## Dirs & Files
 
-<img src="./Root%20Dir.jpg?raw=true"></img>
-<img src="./Images%20Dir.jpg?raw=true"></img>
-
-## Search
-
-<img src="./Search.jpg?raw=true"></img>
+<img src="Root%20Dir.jpg?raw=true"></img>
+<img src="Images%20Dir.jpg?raw=true"></img>
 
 ## Previews
 
 ### Image
 
-<img src="./Image%20Preview.jpg?raw=true"></img>
+<img src="Image%20Preview.jpg?raw=true"></img>
 
 ### Text
 
-<img src="./Text%20Preview.jpg?raw=true"></img>
+<img src="Text%20Preview.jpg?raw=true"></img>
 
 ### Video
 
-<img src="./Video%20Preview.jpg?raw=true"></img>
+<img src="Video%20Preview.jpg?raw=true"></img>
+
+## Search
+
+<img src="Search.jpg?raw=true"></img>
 
 ## How to update screenshots
 

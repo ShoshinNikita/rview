@@ -171,8 +171,6 @@ func generatePrefixes(path string, minLen, maxLen int) (prefixes []string) {
 }
 
 func splitToNormalizedWords(v string) (res [][]rune) {
-	v = strings.ToLower(v)
-
 	var (
 		word       []rune
 		appendWord = func() {
@@ -185,7 +183,7 @@ func splitToNormalizedWords(v string) (res [][]rune) {
 	for _, r := range v {
 		switch {
 		case unicode.IsDigit(r), unicode.IsLetter(r):
-			word = append(word, r)
+			word = append(word, unicode.ToLower(r))
 		case unicode.IsSpace(r) || r == '/' || r == '.':
 			appendWord()
 		}
