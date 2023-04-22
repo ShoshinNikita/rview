@@ -36,6 +36,8 @@ var TestDataModTimes = map[string]string{
 	"Audio/credits.txt":             "2022-08-09 00:15:38",
 	//
 	"Images/":                         "2023-01-01 18:35:00",
+	"Images/Photos/":                  "2023-01-01 18:35:00",
+	"Images/Arts/":                    "2023-01-01 18:35:00",
 	"Images/birds-g64b44607c_640.jpg": "2019-05-15 06:30:09",
 	"Images/corgi-g4ea377693_640.jpg": "2023-01-01 18:35:00",
 	"Images/credits.txt":              "2023-01-01 18:36:00",
@@ -283,6 +285,8 @@ func TestGetDirInfo(t *testing.T) {
 		r.Equal("", info.Order)
 		r.Equal(
 			[]string{
+				"Arts",
+				"Photos",
 				"birds-g64b44607c_640.jpg",
 				"corgi-g4ea377693_640.jpg",
 				"credits.txt",
@@ -304,6 +308,8 @@ func TestGetDirInfo(t *testing.T) {
 				"credits.txt",
 				"corgi-g4ea377693_640.jpg",
 				"birds-g64b44607c_640.jpg",
+				"Photos",
+				"Arts",
 			},
 			extractNames(info),
 		)
@@ -319,6 +325,8 @@ func TestGetDirInfo(t *testing.T) {
 				"horizontal.jpg",
 				"vertical.jpg",
 				"credits.txt",
+				"Photos",
+				"Arts",
 			},
 			extractNames(info),
 		)
