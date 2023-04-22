@@ -37,7 +37,7 @@ type Rclone struct {
 	rcloneTarget string
 }
 
-func NewRclone(rclonePort int, rcloneTarget string) (*Rclone, error) {
+func NewRclone(rclonePort int, rcloneTarget string, dirCacheTime time.Duration) (*Rclone, error) {
 	// Check if rclone is installed.
 	_, err := exec.LookPath("rclone")
 	if err != nil {
@@ -66,7 +66,7 @@ func NewRclone(rclonePort int, rcloneTarget string) (*Rclone, error) {
 			"http",
 			"--addr", ":"+strconv.Itoa(rclonePort),
 			"--template", f.Name(),
-			"--dir-cache-time", "1m",
+			"--dir-cache-time", dirCacheTime.String(),
 			rcloneTarget,
 		),
 		stopCmd:   cancel,

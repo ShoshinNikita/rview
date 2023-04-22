@@ -3,6 +3,7 @@ package tests
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -86,6 +87,8 @@ func TestMain(m *testing.M) {
 		ThumbnailsWorkersCount: 1,
 		//
 		DebugLogLevel: true,
+		//
+		RcloneDirCacheTime: 0,
 	}
 	APIAddr = fmt.Sprintf("http://localhost:%d", cfg.ServerPort)
 	rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.RclonePort)
@@ -378,40 +381,43 @@ func TestGetFile(t *testing.T) {
 func TestThumbnails(t *testing.T) {
 	r := require.New(t)
 
-	const (
-		testFile      = "Other/test-thumbnails/cloudy-g1a943401b_640.png"
-		generatedFile = "Other/test-thumbnails/generated.jpeg"
-	)
+	generateImage := func(name string, size int, modTimeDay int) (modTime time.Time) {
+		filepath := path.Join("testdata", name)
 
-	// Generate large image.
-	var generatedFileTime time.Time
-	func() {
-		filepath := path.Join("testdata", generatedFile)
-
-		img := image.NewRGBA(image.Rect(0, 0, 4000, 4000))
+		img := image.NewRGBA(image.Rect(0, 0, size, size))
 		f, err := os.Create(filepath)
 		r.NoError(err)
 		t.Cleanup(func() {
-			os.Remove(filepath)
+			err := os.Remove(f.Name())
+			if !errors.Is(err, os.ErrNotExist) {
+				r.NoError(err)
+			}
 		})
 
 		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 1})
 		r.NoError(err)
 
 		r.NoError(f.Close())
-		t.Cleanup(func() {
-			r.NoError(os.Remove(f.Name()))
-		})
 
-		stats, err := os.Stat(filepath)
+		modTime = time.Date(2023, time.April, modTimeDay, 0, 0, 0, 0, time.UTC)
+		err = os.Chtimes(filepath, modTime, modTime)
 		r.NoError(err)
-		generatedFileTime = stats.ModTime()
-	}()
+
+		return modTime
+	}
+
+	const (
+		testFile      = "Other/test-thumbnails/cloudy-g1a943401b_640.png"
+		generatedFile = "Other/test-thumbnails/generated.jpeg"
+	)
+
+	// Generate large image.
+	generatedFileModTime := generateImage(generatedFile, 4000, 10)
 
 	testFileTime := mustParseTime(t, TestDataModTimes[testFile])
 	testFileThumbnailURL := "/api/thumbnail/" + testFile + "?mod_time=" + strconv.Itoa(int(testFileTime.Unix()))
 
-	generatedFileThumbnailURL := "/api/thumbnail/" + generatedFile + "?mod_time=" + strconv.Itoa(int(generatedFileTime.Unix()))
+	generatedFileThumbnailURL := "/api/thumbnail/" + generatedFile + "?mod_time=" + strconv.Itoa(int(generatedFileModTime.Unix()))
 
 	// Thumbnails were not generated yet.
 	for _, url := range []string{
@@ -439,6 +445,7 @@ func TestThumbnails(t *testing.T) {
 	}
 
 	// Thumbnails must be ready.
+	var generatedFileThumbnailSize int
 	for thumbnailURL, originalFileUsed := range map[string]bool{
 		testFileThumbnailURL:      true,
 		generatedFileThumbnailURL: false,
@@ -455,7 +462,33 @@ func TestThumbnails(t *testing.T) {
 		} else {
 			r.Less(len(thumbnailBody), len(fileBody))
 		}
+
+		if thumbnailURL == generatedFileThumbnailURL {
+			generatedFileThumbnailSize = len(thumbnailBody)
+		}
 	}
+
+	time.Sleep(100 * time.Millisecond)
+
+	// We should return different thumbnail url for edited file.
+
+	generateImage(generatedFile, 1000, 11)
+
+	var newGeneratedFileThumbnailURL string
+	info = getDirInfo(t, path.Dir(testFile), "")
+	for _, entry := range info.Entries {
+		if entry.Filename == path.Base(generatedFile) {
+			newGeneratedFileThumbnailURL = entry.ThumbnailURL
+		}
+	}
+	r.NotEmpty(newGeneratedFileThumbnailURL)
+	r.NotEqual(newGeneratedFileThumbnailURL, generatedFileThumbnailURL)
+
+	time.Sleep(10 * time.Millisecond)
+
+	status, newThumbnailBody, _ := makeRequest(t, newGeneratedFileThumbnailURL)
+	r.Equal(200, status)
+	r.NotEqual(len(newThumbnailBody), generatedFileThumbnailSize)
 }
 
 func TestSearch(t *testing.T) {

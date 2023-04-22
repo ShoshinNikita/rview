@@ -192,7 +192,7 @@ func (s *Service) RefreshIndexes(ctx context.Context) (finalErr error) {
 			metrics.SearchRefreshIndexesErrors.Inc()
 			return
 		}
-		rlog.Infof("indexes were successfully refreshed in %s, entries count: %d", dur, entriesCount)
+		rlog.Infof("search indexes were successfully refreshed in %s, entries count: %d", dur, entriesCount)
 	}()
 
 	allFilenames, err := s.rclone.GetAllFiles(ctx)

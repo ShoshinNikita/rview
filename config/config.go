@@ -30,6 +30,10 @@ type Config struct {
 
 	DebugLogLevel           bool
 	ReadStaticFilesFromDisk bool
+
+	// Internal
+
+	RcloneDirCacheTime time.Duration
 }
 
 type BuildInfo struct {
@@ -82,8 +86,11 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 	}
 }
 
-func Parse() (cfg Config, err error) {
-	cfg.BuildInfo = readBuildInfo()
+func Parse() (Config, error) {
+	cfg := Config{
+		BuildInfo:          readBuildInfo(),
+		RcloneDirCacheTime: time.Minute,
+	}
 
 	var printVersion bool
 	flag.BoolVar(&printVersion, "version", false, "print version and exit")

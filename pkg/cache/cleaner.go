@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -78,7 +79,11 @@ func (c Cleaner) cleanup(now time.Time) {
 
 	allFiles, err := c.loadAllFiles()
 	if err != nil {
-		rlog.Errorf("couldn't load all files: %s", err)
+		logf := rlog.Errorf
+		if errors.Is(err, fs.ErrNotExist) {
+			logf = rlog.Warnf
+		}
+		logf("couldn't load files to clean: %s", err)
 		return
 	}
 
