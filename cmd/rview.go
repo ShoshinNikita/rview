@@ -9,7 +9,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
@@ -21,7 +20,7 @@ import (
 )
 
 type Rview struct {
-	cfg config.Config
+	cfg rview.Config
 
 	thumbnailService rview.ThumbnailService
 	thumbnailCleaner rview.CacheCleaner
@@ -33,7 +32,7 @@ type Rview struct {
 	server *web.Server
 }
 
-func NewRview(cfg config.Config) (r *Rview) {
+func NewRview(cfg rview.Config) *Rview {
 	return &Rview{
 		cfg: cfg,
 	}

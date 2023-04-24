@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/cmd"
-	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/web"
 	"github.com/stretchr/testify/require"
@@ -76,7 +75,7 @@ func TestMain(m *testing.M) {
 		panic(fmt.Errorf("couldn't create temp dir: %w", err))
 	}
 
-	cfg := config.Config{
+	cfg := rview.Config{
 		ServerPort: mustGetFreePort(),
 		Dir:        tempDir,
 		//

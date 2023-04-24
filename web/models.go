@@ -4,14 +4,13 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/rview"
 )
 
 // Directory Info.
 type (
 	DirInfo struct {
-		config.BuildInfo `json:"-"`
+		rview.BuildInfo `json:"-"`
 
 		Sort  string `json:"sort"`
 		Order string `json:"order"`

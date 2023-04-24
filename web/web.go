@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
@@ -25,7 +24,7 @@ import (
 )
 
 type Server struct {
-	cfg config.Config
+	cfg rview.Config
 
 	httpServer *http.Server
 
@@ -38,7 +37,7 @@ type Server struct {
 	templatesFS fs.FS
 }
 
-func NewServer(cfg config.Config, rclone rview.Rclone, thumbnailService rview.ThumbnailService, searchService rview.SearchService) (s *Server) {
+func NewServer(cfg rview.Config, rclone rview.Rclone, thumbnailService rview.ThumbnailService, searchService rview.SearchService) (s *Server) {
 	if cfg.ReadStaticFilesFromDisk {
 		rlog.Info("static files will be read from disk")
 	}
@@ -76,7 +75,7 @@ func NewServer(cfg config.Config, rclone rview.Rclone, thumbnailService rview.Th
 	} {
 		handler := http.FileServer(http.FS(fs))
 		if !cfg.ReadStaticFilesFromDisk {
-			handler = cacheMiddleware(30*24*time.Hour, cfg.ShortGitHash, handler)
+			handler = cacheMiddleware(30*24*time.Hour, cfg.BuildInfo.ShortGitHash, handler)
 		}
 		handler = http.StripPrefix(pattern, handler)
 		mux.Handle(pattern, handler)

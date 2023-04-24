@@ -8,19 +8,19 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/cmd"
-	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
+	"github.com/ShoshinNikita/rview/rview"
 )
 
 func main() {
-	cfg, err := config.Parse()
+	cfg, err := rview.ParseConfig()
 	if err != nil {
 		rlog.Errorf("invalid config: %s", err)
 		os.Exit(1)
 	}
 
-	config.PrintBuildInfo(cfg.BuildInfo)
-	config.PrintConfig(cfg)
+	cfg.BuildInfo.Print()
+	cfg.Print()
 
 	if cfg.DebugLogLevel {
 		rlog.EnableDebug()

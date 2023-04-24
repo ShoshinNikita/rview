@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ShoshinNikita/rview/config"
 	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/thumbnails"
@@ -20,7 +19,7 @@ func TestServer_sendGenerateThumbnailTasks(t *testing.T) {
 	r := require.New(t)
 
 	stub := newThumbnailServiceStub()
-	s := NewServer(config.Config{}, nil, stub, nil)
+	s := NewServer(rview.Config{}, nil, stub, nil)
 
 	zeroModTime := time.Unix(0, 0)
 

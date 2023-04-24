@@ -1,4 +1,4 @@
-package config
+package rview
 
 import (
 	"errors"
@@ -13,7 +13,7 @@ import (
 )
 
 type Config struct {
-	BuildInfo
+	BuildInfo BuildInfo
 
 	ServerPort int
 	Dir        string
@@ -86,7 +86,7 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 	}
 }
 
-func Parse() (Config, error) {
+func ParseConfig() (Config, error) {
 	cfg := Config{
 		BuildInfo:          readBuildInfo(),
 		RcloneDirCacheTime: time.Minute,
@@ -112,7 +112,7 @@ func Parse() (Config, error) {
 	flag.Parse()
 
 	if printVersion {
-		PrintBuildInfo(cfg.BuildInfo)
+		cfg.BuildInfo.Print()
 		os.Exit(0)
 	}
 
@@ -158,7 +158,7 @@ func readBuildInfo() BuildInfo {
 	return res
 }
 
-func PrintBuildInfo(info BuildInfo) {
+func (info BuildInfo) Print() {
 	fmt.Printf(`
      _____          _                 
     |  __ \        (_)                
@@ -178,7 +178,7 @@ func PrintBuildInfo(info BuildInfo) {
 	)
 }
 
-func PrintConfig(cfg Config) {
+func (cfg Config) Print() {
 	flags := cfg.getFlagParams()
 
 	var (
