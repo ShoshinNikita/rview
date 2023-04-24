@@ -132,7 +132,7 @@ type (
 	}
 
 	SearchHit struct {
-		Path  string  `json:"path"`
-		Score float64 `json:"score"`
+		Path  string
+		Score float64
 	}
 )

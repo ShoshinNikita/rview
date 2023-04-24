@@ -68,9 +68,9 @@ type (
 	}
 
 	SearchHit struct {
-		rview.SearchHit
-
-		WebURL string `json:"web_url"`
-		Icon   string `json:"icon"`
+		Path   string  `json:"path"`
+		Score  float64 `json:"score"`
+		WebURL string  `json:"web_url"`
+		Icon   string  `json:"icon"`
 	}
 )

@@ -517,9 +517,10 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 			}
 
 			res = append(res, SearchHit{
-				SearchHit: hit,
-				WebURL:    webURL,
-				Icon:      static.GetFileIcon(hit.Path, isDir),
+				Path:   hit.Path,
+				Score:  hit.Score,
+				WebURL: webURL,
+				Icon:   static.GetFileIcon(hit.Path, isDir),
 			})
 		}
 		return res
