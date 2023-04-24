@@ -380,11 +380,22 @@
 				console.log("search index refresh is already in progress");
 				return;
 			}
-
-			const target = ev.target;
-			target.style["cursor"] = "progress";
+			if (!confirm("You are trying to refresh search indexes. This process can take a while. Are you sure?")) {
+				return;
+			}
 
 			isSearchIndexRefreshInProgress = true;
+
+			const target = ev.target;
+
+			// Disable buttons and inputs.
+			target.style["cursor"] = "progress";
+			target.classList.add("disabled");
+			//
+			const oldSearchInputPlaceholder = searchInput.placeholder;
+			searchInput.disabled = true;
+			searchInput.placeholder = "Refreshing indexes...";
+			searchInput.style["cursor"] = "progress";
 
 			let errorText = "";
 			fetch("/api/search/refresh-indexes", {
@@ -402,7 +413,14 @@
 					errorText = `${err}`;
 				}).
 				finally(() => {
+					// Reset.
 					target.style["cursor"] = "";
+					target.classList.remove("disabled");
+					//
+					searchInput.disabled = false;
+					searchInput.placeholder = oldSearchInputPlaceholder;
+					searchInput.style["cursor"] = "";
+
 					isSearchIndexRefreshInProgress = false;
 
 					if (!errorText) {
