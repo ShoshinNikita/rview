@@ -33,7 +33,7 @@ func TestPrepareFileIcons(t *testing.T) {
 	err = json.NewDecoder(f).Decode(&old)
 	r.NoError(err)
 
-	new := FileIconsData{
+	newData := FileIconsData{
 		IconDefinitions: make(map[string]string),
 		FolderNames:     old.FolderNames,
 		FileExtensions:  old.FileExtensions,
@@ -49,14 +49,14 @@ func TestPrepareFileIcons(t *testing.T) {
 			lightIconsCount++
 			continue
 		}
-		new.IconDefinitions[iconName] = pkgPath.Base(iconPath.IconPath)
+		newData.IconDefinitions[iconName] = pkgPath.Base(iconPath.IconPath)
 	}
 
 	f, err = os.Create("material-icons/icons.json")
 	r.NoError(err)
 	defer f.Close()
 
-	err = json.NewEncoder(f).Encode(new)
+	err = json.NewEncoder(f).Encode(newData)
 	r.NoError(err)
 
 	var removedIconsCount int
@@ -69,7 +69,7 @@ func TestPrepareFileIcons(t *testing.T) {
 		}
 
 		var found bool
-		for _, fileName := range new.IconDefinitions {
+		for _, fileName := range newData.IconDefinitions {
 			if fileName == info.Name() {
 				found = true
 				break

@@ -157,7 +157,7 @@ func (s *Service) GetMinSearchLength() int {
 	return s.minPrefixLen
 }
 
-func (s *Service) Search(ctx context.Context, search string, dirLimit, fileLimit int) (dirs, files []rview.SearchHit, err error) {
+func (s *Service) Search(_ context.Context, search string, dirLimit, fileLimit int) (dirs, files []rview.SearchHit, err error) {
 	now := time.Now()
 	defer func() {
 		metrics.SearchDuration.Observe(time.Since(now).Seconds())

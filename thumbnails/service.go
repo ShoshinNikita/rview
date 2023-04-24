@@ -388,7 +388,7 @@ func (s *ThumbnailService) Shutdown(ctx context.Context) error {
 	s.stopped.Store(true)
 
 	close(s.tasksCh)
-	for range s.tasksCh {
+	for range s.tasksCh { //nolint:revive
 	}
 
 	select {

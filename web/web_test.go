@@ -67,7 +67,7 @@ func (s *thumbnailServiceStub) IsThumbnailReady(id rview.FileID) bool {
 	return id.GetName() == "resized.jpg"
 }
 
-func (s *thumbnailServiceStub) SendTask(id rview.FileID, openFileFn rview.OpenFileFn) error {
+func (s *thumbnailServiceStub) SendTask(id rview.FileID, _ rview.OpenFileFn) error {
 	s.taskCount++
 
 	if id.GetName() == "error.jpg" {

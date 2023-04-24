@@ -18,7 +18,7 @@ docker-build:
 	@ echo "Build Docker Image..."
 	@ docker build -t rview .
 
-check: build lint test build docker-build
+check: build lint test docker-build
 
 test:
 	@ echo "Run tests..."
@@ -40,4 +40,4 @@ lint:
 		-v $(shell go env GOPATH)/pkg:/go/pkg \
 		-v $(shell pwd):/app \
 		-w /app \
-		golangci/golangci-lint:v1.51-alpine golangci-lint run --config .golangci.yml
+		golangci/golangci-lint:v1.52.2-alpine golangci-lint run --config .golangci.yml
