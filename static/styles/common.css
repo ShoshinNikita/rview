@@ -93,7 +93,8 @@ a.icon-button:hover {
 	color: var(--interactive-color--accent);
 }
 
-input {
+input,
+select {
 	background-color: #00000000;
 	border: none;
 	border-bottom: 1px solid var(--border-color);
@@ -101,7 +102,13 @@ input {
 	outline: none;
 }
 
-input:focus {
+select {
+	background-color: var(--header-background-color);
+	cursor: pointer;
+}
+
+input:focus,
+select:focus {
 	border-color: var(--interactive-color--accent);
 }
 

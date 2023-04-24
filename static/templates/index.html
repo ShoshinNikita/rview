@@ -114,36 +114,17 @@
 			pointer-events: none;
 		}
 
-		.sort-menu {
-			display: flex;
-			column-gap: 10px;
-			font-size: 18px;
-		}
-
-		.sort:last-of-type {
-			padding: 0;
-		}
-
-		.sort.chosen {
+		.sort-selector-wrapper {
 			white-space: nowrap;
 		}
 
-		.sort.chosen.asc::after,
-		.sort.chosen.desc::after {
-			background-image: url("/static/icons/bar-chart.svg");
-			background-size: cover;
-			content: " ";
-			display: inline-block;
-			filter: var(--sort-order-icon-filter);
-			height: 18px;
-			position: relative;
-			transform: rotate(90deg);
-			vertical-align: text-bottom;
-			width: 18px;
+		#sort-selector {
+			padding: 5px 0;
 		}
 
-		.sort.chosen.desc::after {
-			transform: rotate(270deg) scaleY(-1);
+		label[for=sort-selector] {
+			font-size: 15px;
+			margin-right: 3px;
 		}
 
 		@media only screen and (max-width: 1000px) {
@@ -157,9 +138,8 @@
 		}
 
 		@media only screen and (max-width: 600px) {
-			.sort-menu {
-				flex-direction: column;
-				row-gap: 5px;
+			label[for=sort-selector] {
+				display: none;
 			}
 		}
 	</style>
@@ -198,33 +178,40 @@
 			<div class="search-results"></div>
 		</div>
 
-		<div class="sort-menu">
+		<div class="sort-selector-wrapper">
+			<label for="sort-selector">Sort By</label>
+
+			{{ $sort := "namedirfirst" }}
+			{{ if .Sort }}
+			{{ $sort = .Sort }}
+			{{ end }}
+
 			{{ $order := "asc" }}
-			{{ $oppositeOrder := "desc" }}
-			{{ if eq .Order "desc" }}
-			{{ $order = "desc" }}
-			{{ $oppositeOrder = "asc" }}
+			{{ if .Order }}
+			{{ $order = .Order }}
 			{{ end }}
 
-			{{ $nameSortParams := `href="?sort=namedirfirst&order=asc" class="sort" title="Sort by name asc"` }}
-			<!-- People usually want to sort files by size in the descending order. -->
-			{{ $sizeSortParams := `href="?sort=size&order=desc" class="sort" title="Sort by size desc"` }}
-			{{ $timeSortParams := `href="?sort=time&order=asc" class="sort" title="Sort by time asc"` }}
+			{{ $selectedSort := printf "%s_%s" $sort $order }}
 
-			{{ if eq .Sort "size" }}
-			{{ $sizeSortParams = printf `href="?sort=size&order=%s" class="sort chosen %s" title="Sort by size %[1]s"` $oppositeOrder $order }}
-
-			{{ else if eq .Sort "time"}}
-			{{ $timeSortParams = printf `href="?sort=time&order=%s" class="sort chosen %s" title="Sort by time %[1]s"` $oppositeOrder $order }}
-
-			{{ else }}
-			{{ $nameSortParams = printf `href="?sort=namedirfirst&order=%s" class="sort chosen %s" title="Sort by name %[1]s"` $oppositeOrder $order }}
-
-			{{ end }}
-
-			<a {{ attr $nameSortParams }}>Name</a>
-			<a {{ attr $sizeSortParams }}>Size</a>
-			<a {{ attr $timeSortParams }}>Time</a>
+			<!-- Set "selected" during template rendering to avoid flickering -->
+			<select id="sort-selector" title="Sort By">
+				{{
+					range $value, $text := (dict
+						"namedirfirst_asc"  "Name: A → Z"
+						"namedirfirst_desc" "Name: Z → A"
+						"size_asc"          "Size: Small → Large"
+						"size_desc"         "Size: Large → Small"
+						"time_asc"          "Time: Old → New"
+						"time_desc"         "Time: New → Old"
+					)
+				}}
+				{{ $selected := "" }}
+				{{ if eq $value $selectedSort }}
+				{{ $selected = "selected" }}
+				{{ end }}
+				<option value="{{ $value }}" {{ attr $selected }}>{{ $text }}</option>
+				{{ end }}
+			</select>
 		</div>
 	</div>
 
@@ -429,6 +416,21 @@
 					window.alert("Error: " + msg);
 				});
 		}
+	</script>
+
+	<!-- Sort Selector -->
+	<script>
+		const sortSelector = document.getElementById("sort-selector");
+
+		sortSelector.addEventListener("change", ev => {
+			const parts = ev.target.value.split("_");
+
+			const params = new URLSearchParams(window.location.search);
+			params.set("sort", parts[0]);
+			params.set("order", parts[1]);
+
+			window.location.search = params.toString();
+		});
 	</script>
 
 	<!-- Preview -->
