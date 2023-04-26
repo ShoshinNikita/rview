@@ -23,7 +23,6 @@
 		.header {
 			align-items: center;
 			background-color: var(--header-background-color);
-			backdrop-filter: blur(7px);
 			border-radius: 3px;
 			box-shadow: var(--header-box-shadow);
 			column-gap: 30px;
@@ -40,13 +39,6 @@
 			font-size: 20px;
 			margin: 0;
 			padding: 0;
-		}
-
-		/* backdrop-filter is disabled in Firefox by default. As a temporary solution, increase opacity */
-		@supports (-moz-appearance:none) {
-			.header {
-				background-color: var(--header-background-color--firefox);
-			}
 		}
 
 		.search {
@@ -79,8 +71,7 @@
 		}
 
 		.search-results {
-			backdrop-filter: blur(7px);
-			background-color: var(--header-background-color--firefox);
+			background-color: var(--header-background-color);
 			border: 1px solid var(--border-color);
 			box-shadow: var(--header-box-shadow);
 			display: none;
@@ -127,6 +118,19 @@
 			margin-right: 3px;
 		}
 
+		/* Fix "backdrop-filter" for Chrome. Source: https://stackoverflow.com/a/64754474 */
+		.blurred::before {
+			backdrop-filter: blur(7px);
+			-webkit-backdrop-filter: blur(7px);
+			content: '';
+			height: 100%;
+			left: 0;
+			position: absolute;
+			top: 0;
+			width: 100%;
+			z-index: -1;
+		}
+
 		@media only screen and (max-width: 1000px) {
 			.header {
 				grid-template-columns: auto min-content;
@@ -157,7 +161,7 @@
 </head>
 
 <body>
-	<div class="header">
+	<div class="header blurred">
 		<ul class="breadcrumbs">
 			{{ range .Breadcrumbs }}
 			<li class="breadcrumb">
@@ -175,7 +179,7 @@
 				{{ embedIcon "refresh-cw" }}
 			</a>
 
-			<div class="search-results"></div>
+			<div class="search-results blurred"></div>
 		</div>
 
 		<div class="sort-selector-wrapper">
