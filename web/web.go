@@ -3,6 +3,8 @@ package web
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -160,6 +162,25 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 	// significantly simplifies the development process.
 	template, err := template.New("base").
 		Funcs(template.FuncMap{
+			"prepareStaticLink": func(rawURL string) (string, error) {
+				hash := s.cfg.BuildInfo.ShortGitHash
+				if s.cfg.ReadStaticFilesFromDisk {
+					// Every time generate random hash.
+					data := make([]byte, 4)
+					rand.Read(data)
+					hash = "from-disk-" + hex.EncodeToString(data)
+				}
+
+				u, err := url.Parse(rawURL)
+				if err != nil {
+					return "", fmt.Errorf("invalid url %q: %w", rawURL, err)
+				}
+				query := u.Query()
+				query.Add("hash", hash)
+				u.RawQuery = query.Encode()
+
+				return u.String(), nil
+			},
 			"attr": func(s string) template.HTMLAttr {
 				return template.HTMLAttr(s)
 			},

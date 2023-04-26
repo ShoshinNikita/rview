@@ -6,11 +6,11 @@
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
 	<title>Rview • {{ .Dir }}</title>
 
-	<script src="/static/js/theme.js"></script>
+	<script src="{{ prepareStaticLink `/static/js/theme.js` }}"></script>
 
-	<link rel="stylesheet" href="/static/styles/common.css">
-	<link rel="stylesheet" href="/static/styles/search-results.css">
-	<link rel="stylesheet" href="/static/styles/entry.css">
+	<link rel="stylesheet" href="{{ prepareStaticLink `/static/styles/common.css` }}">
+	<link rel="stylesheet" href="{{ prepareStaticLink `/static/styles/search-results.css` }}">
+	<link rel="stylesheet" href="{{ prepareStaticLink `/static/styles/entry.css` }}">
 
 	<style>
 		.noscroll {
