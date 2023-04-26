@@ -96,6 +96,8 @@ select {
 	background-color: #00000000;
 	border: none;
 	border-bottom: 1px solid var(--border-color);
+	/* For Safari */
+	border-radius: 0;
 	color: var(--font-color);
 	outline: none;
 }

@@ -133,16 +133,28 @@
 
 		@media only screen and (max-width: 1000px) {
 			.header {
-				grid-template-columns: auto min-content;
+				column-gap: 15px;
 			}
 
 			.search {
+				width: 200px;
+			}
+
+			.search-results {
+				width: 500px;
+			}
+
+			label[for=sort-selector] {
 				display: none;
 			}
 		}
 
-		@media only screen and (max-width: 600px) {
-			label[for=sort-selector] {
+		@media only screen and (max-width: 800px) {
+			.header {
+				grid-template-columns: auto min-content;
+			}
+
+			.search {
 				display: none;
 			}
 		}
