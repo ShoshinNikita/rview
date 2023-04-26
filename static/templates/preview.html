@@ -301,7 +301,7 @@
 					"Entry" .
 					"Href" "#"
 					"Title" .Filename
-					"Onclick" (printf `updatePreview('%s'); return false` .Filename)
+					"Onclick" (printf `openPreview('%s'); return false` .Filename)
 				)
 			}}
 		</div>
@@ -371,17 +371,40 @@
 	let isPreviewOpened = false;
 	let currentFilename = null;
 	let currentIndex = null;
-	let prevScrollLeft = null;
 
-	const updatePreview = (filename) => {
-		if (currentFilename === filename) {
+	const openPreview = (filename) => {
+		const ok = _openPreview(filename);
+		if (!ok) {
+			// Just in case.
+			closePreview();
 			return;
 		}
 
-		currentIndex = entries.findIndex(v => v.filename == filename);
-		if (currentIndex === -1) {
-			currentIndex = 0;
+		isPreviewOpened = true;
+		setPreviewInQuery(filename);
+
+		document.body.classList.add("noscroll");
+		previewWrapper.classList.add("opened");
+	};
+
+	// _openPreview returns true when preview for a file with the passed name
+	// was successfully prepared. This function should be called only by "openPreview".
+	const _openPreview = (newFilename) => {
+		const newIndex = entries.findIndex(v => v.filename == newFilename);
+		if (newIndex === -1) {
+			console.warn(`can't open preview for "${newFilename}": no such file with preview`);
+			return false;
 		}
+
+		if (currentFilename === newFilename) {
+			// Everything should be already set.
+			return true;
+		}
+
+		const oldFilename = currentFilename;
+		currentFilename = newFilename;
+		currentIndex = newIndex;
+
 		const entry = entries[currentIndex];
 
 		// Scroll to the chosen file.
@@ -470,10 +493,9 @@
 		downloadButton.download = entry.filename;
 
 		// On the first open current filename is empty.
-		if (currentFilename) {
-			document.getElementById(thumbnailIDPrefix + currentFilename).classList.remove("selected");
+		if (oldFilename) {
+			document.getElementById(thumbnailIDPrefix + oldFilename).classList.remove("selected");
 		}
-		currentFilename = entry.filename;
 		document.getElementById(thumbnailIDPrefix + currentFilename).classList.add("selected");
 
 		// Hide switch preview buttons if necessary.
@@ -489,7 +511,7 @@
 			nextPreviewButton.classList.remove("hidden");
 		}
 
-		setPreviewInQuery(filename);
+		return true;
 	};
 
 	const swipePreview = (direction) => {
@@ -505,7 +527,7 @@
 			return;
 		}
 
-		updatePreview(entries[newIndex].filename);
+		openPreview(entries[newIndex].filename);
 	};
 
 	const closePreview = () => {
@@ -569,27 +591,5 @@
 		} else if (ev.key === "Escape") {
 			closePreview();
 		}
-	});
-</script>
-
-<!-- Exported API -->
-<script>
-	window.addEventListener("preview.open", ev => {
-		const filename = ev.detail.filename;
-
-		const index = entries.findIndex(v => v.filename == filename);
-		if (index === -1) {
-			console.warn(`can't open preview for "${filename}": no such file`);
-			return;
-		}
-
-		updatePreview(filename);
-
-		if (!isPreviewOpened) {
-			isPreviewOpened = true;
-		}
-
-		document.body.classList.add("noscroll");
-		previewWrapper.classList.add("opened");
 	});
 </script>

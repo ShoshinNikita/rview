@@ -457,9 +457,7 @@
 
 	<!-- Preview -->
 	<script>
-		function openPreview(filename) {
-			window.dispatchEvent(new CustomEvent("preview.open", { detail: { filename: filename } }));
-		};
+		// Function "openPreview" can be found in "preview.html".
 
 		window.addEventListener("load", () => {
 			const params = new URLSearchParams(window.location.search);
