@@ -10,7 +10,11 @@
 		</div>
 
 		{{ $title := printf `Go to "%s"` .Path }}
-		<a class="search-hit-link" href="{{ .WebURL }}" title="{{ $title }}">{{ .Path }}</a>
+		<!--
+			We hide search results on blur event. However it breaks <a href> links.
+			Prevent "blur" event with event.preventDefault() - https://stackoverflow.com/a/62849598
+		-->
+		<a class="search-hit-link" href="{{ .WebURL }}" title="{{ $title }}" onmousedown="event.preventDefault()">{{ .Path }}</a>
 		<span class="search-hit-score">score: {{ .Score }}</span>
 	</li>
 	{{ end }}
