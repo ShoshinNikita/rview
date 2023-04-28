@@ -62,7 +62,9 @@
 		}
 
 		.search-input {
-			padding: 5px 25px;
+			margin-right: 25px;
+			padding: 5px 0;
+			padding-left: 25px;
 			width: 100%;
 		}
 
@@ -79,7 +81,7 @@
 			min-height: 100px;
 			padding: 20px;
 			position: absolute;
-			right: 0;
+			right: 25px;
 			top: 150%;
 			width: 700px;
 		}
@@ -132,10 +134,6 @@
 		}
 
 		@media only screen and (max-width: 1000px) {
-			.header {
-				column-gap: 15px;
-			}
-
 			.search {
 				width: 200px;
 			}
@@ -173,45 +171,47 @@
 </head>
 
 <body>
-	<div class="header blurred">
-		<ul class="breadcrumbs">
-			{{ range .Breadcrumbs }}
-			<li class="breadcrumb">
-				<a href="{{ .Link }}" class="breadcrumb-link">{{ .Text }}</a>
-			</li>
-			{{ end }}
-		</ul>
+	<!-- Fix click events on iOS: https://stackoverflow.com/a/39712411 -->
+	<div id="app" onclick="void(0);">
+		<div class="header blurred">
+			<ul class="breadcrumbs">
+				{{ range .Breadcrumbs }}
+				<li class="breadcrumb">
+					<a href="{{ .Link }}" class="breadcrumb-link">{{ .Text }}</a>
+				</li>
+				{{ end }}
+			</ul>
 
-		<div class="search">
-			<input class="search-input" type="text" placeholder="Search for files" autocomplete="off">
-			<span class="search-icon">
-				{{ embedIcon "search" }}
-			</span>
-			<a href="#" class="icon-button search-icon right" title="Manually refresh Search Indexes" onclick="refreshSearchIndexes(event); return false">
-				{{ embedIcon "refresh-cw" }}
-			</a>
+			<div class="search">
+				<input class="search-input" type="text" placeholder="Search for files" autocomplete="off">
+				<span class="search-icon">
+					{{ embedIcon "search" }}
+				</span>
+				<a href="#" class="icon-button search-icon right" title="Manually refresh Search Indexes" onclick="refreshSearchIndexes(event); return false">
+					{{ embedIcon "refresh-cw" }}
+				</a>
 
-			<div class="search-results blurred"></div>
-		</div>
+				<div class="search-results blurred"></div>
+			</div>
 
-		<div class="sort-selector-wrapper">
-			<label for="sort-selector">Sort By</label>
+			<div class="sort-selector-wrapper">
+				<label for="sort-selector">Sort By</label>
 
-			{{ $sort := "namedirfirst" }}
-			{{ if .Sort }}
-			{{ $sort = .Sort }}
-			{{ end }}
+				{{ $sort := "namedirfirst" }}
+				{{ if .Sort }}
+				{{ $sort = .Sort }}
+				{{ end }}
 
-			{{ $order := "asc" }}
-			{{ if .Order }}
-			{{ $order = .Order }}
-			{{ end }}
+				{{ $order := "asc" }}
+				{{ if .Order }}
+				{{ $order = .Order }}
+				{{ end }}
 
-			{{ $selectedSort := printf "%s_%s" $sort $order }}
+				{{ $selectedSort := printf "%s_%s" $sort $order }}
 
-			<!-- Set "selected" during template rendering to avoid flickering -->
-			<select id="sort-selector" title="Sort By">
-				{{
+				<!-- Set "selected" during template rendering to avoid flickering -->
+				<select id="sort-selector" title="Sort By">
+					{{
 					range $value, $text := (dict
 						"namedirfirst_asc"  "Name: A → Z"
 						"namedirfirst_desc" "Name: Z → A"
@@ -221,44 +221,44 @@
 						"time_desc"         "Time: New → Old"
 					)
 				}}
-				{{ $selected := "" }}
-				{{ if eq $value $selectedSort }}
-				{{ $selected = "selected" }}
-				{{ end }}
-				<option value="{{ $value }}" {{ attr $selected }}>{{ $text }}</option>
-				{{ end }}
-			</select>
+					{{ $selected := "" }}
+					{{ if eq $value $selectedSort }}
+					{{ $selected = "selected" }}
+					{{ end }}
+					<option value="{{ $value }}" {{ attr $selected }}>{{ $text }}</option>
+					{{ end }}
+				</select>
+			</div>
 		</div>
-	</div>
 
-	<div class="files">
-		{{ range .Entries }}
+		<div class="files">
+			{{ range .Entries }}
 
-		{{ $href := .WebDirURL }}
-		{{ $target := "_self" }}
-		{{ $title := printf "Open %q" .Filename }}
-		{{ $onclick := "" }}
-		{{ $download := "" }}
+			{{ $href := .WebDirURL }}
+			{{ $target := "_self" }}
+			{{ $title := printf "Open %q" .Filename }}
+			{{ $onclick := "" }}
+			{{ $download := "" }}
 
-		{{ if not .IsDir }}
-		{{ $href = .OriginalFileURL }}
-		{{ $target = "_blank" }}
-		{{ $title = printf "%q\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
-		{{ end }}
+			{{ if not .IsDir }}
+			{{ $href = .OriginalFileURL }}
+			{{ $target = "_blank" }}
+			{{ $title = printf "%q\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
+			{{ end }}
 
-		<!-- Open preview or download -->
+			<!-- Open preview or download -->
 
-		{{ if .CanPreview }}
-		{{ $onclick = printf `openPreview('%s'); return false` .Filename }}
-		{{ $title = printf `Preview %s` $title }}
-		{{ $href = "#" }}
-		{{ $target = "" }}
-		{{ else if not .IsDir }}
-		{{ $download = .Filename }}
-		{{ $title = printf `Download %s` $title }}
-		{{ end }}
+			{{ if .CanPreview }}
+			{{ $onclick = printf `openPreview('%s'); return false` .Filename }}
+			{{ $title = printf `Preview %s` $title }}
+			{{ $href = "#" }}
+			{{ $target = "" }}
+			{{ else if not .IsDir }}
+			{{ $download = .Filename }}
+			{{ $title = printf `Download %s` $title }}
+			{{ end }}
 
-		{{
+			{{
 			template "entry.html" (dict
 				"Entry" .
 				"Href" $href
@@ -270,12 +270,13 @@
 			)
 		}}
 
-		{{ end }}
+			{{ end }}
+		</div>
+
+		{{ template "footer.html" . }}
+
+		{{ template "preview.html" . }}
 	</div>
-
-	{{ template "footer.html" . }}
-
-	{{ template "preview.html" . }}
 
 	<!-- Search -->
 	<script>
@@ -362,32 +363,41 @@
 			searchResultWindow.appendChild(div);
 		};
 
-		function onSearchInputFocus() {
+		let isSearchResultsVisible = false;
+
+		// Show search results on focus.
+		searchInput.addEventListener("focus", ev => {
+			isSearchResultsVisible = true;
 			searchResultWindow.style["display"] = "block";
-
 			search();
+		});
 
-			const onclick = (ev) => {
-				let target = ev.target;
-				let closeResultWindow = true;
-				while (target) {
-					if (target === searchResultWindow || target == searchInput) {
-						closeResultWindow = false;
-						break;
-					}
-					target = target.parentElement;
-				}
-				if (!closeResultWindow) {
-					return;
-				}
-
-				searchResultWindow.style["display"] = "";
-				window.removeEventListener("click", onclick);
-			};
-			window.addEventListener("click", onclick);
+		// Hide search results on blur or click.
+		function hideSearchResults() {
+			isSearchResultsVisible = false;
+			searchResultWindow.style["display"] = "";
 		};
+		searchInput.addEventListener("blur", ev => { hideSearchResults(); });
+		window.addEventListener("click", ev => {
+			if (!isSearchResultsVisible) {
+				return;
+			}
 
-		searchInput.addEventListener("focus", onSearchInputFocus);
+			let target = ev.target;
+			let hide = true;
+			while (target) {
+				if (target === searchResultWindow || target == searchInput) {
+					hide = false;
+					break;
+				}
+				target = target.parentElement;
+			}
+			if (hide) {
+				hideSearchResults();
+			}
+		});
+
+		// Search on input.
 		searchInput.addEventListener("input", search);
 
 		let isSearchIndexRefreshInProgress = false;

@@ -167,7 +167,10 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 				if s.cfg.ReadStaticFilesFromDisk {
 					// Every time generate random hash.
 					data := make([]byte, 4)
-					rand.Read(data)
+					_, err := rand.Read(data)
+					if err != nil {
+						return "", fmt.Errorf("couldn't read rand data: %w", err)
+					}
 					hash = "from-disk-" + hex.EncodeToString(data)
 				}
 
