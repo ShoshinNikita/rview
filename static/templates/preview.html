@@ -325,6 +325,16 @@
 
 	const thumbnailIDPrefix = "selector-thumbnail-";
 
+	// Set height of .preview-wrapper with JS as a workaround for this bug:
+	// https://bugzilla.mozilla.org/show_bug.cgi?id=1663634
+	//
+	// More about mobile browser URL bars: https://github.com/bokand/URLBarSizing.
+	(
+		new ResizeObserver(() => {
+			previewWrapper.style["height"] = `${window.innerHeight}px`;
+		})
+	).observe(document.getElementById("app"));
+
 	// All attempts to set the right height for <pre> element using CSS have failed.
 	(
 		new ResizeObserver(() => {
@@ -347,18 +357,6 @@
 			previewVideo.style["top"] = `${rect.top + rect.height / 2}px`;
 		})
 	).observe(previewContent);
-
-	// Set height of .preview-wrapper with JS as a workaround for this bug:
-	// https://bugzilla.mozilla.org/show_bug.cgi?id=1663634
-	//
-	// We can't use ResizeObserver because we want to get resize events for the window.
-	//
-	// More about mobile browser URL bars: https://github.com/bokand/URLBarSizing.
-	const changePreviewWindowHeightOnResize = () => {
-		previewWrapper.style["height"] = `${window.innerHeight}px`;
-	};
-	window.addEventListener("resize", changePreviewWindowHeightOnResize);
-	window.addEventListener("load", changePreviewWindowHeightOnResize);
 
 	const stopAnyPlayback = () => {
 		for (const v of [previewAudio, previewVideo]) {
