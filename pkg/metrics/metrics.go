@@ -158,3 +158,10 @@ var (
 		},
 	)
 )
+
+// Init values for common labels.
+func init() {
+	for _, status := range []string{"200", "400", "404", "500"} {
+		HTTPResponseStatuses.With(prometheus.Labels{"status": status}).Add(0)
+	}
+}
