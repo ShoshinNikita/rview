@@ -8,7 +8,6 @@ import (
 	"image"
 	"image/jpeg"
 	"io"
-	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,6 +15,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -25,107 +25,64 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var TestDataModTimes = map[string]string{
-	"archive.7z":      "2022-04-07 05:23:55",
-	"Lorem ipsum.txt": "2023-02-27 15:00:00",
-	"main.go":         "2022-04-07 18:23:55",
-	"test.gif":        "2023-01-01 15:00:00",
-	//
-	"Audio/":                        "2022-08-09 00:15:30",
-	"Audio/click-button-140881.mp3": "2022-08-09 00:15:30",
-	"Audio/credits.txt":             "2022-08-09 00:15:38",
-	//
-	"Images/":                         "2023-01-01 18:35:00",
-	"Images/Photos/":                  "2023-01-01 18:35:00",
-	"Images/Arts/":                    "2023-01-01 18:35:00",
-	"Images/birds-g64b44607c_640.jpg": "2019-05-15 06:30:09",
-	"Images/corgi-g4ea377693_640.jpg": "2023-01-01 18:35:00",
-	"Images/credits.txt":              "2023-01-01 18:36:00",
-	"Images/horizontal.jpg":           "2023-01-01 15:00:00",
-	"Images/vertical.jpg":             "2023-01-01 15:00:00",
-	"Images/zebra-g4e368da8d_640.jpg": "2023-01-05 16:00:37",
-	//
-	"Video/":                  "2022-09-08 11:37:02",
-	"Video/credits.txt":       "2022-09-08 11:37:12",
-	"Video/traffic-53902.mp4": "2022-09-08 11:37:02",
-	//
-	"Other/": "2022-09-08 11:37:02",
-	"Other/spe'sial ! characters/x/y/file.txt":        "2022-09-08 11:37:02",
-	"Other/test-thumbnails/cloudy-g1a943401b_640.png": "2022-09-11 18:35:04",
-	"Other/test-thumbnails/credits.txt":               "2022-09-11 18:35:04",
-}
+var (
+	rviewAPIAddr string
 
-var APIAddr string
+	testRview     *cmd.Rview
+	testRviewDone <-chan struct{}
+	testRviewOnce sync.Once
+)
 
-func TestMain(m *testing.M) {
-	for path, rawModTime := range TestDataModTimes {
-		modTime, err := time.Parse(time.DateTime, rawModTime)
+// startTestRview starts a global test rview instance via sync.Once. This function
+// doesn't accept *testing.T because we want to panic in case of an error instead
+// of calling t.Fatal.
+func startTestRview() {
+	testRviewOnce.Do(func() {
+		tempDir, err := os.MkdirTemp("", "rview-tests-*")
 		if err != nil {
-			panic(fmt.Errorf("couldn't parse testdata mod time: %w", err))
+			panic(fmt.Errorf("couldn't create temp dir: %w", err))
 		}
 
-		modTime = modTime.UTC()
-		err = os.Chtimes("testdata/"+path, modTime, modTime)
-		if err != nil {
-			panic(fmt.Errorf("couldn't change mod time of %q: %w", path, err))
+		cfg := rview.Config{
+			ServerPort: mustGetFreePort(),
+			Dir:        tempDir,
+			//
+			RcloneTarget: "./testdata",
+			RclonePort:   mustGetFreePort(),
+			//
+			Thumbnails:             true,
+			ThumbnailsWorkersCount: 1,
+			//
+			DebugLogLevel: true,
+			//
+			RcloneDirCacheTime: 0,
 		}
-	}
-	tempDir, err := os.MkdirTemp("", "rview-tests-*")
-	if err != nil {
-		panic(fmt.Errorf("couldn't create temp dir: %w", err))
-	}
+		rviewAPIAddr = fmt.Sprintf("http://localhost:%d", cfg.ServerPort)
+		rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.RclonePort)
 
-	cfg := rview.Config{
-		ServerPort: mustGetFreePort(),
-		Dir:        tempDir,
-		//
-		RcloneTarget: "./testdata",
-		RclonePort:   mustGetFreePort(),
-		//
-		Thumbnails:             true,
-		ThumbnailsWorkersCount: 1,
-		//
-		DebugLogLevel: true,
-		//
-		RcloneDirCacheTime: 0,
-	}
-	APIAddr = fmt.Sprintf("http://localhost:%d", cfg.ServerPort)
-	rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.RclonePort)
+		rview := cmd.NewRview(cfg)
+		if err := rview.Prepare(); err != nil {
+			panic(fmt.Errorf("couldn't prepare rview: %w", err))
+		}
+		testRviewDone = rview.Start(func() {
+			panic(fmt.Errorf("rview error"))
+		})
 
-	rview := cmd.NewRview(cfg)
-	if err := rview.Prepare(); err != nil {
-		panic(fmt.Errorf("couldn't prepare rview: %w", err))
-	}
-	done := rview.Start(func() {
-		panic(fmt.Errorf("rview error"))
+		// Wait for rclone to start.
+		for i := 0; i < 10; i++ {
+			if i != 0 {
+				time.Sleep(20 * time.Millisecond)
+			}
+
+			resp, err := http.DefaultClient.Get(rcloneAddr) //nolint:noctx
+			if err == nil && resp.StatusCode == 200 {
+				break
+			}
+		}
+
+		// Wait for components to be ready.
+		time.Sleep(100 * time.Millisecond)
 	})
-
-	// Wait for rclone to start.
-	for i := 0; i < 10; i++ {
-		if i != 0 {
-			time.Sleep(20 * time.Millisecond)
-		}
-
-		resp, err := http.DefaultClient.Get(rcloneAddr) //nolint:noctx
-		if err == nil && resp.StatusCode == 200 {
-			break
-		}
-	}
-
-	// Wait for components to be ready.
-	time.Sleep(100 * time.Millisecond)
-
-	code := m.Run()
-
-	err = rview.Shutdown(context.Background())
-	if err != nil {
-		code = 1
-		log.Printf("shutdown error: %s", err)
-	}
-
-	<-done
-
-	os.Exit(code)
 }
 
 func mustGetFreePort() int {
@@ -147,6 +104,8 @@ func mustGetFreePort() int {
 }
 
 func TestGetDirInfo(t *testing.T) {
+	startTestRview()
+
 	t.Run("check full info", func(t *testing.T) {
 		r := require.New(t)
 
@@ -293,11 +252,20 @@ func TestGetDirInfo(t *testing.T) {
 				"corgi-g4ea377693_640.jpg",
 				"credits.txt",
 				"horizontal.jpg",
+				"qwerty.webp",
 				"vertical.jpg",
+				"ytrewq.png",
 				"zebra-g4e368da8d_640.jpg",
 			},
 			extractNames(info),
 		)
+		var canPreviewCount int
+		for _, e := range info.Entries {
+			if e.CanPreview {
+				canPreviewCount++
+			}
+		}
+		r.Equal(8, canPreviewCount)
 
 		info = getDirInfo(t, "/Images/", "order=desc")
 		r.Equal("", info.Sort)
@@ -305,7 +273,9 @@ func TestGetDirInfo(t *testing.T) {
 		r.Equal(
 			[]string{
 				"zebra-g4e368da8d_640.jpg",
+				"ytrewq.png",
 				"vertical.jpg",
+				"qwerty.webp",
 				"horizontal.jpg",
 				"credits.txt",
 				"corgi-g4ea377693_640.jpg",
@@ -326,6 +296,8 @@ func TestGetDirInfo(t *testing.T) {
 				"birds-g64b44607c_640.jpg",
 				"horizontal.jpg",
 				"vertical.jpg",
+				"ytrewq.png",
+				"qwerty.webp",
 				"credits.txt",
 				"Photos",
 				"Arts",
@@ -346,6 +318,8 @@ func TestGetDirInfo(t *testing.T) {
 }
 
 func TestGetFile(t *testing.T) {
+	startTestRview()
+
 	r := require.New(t)
 
 	// No file.
@@ -378,6 +352,8 @@ func TestGetFile(t *testing.T) {
 }
 
 func TestThumbnails(t *testing.T) {
+	startTestRview()
+
 	r := require.New(t)
 
 	generateImage := func(name string, size int, modTimeDay int) (modTime time.Time) {
@@ -491,6 +467,8 @@ func TestThumbnails(t *testing.T) {
 }
 
 func TestSearch(t *testing.T) {
+	startTestRview()
+
 	search := func(t *testing.T, s string) (dirs, files []string) {
 		r := require.New(t)
 
@@ -555,7 +533,7 @@ func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {
 func makeRequest(t *testing.T, path string) (status int, body []byte, header http.Header) {
 	t.Helper()
 
-	req, err := http.NewRequestWithContext(context.Background(), "GET", APIAddr+path, nil)
+	req, err := http.NewRequestWithContext(context.Background(), "GET", rviewAPIAddr+path, nil)
 	require.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)

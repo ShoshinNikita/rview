@@ -59,7 +59,7 @@ type thumbnailServiceStub struct {
 
 func newThumbnailServiceStub() *thumbnailServiceStub {
 	return &thumbnailServiceStub{
-		s: thumbnails.NewThumbnailService(cache.NewInMemoryCache(), 0),
+		s: thumbnails.NewThumbnailService(cache.NewInMemoryCache(), 0, false),
 	}
 }
 

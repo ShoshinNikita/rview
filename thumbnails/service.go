@@ -24,6 +24,7 @@ const (
 	jpegImageType
 	pngImageType
 	gifImageType
+	webpImageType
 )
 
 var (
@@ -62,7 +63,12 @@ func CheckVips() error {
 	return nil
 }
 
-func NewThumbnailService(cache rview.Cache, workersCount int) *ThumbnailService {
+// NewThumbnailService prepares a new service for thumbnail generation.
+//
+// By default we generate thumbnails only for large files and use
+// the small ones as-is. It is possible to change this behavior by passing
+// generateThumbnailsForSmallFiles = true.
+func NewThumbnailService(cache rview.Cache, workersCount int, generateThumbnailsForSmallFiles bool) *ThumbnailService {
 	r := &ThumbnailService{
 		cache:                         cache,
 		resizeFn:                      resizeWithVips,
@@ -75,6 +81,9 @@ func NewThumbnailService(cache rview.Cache, workersCount int) *ThumbnailService 
 		//
 		stopped:       new(atomic.Bool),
 		workersDoneCh: make(chan struct{}),
+	}
+	if generateThumbnailsForSmallFiles {
+		r.useOriginalImageThresholdSize = 0
 	}
 
 	go r.startWorkers()
@@ -264,6 +273,8 @@ func resizeWithVips(originalFile, cacheFile string, fileID rview.FileID) error {
 		output += "[Q=80,optimize_coding,strip]"
 	case pngImageType:
 		output += "[strip]"
+	case webpImageType:
+		output += "[strip]"
 	default:
 		return errors.New("unsupported image type")
 	}
@@ -300,6 +311,8 @@ func getImageType(id rview.FileID) imageType {
 		return pngImageType
 	case ".gif":
 		return gifImageType
+	case ".webp":
+		return webpImageType
 	default:
 		return unsupportedImageType
 	}

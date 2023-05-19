@@ -1,2 +1,2 @@
-// Package tests contains integration tests
+// Package tests contains integration tests.
 package tests

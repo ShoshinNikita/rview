@@ -24,7 +24,7 @@ func TestThumbnailService(t *testing.T) {
 	cache, err := cache.NewDiskCache(tempDir)
 	r.NoError(err)
 
-	service := NewThumbnailService(cache, 2)
+	service := NewThumbnailService(cache, 2, false)
 	service.useOriginalImageThresholdSize = 10
 
 	var resizedCount int
@@ -135,7 +135,7 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 
 	now := time.Now().Unix()
 
-	canGenerate := NewThumbnailService(nil, 0).CanGenerateThumbnail
+	canGenerate := NewThumbnailService(nil, 0, false).CanGenerateThumbnail
 
 	r.True(canGenerate(rview.NewFileID("/home/users/test.png", now)))
 	r.True(canGenerate(rview.NewFileID("/home/users/test.pNg", now)))

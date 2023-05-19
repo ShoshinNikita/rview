@@ -66,7 +66,7 @@ func (r *Rview) Prepare() (err error) {
 		maxTotalFileSize := int64(r.cfg.ThumbnailsMaxTotalSizeInMB * 1 << 20)
 
 		r.thumbnailCleaner = cache.NewCleaner(thumbnailsCacheDir, maxFileAge, maxTotalFileSize)
-		r.thumbnailService = thumbnails.NewThumbnailService(thumbnailsCache, r.cfg.ThumbnailsWorkersCount)
+		r.thumbnailService = thumbnails.NewThumbnailService(thumbnailsCache, r.cfg.ThumbnailsWorkersCount, false)
 
 	} else {
 		rlog.Info("thumbnail service is disabled")
