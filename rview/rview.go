@@ -118,6 +118,7 @@ type (
 		IsThumbnailReady(FileID) bool
 		OpenThumbnail(context.Context, FileID) (io.ReadCloser, error)
 		SendTask(id FileID, openFileFn OpenFileFn) error
+		GetMimeType(id FileID) string
 		Shutdown(context.Context) error
 	}
 

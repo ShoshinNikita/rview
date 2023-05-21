@@ -248,6 +248,7 @@ func TestGetDirInfo(t *testing.T) {
 			[]string{
 				"Arts",
 				"Photos",
+				"asdfgh.heic",
 				"birds-g64b44607c_640.jpg",
 				"corgi-g4ea377693_640.jpg",
 				"credits.txt",
@@ -265,7 +266,7 @@ func TestGetDirInfo(t *testing.T) {
 				canPreviewCount++
 			}
 		}
-		r.Equal(8, canPreviewCount)
+		r.Equal(9, canPreviewCount)
 
 		info = getDirInfo(t, "/Images/", "order=desc")
 		r.Equal("", info.Sort)
@@ -280,6 +281,7 @@ func TestGetDirInfo(t *testing.T) {
 				"credits.txt",
 				"corgi-g4ea377693_640.jpg",
 				"birds-g64b44607c_640.jpg",
+				"asdfgh.heic",
 				"Photos",
 				"Arts",
 			},
@@ -296,6 +298,7 @@ func TestGetDirInfo(t *testing.T) {
 				"birds-g64b44607c_640.jpg",
 				"horizontal.jpg",
 				"vertical.jpg",
+				"asdfgh.heic",
 				"ytrewq.png",
 				"qwerty.webp",
 				"credits.txt",

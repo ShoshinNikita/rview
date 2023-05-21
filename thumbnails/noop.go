@@ -28,6 +28,10 @@ func (NoopThumbnailService) SendTask(rview.FileID, rview.OpenFileFn) error {
 	return ErrNoopThumbnailService
 }
 
+func (NoopThumbnailService) GetMimeType(rview.FileID) string {
+	return ""
+}
+
 func (NoopThumbnailService) Shutdown(context.Context) error {
 	return nil
 }

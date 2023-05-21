@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"os"
 	"os/exec"
 	"sync"
@@ -25,6 +26,7 @@ const (
 	pngImageType
 	gifImageType
 	webpImageType
+	heicImageType
 )
 
 var (
@@ -68,9 +70,12 @@ func CheckVips() error {
 // By default we generate thumbnails only for large files and use
 // the small ones as-is. It is possible to change this behavior by passing
 // generateThumbnailsForSmallFiles = true.
+//
+// For some images we can generate thumbnails of different formats. For example,
+// for .heic images we generate .jpeg thumbnails.
 func NewThumbnailService(cache rview.Cache, workersCount int, generateThumbnailsForSmallFiles bool) *ThumbnailService {
 	r := &ThumbnailService{
-		cache:                         cache,
+		cache:                         &cacheWrapper{cache},
 		resizeFn:                      resizeWithVips,
 		useOriginalImageThresholdSize: 200 << 10, // 200 KiB
 		//
@@ -193,12 +198,16 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		return stats{}, fmt.Errorf("couldn't get path of a cache file: %w", err)
 	}
 
-	saveOriginal := false ||
-		// It doesn't make much sense to resize small files.
-		originalSize < s.useOriginalImageThresholdSize ||
-		// Save the original file because vipsthumbnail can't resize gifs:
-		// https://github.com/libvips/libvips/issues/61#issuecomment-168169916
-		getImageType(task.FileID) == gifImageType
+	imageType := getImageType(task.FileID)
+
+	var saveOriginal bool
+	// It doesn't make much sense to resize small files.
+	saveOriginal = saveOriginal || originalSize < s.useOriginalImageThresholdSize
+	// Save the original file because vipsthumbnail can't resize gifs:
+	// https://github.com/libvips/libvips/issues/61#issuecomment-168169916
+	saveOriginal = saveOriginal || imageType == gifImageType
+	// We have to always generate thumbnails for .heic because most browsers don't support it.
+	saveOriginal = saveOriginal && imageType != heicImageType
 
 	if saveOriginal {
 		err := createCacheFileFromTempFile(tempFile, cacheFilepath, originalSize)
@@ -269,6 +278,9 @@ func createCacheFileFromTempFile(tempFile *os.File, cacheFilepath string, origin
 func resizeWithVips(originalFile, cacheFile string, fileID rview.FileID) error {
 	output := cacheFile
 	switch getImageType(fileID) {
+	case heicImageType:
+		// We generate .jpeg thumbnails for .heic images.
+		fallthrough
 	case jpegImageType:
 		output += "[Q=80,optimize_coding,strip]"
 	case pngImageType:
@@ -313,6 +325,8 @@ func getImageType(id rview.FileID) imageType {
 		return gifImageType
 	case ".webp":
 		return webpImageType
+	case ".heic":
+		return heicImageType
 	default:
 		return unsupportedImageType
 	}
@@ -395,6 +409,11 @@ func (s *ThumbnailService) SendTask(id rview.FileID, openFileFn rview.OpenFileFn
 	return nil
 }
 
+func (s *ThumbnailService) GetMimeType(id rview.FileID) string {
+	ext := convertToThumbnailFileID(id).GetExt()
+	return mime.TypeByExtension(ext)
+}
+
 // Shutdown drops all tasks in the queue and waits for ones that are in progress
 // with respect of the passed context.
 func (s *ThumbnailService) Shutdown(ctx context.Context) error {
@@ -409,5 +428,43 @@ func (s *ThumbnailService) Shutdown(ctx context.Context) error {
 		return ctx.Err()
 	case <-s.workersDoneCh:
 		return nil
+	}
+}
+
+// cacheWrapper converts all [rview.FileID] before passing them to [rview.Cache].
+type cacheWrapper struct {
+	c rview.Cache
+}
+
+func (c *cacheWrapper) Open(id rview.FileID) (io.ReadCloser, error) {
+	return c.c.Open(convertToThumbnailFileID(id))
+}
+
+func (c *cacheWrapper) Check(id rview.FileID) error {
+	return c.c.Check(convertToThumbnailFileID(id))
+}
+
+func (c *cacheWrapper) GetFilepath(id rview.FileID) (path string, err error) {
+	return c.c.GetFilepath(convertToThumbnailFileID(id))
+}
+
+func (c *cacheWrapper) Write(id rview.FileID, r io.Reader) (err error) {
+	return c.c.Write(convertToThumbnailFileID(id), r)
+}
+
+func (c *cacheWrapper) Remove(id rview.FileID) error {
+	return c.c.Remove(convertToThumbnailFileID(id))
+}
+
+// convertToThumbnailFileID returns a file id for working with the thumbnail cache.
+func convertToThumbnailFileID(id rview.FileID) rview.FileID {
+	switch id.GetExt() {
+	case ".heic":
+		// We generate .jpeg thumbnails for .heic images.
+		path := id.GetPath() + ".jpeg"
+		return rview.NewFileID(path, id.GetModTime().Unix())
+
+	default:
+		return id
 	}
 }

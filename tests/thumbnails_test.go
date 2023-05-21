@@ -26,10 +26,12 @@ func TestThumbnailGeneration(t *testing.T) {
 	for _, tt := range []struct {
 		imageType string
 		file      string
+		mimeType  string
 	}{
-		{imageType: "jpg", file: "Images/birds-g64b44607c_640.jpg"},
-		{imageType: "png", file: "Images/ytrewq.png"},
-		{imageType: "webp", file: "Images/qwerty.webp"},
+		{imageType: "jpg", file: "Images/birds-g64b44607c_640.jpg", mimeType: "image/jpeg"},
+		{imageType: "png", file: "Images/ytrewq.png", mimeType: "image/png"},
+		{imageType: "webp", file: "Images/qwerty.webp", mimeType: "image/webp"},
+		{imageType: "heic", file: "Images/asdfgh.heic", mimeType: "image/jpeg"}, // we should generate .jpeg thumbnails for .heic images
 	} {
 		tt := tt
 		t.Run(tt.imageType, func(t *testing.T) {
@@ -54,6 +56,9 @@ func TestThumbnailGeneration(t *testing.T) {
 			thumbnail, err := io.ReadAll(rc)
 			r.NoError(err)
 			r.NotEqual(len(thumbnail), len(originalImage), "size of thumbnail and original file should differ")
+
+			mimeType := thumbnailService.GetMimeType(fileID)
+			r.Equal(tt.mimeType, mimeType)
 		})
 	}
 }

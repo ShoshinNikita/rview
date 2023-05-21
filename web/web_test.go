@@ -80,6 +80,10 @@ func (s *thumbnailServiceStub) CanGenerateThumbnail(id rview.FileID) bool {
 	return s.s.CanGenerateThumbnail(id)
 }
 
+func (s *thumbnailServiceStub) GetMimeType(id rview.FileID) string {
+	return s.s.GetMimeType(id)
+}
+
 func (s *thumbnailServiceStub) OpenThumbnail(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
 	return s.s.OpenThumbnail(ctx, id)
 }

@@ -485,7 +485,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rc.Close()
 
-	contentType := mime.TypeByExtension(fileID.GetExt())
+	contentType := s.thumbnailService.GetMimeType(fileID)
 	if contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
