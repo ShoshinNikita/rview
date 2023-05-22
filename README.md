@@ -1,9 +1,9 @@
 # `Rview` - web-based UI for Rclone
 
 <p align="center">
-  <img src="docs/screenshots/Images%20Dir.jpg?raw=true" width="90%">
+  <img src="docs/screenshots/Images%20Dir.jpg" width="90%">
   <br>
-  <i> More screenshots <a href="/docs/screenshots/">here</a> </i>
+  <i> More screenshots <a href="./docs/Screenshots.md">here</a> </i>
 </p>
 
 ***
