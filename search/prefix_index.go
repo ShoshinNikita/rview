@@ -1,8 +1,10 @@
 package search
 
 import (
+	"encoding/json"
 	"fmt"
 	"math"
+	"regexp"
 	"sort"
 	"strings"
 	"unicode"
@@ -15,6 +17,8 @@ type prefixIndex struct {
 	MaxPrefixLen int                 `json:"max_prefix_len"`
 	Paths        map[uint64]string   `json:"paths"`
 	Prefixes     map[string][]uint64 `json:"prefixes"`
+
+	lowerCasedPaths map[uint64]string
 }
 
 func newPrefixIndex(rawPaths []string, minPrefixLen, maxPrefixLen int) *prefixIndex {
@@ -37,11 +41,35 @@ func newPrefixIndex(rawPaths []string, minPrefixLen, maxPrefixLen int) *prefixIn
 		prefixes[prefix] = ids
 	}
 
-	return &prefixIndex{
+	index := &prefixIndex{
 		MinPrefixLen: minPrefixLen,
 		MaxPrefixLen: maxPrefixLen,
 		Paths:        paths,
 		Prefixes:     prefixes,
+	}
+	index.prepare()
+
+	return index
+}
+
+func (index *prefixIndex) UnmarshalJSON(data []byte) error {
+	type tmpType prefixIndex
+
+	var tmp tmpType
+	err := json.Unmarshal(data, &tmp)
+	if err != nil {
+		return err
+	}
+
+	*index = prefixIndex(tmp)
+	index.prepare()
+	return nil
+}
+
+func (index *prefixIndex) prepare() {
+	index.lowerCasedPaths = make(map[uint64]string)
+	for id, path := range index.Paths {
+		index.lowerCasedPaths[id] = strings.ToLower(path)
 	}
 }
 
@@ -56,54 +84,90 @@ func (index *prefixIndex) Check(wantMin, wantMax int) error {
 	return nil
 }
 
-func (index *prefixIndex) Search(search string, limit int) (hits []rview.SearchHit) {
-	// Check whether we should search for the exact match.
-	if strings.Count(search, `"`) == 2 && strings.HasPrefix(search, `"`) && strings.HasSuffix(search, `"`) {
-		// Trim leading and trailing '"'.
-		search := search[1 : len(search)-1]
-		hits = index.searchExact(search)
+type searchHit struct {
+	id             uint64
+	lowerCasedPath string
+	score          float64
+}
 
-	} else {
-		hits = index.search(search)
+func filterHits(hits []searchHit, f func(searchHit) bool) (res []searchHit) {
+	for _, h := range hits {
+		if f(h) {
+			res = append(res, h)
+		}
+	}
+	return res
+}
+
+func (index *prefixIndex) Search(search string, limit int) []rview.SearchHit {
+	req := newSearchRequest(search)
+	if len(req.words) == 0 && len(req.exactMatches) == 0 && len(req.toExclude) == 0 {
+		// Just in case
+		return nil
 	}
 
-	sort.Slice(hits, func(i, j int) bool {
-		a := hits[i]
-		b := hits[j]
+	var hits []searchHit
+	if len(req.words) > 0 {
+		hits = index.searchByPrefixes(req.words)
+
+	} else {
+		// Only exact matches, only excludes, or both - have to check all paths.
+		for id := range index.Paths {
+			hits = append(hits, index.newSearchHit(id, math.Inf(1)))
+		}
+	}
+
+	// Filter by exact matches.
+	if len(req.exactMatches) > 0 {
+		hits = filterHits(hits, func(h searchHit) bool {
+			for _, exact := range req.exactMatches {
+				if !strings.Contains(h.lowerCasedPath, exact) {
+					return false
+				}
+			}
+			return true
+		})
+	}
+
+	// Filter by excludes.
+	if len(req.toExclude) > 0 {
+		hits = filterHits(hits, func(h searchHit) bool {
+			for _, word := range req.toExclude {
+				if strings.Contains(h.lowerCasedPath, word) {
+					return false
+				}
+			}
+			return true
+		})
+	}
+
+	res := make([]rview.SearchHit, 0, len(hits))
+	for _, h := range hits {
+		res = append(res, rview.SearchHit{
+			Path:  index.Paths[h.id],
+			Score: h.score,
+		})
+	}
+
+	sort.Slice(res, func(i, j int) bool {
+		a := res[i]
+		b := res[j]
 		if a.Score == b.Score {
 			return a.Path < b.Path
 		}
 		return a.Score > b.Score
 	})
 
-	if len(hits) > limit {
-		hits = hits[:limit]
+	if len(res) > limit {
+		res = res[:limit]
 	}
 
-	return hits
-}
-
-// searchExact searches for exact matches.
-func (index *prefixIndex) searchExact(search string) []rview.SearchHit {
-	search = strings.ToLower(search)
-
-	var res []rview.SearchHit
-	for _, path := range index.Paths {
-		if strings.Contains(strings.ToLower(path), search) {
-			res = append(res, rview.SearchHit{
-				Path:  path,
-				Score: math.Inf(1),
-			})
-		}
-	}
 	return res
 }
 
-// search searches for prefix matches. If passed "search" contains multiple words,
+// searchByPrefixes searches for prefix matches. If passed "search" contains multiple words,
 // only results that matched all these words will be returned.
-func (index *prefixIndex) search(search string) []rview.SearchHit {
-	words := splitToNormalizedWords(search)
-
+func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 	var (
 		matchCounts        = make(map[uint64]int)
 		matchesForAllWords = make(map[uint64]bool)
@@ -144,17 +208,19 @@ func (index *prefixIndex) search(search string) []rview.SearchHit {
 		}
 	}
 
-	hits := make([]rview.SearchHit, 0, len(matchesForAllWords))
+	hits := make([]searchHit, 0, len(matchesForAllWords))
 	for id := range matchesForAllWords {
-		path := index.Paths[id]
-		count := matchCounts[id]
-
-		hits = append(hits, rview.SearchHit{
-			Path:  path,
-			Score: float64(count),
-		})
+		hits = append(hits, index.newSearchHit(id, float64(matchCounts[id])))
 	}
 	return hits
+}
+
+func (index *prefixIndex) newSearchHit(id uint64, score float64) searchHit {
+	return searchHit{
+		id:             id,
+		lowerCasedPath: index.lowerCasedPaths[id],
+		score:          score,
+	}
 }
 
 func generatePrefixes(path string, minLen, maxLen int) (prefixes []string) {
@@ -168,6 +234,49 @@ func generatePrefixes(path string, minLen, maxLen int) (prefixes []string) {
 		}
 	}
 	return prefixes
+}
+
+type searchRequest struct {
+	words        [][]rune
+	exactMatches []string
+	toExclude    []string
+
+	searchForWords string // only for testing
+}
+
+var (
+	toExcludeRegexp    = regexp.MustCompile(`-"(.+?)"`)
+	exactMatchesRegexp = regexp.MustCompile(`"(.+?)"`)
+)
+
+func newSearchRequest(search string) (req searchRequest) {
+	search = strings.ToLower(search)
+
+	req.toExclude, search = extractSearchTokens(toExcludeRegexp, search)
+	req.exactMatches, search = extractSearchTokens(exactMatchesRegexp, search)
+
+	req.searchForWords = search
+	req.words = splitToNormalizedWords(search)
+
+	return req
+}
+
+func extractSearchTokens(r *regexp.Regexp, search string) (res []string, newSearch string) {
+	matches := r.FindAllStringSubmatch(search, -1)
+	if len(matches) == 0 {
+		return nil, search
+	}
+	for _, match := range matches {
+		if len(match) != 2 {
+			panic(fmt.Errorf("invalid number of matches: %v", match))
+		}
+		res = append(res, match[1])
+	}
+
+	newSearch = r.ReplaceAllString(search, "")
+	newSearch = strings.TrimSpace(newSearch)
+
+	return res, newSearch
 }
 
 func splitToNormalizedWords(v string) (res [][]rune) {

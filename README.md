@@ -24,8 +24,7 @@
 - :framed_picture: **Automatic thumbnail generation**: You don't have to download hundreds of MiBs to preview your photos.
   Image thumbnails are generated with the help of [libvips](https://github.com/libvips/libvips), an extremely
   fast image processing library.
-- :mag: **Search**: You can search for files by name. **Rview** supports two types of search: fuzzy search and exact
-  search (just use double quotes).
+- :mag: **Search**: You can search for files by name. Search tips can be found [here](./docs/Search.md).
 - :iphone: **Responsive**: UI is designed to be responsive, which means you can browse you files on both desktop
   and mobile.
 - :feather: **Lightweight & minimalistic**: All pages are rendered on the server side using Go templates. JavaScript

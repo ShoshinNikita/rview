@@ -1,10 +1,12 @@
 package search
 
 import (
+	"encoding/json"
 	"math"
 	"testing"
 
 	"github.com/ShoshinNikita/rview/rview"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -66,6 +68,21 @@ func TestPrefixIndex(t *testing.T) {
 		},
 		index.Prefixes,
 	)
+
+	// Test Marshal/Unmarshal first to check that it doesn't affect search.
+	t.Run("unmarshal", func(t *testing.T) {
+		r := require.New(t)
+
+		rawIndex, err := json.Marshal(index)
+		r.NoError(err)
+
+		index = nil
+
+		err = json.Unmarshal(rawIndex, &index)
+		r.NoError(err)
+
+		r.NotEmpty(index.lowerCasedPaths)
+	})
 
 	t.Run("basic search", func(t *testing.T) {
 		r := require.New(t)
@@ -134,5 +151,131 @@ func TestPrefixIndex(t *testing.T) {
 			},
 			hits,
 		)
+
+		hits = index.Search(`"games"`, 5)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
+				{Path: "games/hi-fi rush/2.jpg", Score: math.Inf(1)},
+				{Path: "games/starfield/", Score: math.Inf(1)},
+			},
+			hits,
+		)
+
+		hits = index.Search(`"games" "jpg"`, 5)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
+				{Path: "games/hi-fi rush/2.jpg", Score: math.Inf(1)},
+			},
+			hits,
+		)
+
+		hits = index.Search(`"games" "jpg" "1"`, 5)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
+			},
+			hits,
+		)
+
+		hits = index.Search(`"games" "jpg" "1" "2"`, 5)
+		r.Empty(hits)
 	})
+
+	t.Run("exclude", func(t *testing.T) {
+		r := require.New(t)
+
+		hits := index.Search(`games -"hi-fi"`, 5)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "games/starfield/", Score: 3},
+				{Path: "gaming/", Score: 1},
+			},
+			hits,
+		)
+
+		hits = index.Search(`games -"hi-fi" -"gaming"`, 5)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "games/starfield/", Score: 3},
+			},
+			hits,
+		)
+
+		hits = index.Search(`"games" -"starfield"`, 5)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
+				{Path: "games/hi-fi rush/2.jpg", Score: math.Inf(1)},
+			},
+			hits,
+		)
+
+		hits = index.Search(`-"games" -"gaming" -"лето"`, 5)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "hello !&a! world.go", Score: math.Inf(1)},
+			},
+			hits,
+		)
+	})
+}
+
+func TestNewSearchRequest(t *testing.T) {
+	for _, tt := range []struct {
+		search string
+		want   searchRequest
+	}{
+		{
+			search: `nothi--n"g to -exclude`,
+			want: searchRequest{
+				searchForWords: `nothi--n"g to -exclude`,
+			},
+		},
+		{
+			search: `hello dear -"word-abc" -""`,
+			want: searchRequest{
+				toExclude:      []string{"word-abc"},
+				searchForWords: `hello dear  -""`,
+			},
+		},
+		{
+			search: `-"test!&some--/characters" -"animal park"`,
+			want: searchRequest{
+				toExclude:      []string{"test!&some--/characters", "animal park"},
+				searchForWords: "",
+			},
+		},
+		{
+			search: `"exact" "match"`,
+			want: searchRequest{
+				exactMatches:   []string{"exact", "match"},
+				searchForWords: "",
+			},
+		},
+		{
+			search: `-"first" test -"second" abc "third" qwerty`,
+			want: searchRequest{
+				toExclude:      []string{"first", "second"},
+				exactMatches:   []string{"third"},
+				searchForWords: "test  abc  qwerty",
+			},
+		},
+		{
+			search: `-"inside-"""`,
+			want: searchRequest{
+				toExclude:      []string{"inside-"},
+				searchForWords: `""`,
+			},
+		},
+	} {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			got := newSearchRequest(tt.search)
+			got.words = nil // too tiresome to test
+
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }
