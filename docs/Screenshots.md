@@ -10,26 +10,26 @@
 
 ## Dirs & Files
 
-<img src="screenshots/Root%20Dir.jpg"></img>
-<img src="screenshots/Images%20Dir.jpg"></img>
+<img src="screenshots/dir_root.jpg"></img>
+<img src="screenshots/dir_images.jpg"></img>
 
 ## Previews
 
 ### Image
 
-<img src="screenshots/Image%20Preview.jpg"></img>
+<img src="screenshots/preview_image.jpg"></img>
 
 ### Text
 
-<img src="screenshots/Text%20Preview.jpg"></img>
+<img src="screenshots/preview_text.jpg"></img>
 
 ### Video
 
-<img src="screenshots/Video%20Preview.jpg"></img>
+<img src="screenshots/preview_video.jpg"></img>
 
 ## Search
 
-<img src="screenshots/Search.jpg"></img>
+<img src="screenshots/search.jpg"></img>
 
 ## How to update screenshots
 
