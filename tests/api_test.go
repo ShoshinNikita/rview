@@ -124,7 +124,7 @@ func TestGetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2022-08-09 00:15:30 UTC",
 						DirURL:               "/api/dir/Audio/",
 						WebDirURL:            "/ui/Audio/",
-						IconName:             "folder-audio.svg",
+						IconName:             "folder",
 					},
 					{
 						Filename:             "Images",
@@ -133,7 +133,7 @@ func TestGetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2023-01-01 18:35:00 UTC",
 						DirURL:               "/api/dir/Images/",
 						WebDirURL:            "/ui/Images/",
-						IconName:             "folder-images.svg",
+						IconName:             "folder",
 					},
 					{
 						Filename:             "Other",
@@ -142,7 +142,7 @@ func TestGetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						DirURL:               "/api/dir/Other/",
 						WebDirURL:            "/ui/Other/",
-						IconName:             "folder-other.svg",
+						IconName:             "folder",
 					},
 					{
 						Filename:             "Video",
@@ -151,7 +151,7 @@ func TestGetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						DirURL:               "/api/dir/Video/",
 						WebDirURL:            "/ui/Video/",
-						IconName:             "folder-video.svg",
+						IconName:             "folder",
 					},
 					{
 						Filename:             "archive.7z",
@@ -162,7 +162,7 @@ func TestGetDirInfo(t *testing.T) {
 						FileType:             rview.FileTypeUnknown,
 						CanPreview:           false,
 						OriginalFileURL:      "/api/file/archive.7z?mod_time=1649309035",
-						IconName:             "zip.svg",
+						IconName:             "zip",
 					},
 					{
 						Filename:             "Lorem ipsum.txt",
@@ -173,7 +173,7 @@ func TestGetDirInfo(t *testing.T) {
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
 						OriginalFileURL:      "/api/file/Lorem%20ipsum.txt?mod_time=1677510000",
-						IconName:             "document.svg",
+						IconName:             "document",
 					},
 					{
 						Filename:             "main.go",
@@ -184,7 +184,7 @@ func TestGetDirInfo(t *testing.T) {
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
 						OriginalFileURL:      "/api/file/main.go?mod_time=1649355835",
-						IconName:             "go.svg",
+						IconName:             "document",
 					},
 					{
 						Filename:             "test.gif",
@@ -196,7 +196,7 @@ func TestGetDirInfo(t *testing.T) {
 						CanPreview:           true,
 						OriginalFileURL:      "/api/file/test.gif?mod_time=1672585200",
 						ThumbnailURL:         "/api/thumbnail/test.gif?mod_time=1672585200",
-						IconName:             "image.svg",
+						IconName:             "image",
 					},
 				},
 			},
@@ -224,7 +224,7 @@ func TestGetDirInfo(t *testing.T) {
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
 						OriginalFileURL:      "/api/file/Other/spe%27sial%20%21%20characters/x/y/file.txt?mod_time=1662637022",
-						IconName:             "document.svg",
+						IconName:             "document",
 					},
 				},
 			},

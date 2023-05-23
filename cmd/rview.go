@@ -14,7 +14,6 @@ import (
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/search"
-	"github.com/ShoshinNikita/rview/static"
 	"github.com/ShoshinNikita/rview/thumbnails"
 	"github.com/ShoshinNikita/rview/web"
 )
@@ -39,10 +38,6 @@ func NewRview(cfg rview.Config) *Rview {
 }
 
 func (r *Rview) Prepare() (err error) {
-	if err := static.Prepare(); err != nil {
-		return fmt.Errorf("couldn't prepare icons: %w", err)
-	}
-
 	// Note: service cache doesn't need any cleanups.
 	serviceCache, err := cache.NewDiskCache(filepath.Join(r.cfg.Dir, "rview"))
 	if err != nil {

@@ -3,11 +3,9 @@ package static
 
 import (
 	"embed"
-	"encoding/json"
-	"fmt"
 	"io/fs"
-	"path"
-	"strings"
+
+	"github.com/ShoshinNikita/rview/rview"
 )
 
 //go:embed rclone.gotmpl
@@ -41,65 +39,69 @@ func NewIconsFS(readFromDisk bool) fs.FS {
 	return newFS(iconsFS, "feathericons/icons", readFromDisk)
 }
 
-var (
-	//go:embed material-icons/icons
-	fileIconsFS embed.FS
-
-	//go:embed material-icons/icons.json
-	rawFileIconsData []byte
-)
+//go:embed material-icons/icons
+var fileIconsFS embed.FS
 
 func NewFileIconsFS(readFromDisk bool) fs.FS {
 	return newFS(fileIconsFS, "material-icons/icons", readFromDisk)
 }
 
-type FileIconsData struct {
-	ready bool
+const (
+	defaultFileIcon   = "file"
+	defaultFolderIcon = "folder"
+)
 
-	IconDefinitions map[string]string `json:"icon_definitions"`
-	FolderNames     map[string]string `json:"folder_names"`
-	FileExtensions  map[string]string `json:"file_extensions"`
-	FileNames       map[string]string `json:"file_names"`
-}
-
-var fileIconsData FileIconsData
-
-func Prepare() error {
-	err := json.Unmarshal(rawFileIconsData, &fileIconsData)
-	if err != nil {
-		return fmt.Errorf("couldn't unmarshal material icons info: %w", err)
+var (
+	fileIconsByFileType = map[rview.FileType]string{
+		rview.FileTypeImage: "image",
+		rview.FileTypeAudio: "audio",
+		rview.FileTypeVideo: "video",
+		rview.FileTypeText:  "document",
 	}
-	fileIconsData.ready = true
 
-	return nil
+	extensionsByFileIcons = map[string][]string{
+		"console":    {".sh", ".zsh", ".bash", ".bat", ".cmd"},
+		"disc":       {".iso"},
+		"exe":        {".exe", ".msi"},
+		"json":       {".json", ".jsonc", ".json5"},
+		"pdf":        {".pdf"},
+		"powerpoint": {".odp", ".potm", ".potx", ".ppa", ".ppam", ".pps", ".ppsm", ".ppsx", ".ppt", ".pptm", ".pptx"},
+		"table":      {".csv", ".ods", ".psv", ".tsv", ".xls", ".xlsm", ".xlsx"},
+		"word":       {".doc", ".docx", ".odt", ".rtf"},
+		"xml":        {".xml"},
+		"yaml":       {".yml", ".yaml"},
+		"zip":        {".7z", ".gz", ".gzip", ".rar", ".tar", ".tgz", ".tz", ".zip"},
+	}
+
+	fileIconsByExtension map[string]string
+)
+
+func init() {
+	fileIconsByExtension = make(map[string]string)
+	for icon, exts := range extensionsByFileIcons {
+		for _, ext := range exts {
+			fileIconsByExtension[ext] = icon
+		}
+	}
 }
 
 func GetFileIcon(filename string, isDir bool) string {
-	const (
-		defaultFileIconName   = "file"
-		defaultFolderIconName = "folder"
-	)
-
-	if !fileIconsData.ready {
-		panic("icons are not prepared")
-	}
-
-	filename = strings.ToLower(path.Base(filename))
 	if isDir {
-		iconName, ok := fileIconsData.FolderNames[filename]
-		if !ok {
-			iconName = defaultFolderIconName
-		}
-		return fileIconsData.IconDefinitions[iconName]
+		return defaultFolderIcon
 	}
 
-	iconName, ok := fileIconsData.FileNames[filename]
-	if !ok {
-		ext := strings.TrimPrefix(path.Ext(filename), ".")
-		iconName, ok = fileIconsData.FileExtensions[ext]
-		if !ok {
-			iconName = defaultFileIconName
-		}
+	fileID := rview.NewFileID(filename, 0)
+
+	// Icons by extensions have higher priority.
+	icon, ok := fileIconsByExtension[fileID.GetExt()]
+	if ok {
+		return icon
 	}
-	return fileIconsData.IconDefinitions[iconName]
+
+	icon, ok = fileIconsByFileType[rview.GetFileType(fileID)]
+	if ok {
+		return icon
+	}
+
+	return defaultFileIcon
 }

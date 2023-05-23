@@ -1,68 +1,70 @@
 package static
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
-func TestData(t *testing.T) {
-	err := Prepare()
-	require.NoError(t, err)
-
-	checkIcon := func(m map[string]string) {
-		for _, iconName := range m {
-			_, ok := fileIconsData.IconDefinitions[iconName]
-			if !ok {
-				t.Errorf("icon %q is not found", iconName)
-			}
-		}
+func TestEmbeddedFileIcons(t *testing.T) {
+	allIcons := map[string]struct{}{
+		defaultFileIcon:   {},
+		defaultFolderIcon: {},
 	}
-	checkIcon(fileIconsData.FolderNames)
-	checkIcon(fileIconsData.FileExtensions)
-	checkIcon(fileIconsData.FileNames)
+	for _, icon := range fileIconsByFileType {
+		allIcons[icon] = struct{}{}
+	}
+	for ext, icon := range fileIconsByExtension {
+		if !strings.HasPrefix(ext, ".") {
+			t.Errorf("extension %q must have leading dot", ext)
+		}
+		allIcons[icon] = struct{}{}
+	}
 
 	fs := NewFileIconsFS(false)
-	for _, iconPath := range fileIconsData.IconDefinitions {
-		f, err := fs.Open(iconPath)
+	for icon := range allIcons {
+		f, err := fs.Open(icon + ".svg")
 		if err != nil {
-			t.Errorf("couldn't open icon %q", iconPath)
+			t.Errorf("couldn't open icon %q", icon)
+		} else {
+			f.Close()
 		}
-		f.Close()
 	}
 }
 
 func TestGetFileIcon(t *testing.T) {
-	err := Prepare()
-	require.NoError(t, err)
-
 	t.Run("files", func(t *testing.T) {
 		for filename, wantIconPath := range map[string]string{
-			"x.jpeg":       "image.svg",
-			"x.png":        "image.svg",
-			"x.mp3":        "audio.svg",
-			"x.sql":        "database.svg",
-			"main_test.go": "go.svg",
-			// No custom icons
-			"x.js": "file.svg",
-			"x.ts": "file.svg",
+			"x.jpeg":       "image",
+			"x.png":        "image",
+			"x.mp3":        "audio",
+			"x.mp4":        "video",
+			"x.sql":        "document",
+			"x.7z":         "zip",
+			"x.exe":        "exe",
+			"x.pdf":        "pdf",
+			"main_test.go": "document",
+			"x.js":         "document",
+			"x.json":       "json",
+			"x.qwerty":     "file",
+			"0451":         "file",
 		} {
-			require.Equal(t, wantIconPath, GetFileIcon(filename, false))
+			require.Equal(t, wantIconPath, GetFileIcon(filename, false), filename)
 		}
 	})
 
 	t.Run("folders", func(t *testing.T) {
 		for filename, wantIconPath := range map[string]string{
-			"tests":   "folder-test.svg",
-			"src":     "folder-src.svg",
-			"scripts": "folder-scripts.svg",
-			"data":    "folder-database.svg",
-			"Docs":    "folder-docs.svg",
-			// No custom icons
-			"dir": "folder.svg",
-			"ui":  "folder.svg",
+			"tests":   "folder",
+			"src":     "folder",
+			"scripts": "folder",
+			"data":    "folder",
+			"Docs":    "folder",
+			"dir":     "folder",
+			"ui":      "folder",
 		} {
-			require.Equal(t, wantIconPath, GetFileIcon(filename, true))
+			require.Equal(t, wantIconPath, GetFileIcon(filename, true), filename)
 		}
 	})
 }
