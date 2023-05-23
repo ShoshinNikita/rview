@@ -439,7 +439,7 @@
 			case "text":
 				previewText.style["display"] = "block";
 
-				if (entry.size > 1 << 20) {
+				if (entry.size > 3 << 20) {
 					previewText.innerHTML = `* File is too big to preview: ${entry.human_readable_size}`;
 					break;
 				}
