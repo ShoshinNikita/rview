@@ -162,6 +162,9 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 	// significantly simplifies the development process.
 	template, err := template.New("base").
 		Funcs(template.FuncMap{
+			"add": func(a, b int) int {
+				return a + b
+			},
 			"prepareStaticLink": func(rawURL string) (string, error) {
 				hash := s.cfg.BuildInfo.ShortGitHash
 				if s.cfg.ReadStaticFilesFromDisk {

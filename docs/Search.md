@@ -7,7 +7,7 @@ of various length for these words.
 But sometimes you need more advanced tools to get relevant results. Fortunately, `Rview`
 has something to offer:
 
-- `"<exact match>"`: Double quotes allows to search for exact matches.
+- `"<exact match>"`: Double quotes allow to search for exact matches.
 - `-"<exclude>"`: The minus before double quotes allows to exclude results
   that match the content inside these double quotes.
 
