@@ -19,9 +19,7 @@ func TestThumbnailService(t *testing.T) {
 
 	r := require.New(t)
 
-	tempDir, err := os.MkdirTemp("", "rview-test-*")
-	r.NoError(err)
-	cache, err := cache.NewDiskCache(tempDir)
+	cache, err := cache.NewDiskCache(t.TempDir())
 	r.NoError(err)
 
 	service := NewThumbnailService(cache, 2, false)

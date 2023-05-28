@@ -60,11 +60,11 @@ func startTestRview() {
 		rviewAPIAddr = fmt.Sprintf("http://localhost:%d", cfg.ServerPort)
 		rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.RclonePort)
 
-		rview := cmd.NewRview(cfg)
-		if err := rview.Prepare(); err != nil {
+		testRview = cmd.NewRview(cfg)
+		if err := testRview.Prepare(); err != nil {
 			panic(fmt.Errorf("couldn't prepare rview: %w", err))
 		}
-		testRviewDone = rview.Start(func() {
+		testRviewDone = testRview.Start(func() {
 			panic(fmt.Errorf("rview error"))
 		})
 
@@ -103,7 +103,7 @@ func mustGetFreePort() int {
 	return port
 }
 
-func TestGetDirInfo(t *testing.T) {
+func TestAPI_GetDirInfo(t *testing.T) {
 	startTestRview()
 
 	t.Run("check full info", func(t *testing.T) {
@@ -320,7 +320,7 @@ func TestGetDirInfo(t *testing.T) {
 	})
 }
 
-func TestGetFile(t *testing.T) {
+func TestAPI_GetFile(t *testing.T) {
 	startTestRview()
 
 	r := require.New(t)
@@ -354,15 +354,22 @@ func TestGetFile(t *testing.T) {
 	r.Equal("audio/mpeg", headers.Get("Content-Type"))
 }
 
-func TestThumbnails(t *testing.T) {
+func TestAPI_Thumbnails(t *testing.T) {
 	startTestRview()
 
 	r := require.New(t)
 
-	generateImage := func(name string, size int, modTimeDay int) (modTime time.Time) {
+	generateImage := func(name string, size int, modTimeMonth time.Month) (modTime time.Time) {
 		filepath := path.Join("testdata", name)
 
+		// Generate an image with a pattern to make the final file bigger.
 		img := image.NewRGBA(image.Rect(0, 0, size, size))
+		for i := 0; i < size; i += 3 {
+			for j := 0; j < size; j += 3 {
+				img.Set(i, j, image.White)
+			}
+		}
+
 		f, err := os.Create(filepath)
 		r.NoError(err)
 		t.Cleanup(func() {
@@ -372,12 +379,12 @@ func TestThumbnails(t *testing.T) {
 			}
 		})
 
-		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 1})
+		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 95})
 		r.NoError(err)
 
 		r.NoError(f.Close())
 
-		modTime = time.Date(2023, time.April, modTimeDay, 0, 0, 0, 0, time.UTC)
+		modTime = time.Date(2023, modTimeMonth, 11, 0, 0, 0, 0, time.UTC)
 		err = os.Chtimes(filepath, modTime, modTime)
 		r.NoError(err)
 
@@ -390,7 +397,7 @@ func TestThumbnails(t *testing.T) {
 	)
 
 	// Generate large image.
-	generatedFileModTime := generateImage(generatedFile, 4000, 10)
+	generatedFileModTime := generateImage(generatedFile, 500, time.March)
 
 	testFileTime := mustParseTime(t, TestDataModTimes[testFile])
 	testFileThumbnailURL := "/api/thumbnail/" + testFile + "?mod_time=" + strconv.Itoa(int(testFileTime.Unix()))
@@ -446,11 +453,9 @@ func TestThumbnails(t *testing.T) {
 		}
 	}
 
-	time.Sleep(100 * time.Millisecond)
-
 	// We should return different thumbnail url for edited file.
 
-	generateImage(generatedFile, 1000, 11)
+	generateImage(generatedFile, 499, time.April)
 
 	var newGeneratedFileThumbnailURL string
 	info = getDirInfo(t, path.Dir(testFile), "")
@@ -462,14 +467,12 @@ func TestThumbnails(t *testing.T) {
 	r.NotEmpty(newGeneratedFileThumbnailURL)
 	r.NotEqual(newGeneratedFileThumbnailURL, generatedFileThumbnailURL)
 
-	time.Sleep(10 * time.Millisecond)
-
 	status, newThumbnailBody, _ := makeRequest(t, newGeneratedFileThumbnailURL)
 	r.Equal(200, status)
 	r.NotEqual(len(newThumbnailBody), generatedFileThumbnailSize)
 }
 
-func TestSearch(t *testing.T) {
+func TestAPI_Search(t *testing.T) {
 	startTestRview()
 
 	search := func(t *testing.T, s string) (dirs, files []string) {
