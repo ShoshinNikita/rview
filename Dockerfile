@@ -1,5 +1,5 @@
 # Build rview.
-FROM golang:1.20.1-alpine AS builder
+FROM golang:1.20.4-alpine AS builder
 
 WORKDIR /rview
 
@@ -18,7 +18,7 @@ RUN rclone --version
 
 
 # Build the final image.
-FROM alpine:3.16
+FROM alpine:3.18
 
 LABEL org.opencontainers.image.title="Rview"
 LABEL org.opencontainers.image.description="Web-based UI for Rclone"

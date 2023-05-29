@@ -203,27 +203,27 @@ func TestAPI_GetDirInfo(t *testing.T) {
 			dirInfo,
 		)
 
-		dirInfo = getDirInfo(t, "/Other/spe%27sial%20%21%20characters/x/y/", "")
+		dirInfo = getDirInfo(t, "/Other/spe%27sial%20%21%20cha%3Cracters/x/y/", "")
 		r.Equal(
 			web.DirInfo{
-				Dir: "/Other/spe'sial ! characters/x/y",
+				Dir: "/Other/spe'sial ! cha<racters/x/y",
 				Breadcrumbs: []web.DirBreadcrumb{
 					{Link: "/ui/", Text: "Root"},
 					{Link: "/ui/Other/", Text: "Other"},
-					{Link: "/ui/Other/spe%27sial%20%21%20characters/", Text: "spe'sial ! characters"},
-					{Link: "/ui/Other/spe%27sial%20%21%20characters/x/", Text: "x"},
-					{Link: "/ui/Other/spe%27sial%20%21%20characters/x/y/", Text: "y"},
+					{Link: "/ui/Other/spe%27sial%20%21%20cha%3Cracters/", Text: "spe'sial ! cha<racters"},
+					{Link: "/ui/Other/spe%27sial%20%21%20cha%3Cracters/x/", Text: "x"},
+					{Link: "/ui/Other/spe%27sial%20%21%20cha%3Cracters/x/y/", Text: "y"},
 				},
 				Entries: []web.DirEntry{
 					{
-						Filename:             "file.txt",
+						Filename:             "f>ile.txt",
 						Size:                 0,
 						HumanReadableSize:    "0 B",
 						ModTime:              mustParseTime(t, "2022-09-08 11:37:02"),
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
-						OriginalFileURL:      "/api/file/Other/spe%27sial%20%21%20characters/x/y/file.txt?mod_time=1662637022",
+						OriginalFileURL:      "/api/file/Other/spe%27sial%20%21%20cha%3Cracters/x/y/f%3Eile.txt?mod_time=1662637022",
 						IconName:             "document",
 					},
 				},

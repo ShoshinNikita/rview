@@ -190,6 +190,13 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 			"attr": func(s string) template.HTMLAttr {
 				return template.HTMLAttr(s)
 			},
+			"marshalJSON": func(v any) (template.JSStr, error) {
+				res, err := json.Marshal(v)
+				if err != nil {
+					return "", err
+				}
+				return template.JSStr(res), nil
+			},
 			"embedIcon": func(name string) (template.HTML, error) {
 				return embedIcon(s.iconsFS, name)
 			},

@@ -371,7 +371,8 @@
 </div>
 
 <script>
-	const entries = JSON.parse(`{{ .Entries }}`).filter(v => { return v.can_preview; });
+	// Don't use "const entries = {{ .Entries }}" to avoid IDE errors.
+	const entries = JSON.parse("{{ marshalJSON .Entries }}").filter(v => { return v.can_preview; });
 
 	const previewWrapper = document.getElementsByClassName("preview-wrapper")[0];
 	const previewContent = document.getElementsByClassName("preview-content")[0];
