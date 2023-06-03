@@ -81,17 +81,21 @@ a {
 	text-decoration: none;
 }
 
-a:hover {
-	color: var(--interactive-color--accent);
-	text-decoration: underline;
+@media(hover: hover) and (pointer: fine) {
+	a:hover {
+		color: var(--interactive-color--accent);
+		text-decoration: underline;
+	}
 }
 
 a.icon-button {
 	color: var(--border-color);
 }
 
-a.icon-button:hover:not(.disabled) {
-	color: var(--interactive-color--accent);
+@media(hover: hover) and (pointer: fine) {
+	a.icon-button:hover:not(.disabled) {
+		color: var(--interactive-color--accent);
+	}
 }
 
 input,

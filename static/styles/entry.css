@@ -12,10 +12,16 @@ a.entry {
 }
 
 .selected .entry,
-.entry:hover,
 .entry:focus {
 	background-color: var(--hover-background-color);
 	border: var(--hover-border);
+}
+
+@media(hover: hover) and (pointer: fine) {
+	.entry:hover {
+		background-color: var(--hover-background-color);
+		border: var(--hover-border);
+	}
 }
 
 .preview-icon {
