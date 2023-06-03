@@ -48,8 +48,8 @@ function isDarkTheme() {
 function getLocalStorageTheme() {
 	let value = localStorage.getItem(localStorageKey);
 	if (!value) {
-		// Use the system theme by default
-		value = systemTheme;
+		// Use the dark theme by default
+		value = darkTheme;
 		localStorage.setItem(localStorageKey, value);
 	}
 	return value;
