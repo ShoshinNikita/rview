@@ -117,10 +117,16 @@
 	.switch-preview-button {
 		height: 100%;
 		left: 0;
-		opacity: 0.3;
+		opacity: 0.2;
 		position: sticky;
 		width: 0;
 		z-index: 1;
+	}
+
+	@media(hover: hover) and (pointer: fine) {
+		.switch-preview-button:hover {
+			opacity: 0.8;
+		}
 	}
 
 	.switch-preview-button a {
@@ -208,10 +214,14 @@
 
 		.preview-file-info {
 			grid-area: file-info;
+			overflow: hidden;
+			white-space: nowrap;
 		}
 
 		.preview-file-info>* {
 			margin-bottom: 3px;
+			overflow: hidden;
+			text-overflow: ellipsis;
 		}
 
 		.preview-close-button,
@@ -418,9 +428,14 @@
 			threshold: 0.5
 		},
 	);
-	for (const elem of document.querySelectorAll(".preview-carousel-element")) {
-		observer.observe(elem);
-	}
+	// Sometimes we could open a wrong preview on page load (when query has "preview" param).
+	// This issue was caused by initial intersection events. To fix it we start observing
+	// only after a small delay.
+	setTimeout(() => {
+		for (const elem of document.querySelectorAll(".preview-carousel-element")) {
+			observer.observe(elem);
+		}
+	}, 150);
 
 	// Set height of .preview-wrapper with JS as a workaround for this bug:
 	// https://bugzilla.mozilla.org/show_bug.cgi?id=1663634
@@ -441,6 +456,7 @@
 			const rect = previewContent.getBoundingClientRect();
 
 			for (const elem of document.querySelectorAll(".preview-image,.preview-text,.preview-video,.preview-audio")) {
+				let width = `${rect.width - switchPreviewButtonSize * 2}px`;
 				let height = `${rect.height}px`;
 				let maxHeight = "";
 
@@ -454,9 +470,14 @@
 					case elem.classList.contains("preview-audio"):
 						height = "";
 						break;
+
+					case elem.classList.contains("preview-image"):
+						// Images don't have any controls. Therefore we can make the slightly bigger.
+						width = `${rect.width - 20}px`;
+						break;
 				}
 
-				elem.style["width"] = `${rect.width - switchPreviewButtonSize * 2}px`;;
+				elem.style["width"] = width;
 				elem.style["height"] = height;
 				elem.style["max-height"] = maxHeight;
 			}
