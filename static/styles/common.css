@@ -7,11 +7,10 @@
 	--shadow-color-2: #000000b4;
 	--border-color: #babfc4;
 
-	--hover-background-color: #e5f3ff;
-	--hover-border-color: #b2dbff;
+	--hover-background-color: #d0d7de52;
+	--hover-border-color: #d0d7de;
 
-	--interactive-color: #3f98ff;
-	--interactive-color--accent: #258bff;
+	--interactive-color: #217be2;
 
 	--loader-border-color: #f0f4f4;
 	--loader-border-color--accent: var(--interactive-color);
@@ -27,9 +26,9 @@
 
 	/* Values of the following variables don't depend on the theme */
 
-	--image-box-shadow: 2px 2px 5px 0px var(--shadow-color);
+	--image-box-shadow: 2px 2px 5px -1px var(--shadow-color);
 	--hover-border: 1px solid var(--hover-border-color);
-	--header-box-shadow: 0px 3px 5px 0px var(--shadow-color);
+	--header-box-shadow: 0px 0px 5px 0px var(--shadow-color);
 	--preview-card-box-shadow: 0px 2px 5px 0px var(--shadow-color-2);
 
 	--footer-height: 40px;
@@ -45,7 +44,7 @@
 	--hover-background-color: #21262c;
 	--hover-border-color: #373f49;
 
-	--interactive-color--accent: #58a6ff;
+	--interactive-color: #3f98ff;
 
 	--loader-border-color: var(--font-color);
 
@@ -83,7 +82,6 @@ a {
 
 @media(hover: hover) and (pointer: fine) {
 	a:hover {
-		color: var(--interactive-color--accent);
 		text-decoration: underline;
 	}
 }
@@ -94,7 +92,7 @@ a.icon-button {
 
 @media(hover: hover) and (pointer: fine) {
 	a.icon-button:hover:not(.disabled) {
-		color: var(--interactive-color--accent);
+		color: var(--interactive-color);
 	}
 }
 
@@ -116,7 +114,7 @@ select {
 
 input:focus,
 select:focus {
-	border-color: var(--interactive-color--accent);
+	border-color: var(--interactive-color);
 }
 
 svg {
