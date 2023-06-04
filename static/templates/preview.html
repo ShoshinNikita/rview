@@ -78,31 +78,46 @@
 	.preview-text,
 	.preview-audio,
 	.preview-video {
+		height: 100%;
 		left: 50%;
 		position: absolute;
 		transform: translateX(-50%);
+		/* Leave space for the buttons */
+		width: calc(100% - 2 * var(--switch-preview-button-size));
 	}
 
 	.preview-image {
+		/* Can't use box-shadow because it would apply to the container instead of an image */
+		filter: drop-shadow(0 0 5px var(--shadow-color));
 		object-fit: contain;
+		padding: 10px;
+		/* Images don't have any controls. Therefore we can make them slightly bigger. */
+		width: 100%;
 	}
 
 	.preview-text {
 		border: 1px solid var(--border-color);
+		/* The bottom border won't be visible without -1px on some screens */
+		height: calc(100% - 1px);
 		margin: 0;
 		overflow-y: auto;
 		padding: 5px;
 	}
 
 	.preview-audio {
-		left: 50%;
-		position: absolute;
+		height: revert;
 		top: 50%;
 		transform: translate(-50%, -50%);
 		width: 50%;
 	}
 
 	.preview-video {
+		/*
+			Set "max-height" instead of "height" to avoid gap between controls and video.
+			Controls still can be wider than a video. But all attempts to fix it have failed.
+		*/
+		height: auto;
+		max-height: 100%;
 		top: 50%;
 		transform: translate(-50%, -50%);
 	}
@@ -405,13 +420,6 @@
 	const thumbnailIDPrefix = "selector-thumbnail-";
 	const previewElementIDPrefix = "preview-carousel-element-";
 
-	// Prevent scroll with middle mouse button.
-	previewCarousel.addEventListener("mousedown", ev => {
-		if (event.which === 2) {
-			ev.preventDefault();
-		}
-	});
-
 	// Sometimes rapid resize or orientation change can cause incorrect scroll position.
 	// So, we manually scroll to the correct preview.
 	window.addEventListener("resize", () => {
@@ -457,43 +465,6 @@
 			previewWrapper.style["height"] = `${window.innerHeight}px`;
 		})
 	).observe(document.getElementById("app"));
-
-	// All attempts to set the right height for <pre> element using CSS have failed.
-	(
-		new ResizeObserver(() => {
-			const computedStyles = getComputedStyle(document.body);
-			const switchPreviewButtonSize = Number(computedStyles.getPropertyValue('--switch-preview-button-size').replace("px", ""));
-
-			const rect = previewContent.getBoundingClientRect();
-
-			for (const elem of document.querySelectorAll(".preview-image,.preview-text,.preview-video,.preview-audio")) {
-				let width = `${rect.width - switchPreviewButtonSize * 2}px`;
-				let height = `${rect.height}px`;
-				let maxHeight = "";
-
-				switch (true) {
-					case elem.classList.contains("preview-video"):
-						// Set "max-height" instead of "height" to avoid gap between controls and video.
-						height = "";
-						maxHeight = `${rect.height}px`;
-						break;
-
-					case elem.classList.contains("preview-audio"):
-						height = "";
-						break;
-
-					case elem.classList.contains("preview-image"):
-						// Images don't have any controls. Therefore we can make the slightly bigger.
-						width = `${rect.width - 20}px`;
-						break;
-				}
-
-				elem.style["width"] = width;
-				elem.style["height"] = height;
-				elem.style["max-height"] = maxHeight;
-			}
-		})
-	).observe(previewContent);
 
 	const stopAnyPlayback = () => {
 		for (const v of document.querySelectorAll(".preview-audio,.preview-video")) {

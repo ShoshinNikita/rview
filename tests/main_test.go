@@ -35,6 +35,7 @@ var TestDataModTimes = map[string]string{
 	"Video/":                  "2022-09-08 11:37:02",
 	"Video/credits.txt":       "2022-09-08 11:37:12",
 	"Video/traffic-53902.mp4": "2022-09-08 11:37:02",
+	"Video/boat-153559.mp4":   "2023-06-04 11:37:02",
 	//
 	"Other/": "2022-09-08 11:37:02",
 	"Other/spe'sial ! cha<racters/x/y/f>ile.txt":      "2022-09-08 11:37:02",
