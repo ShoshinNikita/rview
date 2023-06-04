@@ -45,8 +45,10 @@
 	}
 
 	.preview-content {
-		width: 100%;
+		/* We have to hide outline because we use tabindex */
+		outline: none;
 		position: relative;
+		width: 100%;
 	}
 
 	.preview-carousel {
@@ -299,7 +301,12 @@
 	<a href="#" class="preview-close-layer" title="Close Preview" onclick="closePreview(); return false"></a>
 
 	<div class="preview card">
-		<div class="preview-content">
+		<!--
+			Use tabindex to prevent scroll on pressing left/right arrows - we implement
+			this behavior ourselves. Without it we would scroll 2 elements at once.
+			See: https://github.com/facebook/react/issues/25462#issuecomment-1274775248
+		-->
+		<div class="preview-content" tabindex="-1">
 			<div class="preview-carousel">
 				<div class="switch-preview-button prev">
 					<a href="#" class="icon-button" title="Previous" onclick="swipePreview(-1); return false">
