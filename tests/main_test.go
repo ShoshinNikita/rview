@@ -41,6 +41,7 @@ var TestDataModTimes = map[string]string{
 	"Other/spe'sial ! cha<racters/x/y/f>ile.txt":      "2022-09-08 11:37:02",
 	"Other/test-thumbnails/cloudy-g1a943401b_640.png": "2022-09-11 18:35:04",
 	"Other/test-thumbnails/credits.txt":               "2022-09-11 18:35:04",
+	"Other/a & b/x/x & y.txt":                         "2023-06-06 00:00:13",
 }
 
 func TestMain(m *testing.M) {

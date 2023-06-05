@@ -84,7 +84,6 @@ type (
 	}
 
 	RcloneDirBreadcrumb struct {
-		Link string `json:"link"`
 		Text string `json:"text"`
 	}
 

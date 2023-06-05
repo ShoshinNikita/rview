@@ -203,6 +203,32 @@ func TestAPI_GetDirInfo(t *testing.T) {
 			dirInfo,
 		)
 
+		dirInfo = getDirInfo(t, "/Other/a%20&%20b/x/", "")
+		r.Equal(
+			web.DirInfo{
+				Dir: "/Other/a & b/x",
+				Breadcrumbs: []web.DirBreadcrumb{
+					{Link: "/ui/", Text: "Root"},
+					{Link: "/ui/Other/", Text: "Other"},
+					{Link: "/ui/Other/a%20&%20b/", Text: "a & b"},
+					{Link: "/ui/Other/a%20&%20b/x/", Text: "x"},
+				},
+				Entries: []web.DirEntry{
+					{
+						Filename:             "x & y.txt",
+						Size:                 4,
+						HumanReadableSize:    "4 B",
+						ModTime:              mustParseTime(t, "2023-06-06 00:00:13"),
+						HumanReadableModTime: "2023-06-06 00:00:13 UTC",
+						FileType:             rview.FileTypeText,
+						CanPreview:           true,
+						OriginalFileURL:      "/api/file/Other/a%20&%20b/x/x%20&%20y.txt?mod_time=1686009613",
+						IconName:             "document",
+					},
+				},
+			},
+			dirInfo,
+		)
 		dirInfo = getDirInfo(t, "/Other/spe%27sial%20%21%20cha%3Cracters/x/y/", "")
 		r.Equal(
 			web.DirInfo{
