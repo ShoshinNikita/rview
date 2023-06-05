@@ -2,11 +2,9 @@ a.entry {
 	align-items: center;
 	border: 1px solid #00000000;
 	color: var(--font-color);
-	display: flex;
-	flex-flow: column;
-	justify-content: center;
+	display: grid;
+	grid-template-rows: 1fr min-content;
 	padding: 5px;
-	text-align: center;
 	text-decoration: none;
 	width: 100%;
 }
@@ -44,7 +42,7 @@ a.entry {
 
 .thumbnail {
 	box-shadow: var(--image-box-shadow);
-	max-height: 150px;
+	max-height: 120px;
 	max-width: 90%;
 }
 
