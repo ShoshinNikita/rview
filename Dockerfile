@@ -25,6 +25,8 @@ LABEL org.opencontainers.image.description="Web-based UI for Rclone"
 LABEL org.opencontainers.image.source="https://github.com/ShoshinNikita/rview"
 LABEL org.opencontainers.image.licenses="MIT"
 
+EXPOSE 8080
+
 WORKDIR /srv
 
 # For rclone - https://rclone.org/docs/#config-config-file
