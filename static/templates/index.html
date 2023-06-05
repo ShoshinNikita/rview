@@ -293,10 +293,6 @@
 				return;
 			}
 
-			if (lastSearchValue === searchValue) {
-				return;
-			}
-
 			window.clearInterval(timeoutId);
 			if (abortController) {
 				abortController.abort();
@@ -350,7 +346,7 @@
 						searchResultWindow.innerHTML = result;
 						lastSearchValue = searchValue;
 					});
-			}, 150);
+			}, 300);
 		};
 
 		function showSearchInfoMessage(text) {
@@ -378,23 +374,19 @@
 			searchResultWindow.style["display"] = "";
 		};
 		searchInput.addEventListener("blur", ev => { hideSearchResults(); });
-		window.addEventListener("click", ev => {
+		window.addEventListener("mousedown", ev => {
 			if (!isSearchResultsVisible) {
 				return;
 			}
 
 			let target = ev.target;
-			let hide = true;
 			while (target) {
 				if (target === searchResultWindow || target == searchInput) {
-					hide = false;
-					break;
+					return;
 				}
 				target = target.parentElement;
 			}
-			if (hide) {
-				hideSearchResults();
-			}
+			hideSearchResults();
 		});
 
 		// Search on input.

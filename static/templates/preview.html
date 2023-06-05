@@ -423,6 +423,9 @@
 	// Sometimes rapid resize or orientation change can cause incorrect scroll position.
 	// So, we manually scroll to the correct preview.
 	window.addEventListener("resize", () => {
+		if (!currentIndex) {
+			return;
+		}
 		document.getElementById(previewElementIDPrefix + currentIndex).scrollIntoView({ behavior: "instant" });
 	});
 
