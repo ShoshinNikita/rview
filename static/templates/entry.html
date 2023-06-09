@@ -7,17 +7,11 @@
 {{ $target := .Target }}
 {{ $title := .Title }}
 {{ $onclick := .Onclick}}
-{{ $download := .Download}}
-{{ $showPreviewIcon := .ShowPreviewIcon}}
 
 {{ $attrs := "" }}
 
 {{ if $onclick }}
 {{ $attrs = printf `%s onclick="%s"` $attrs $onclick }}
-{{ end }}
-
-{{ if $download }}
-{{ $attrs = printf `%s download="%s"` $attrs $download }}
 {{ end }}
 
 <a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}" {{ attr $attrs }}>
@@ -32,20 +26,6 @@
 			onerror="this.classList.add('failed')">
 		</img>
 		<div class="loader"></div>
-
-		{{ else if (and (not $entry.IsDir) $showPreviewIcon) }}
-
-		<!-- Show preview helper icon -->
-		{{ $previewIcon := "download" }}
-		{{ $title := "Can download" }}
-		{{ if $entry.CanPreview }}
-		{{ $previewIcon = "eye" }}
-		{{ $title = "Can preview" }}
-		{{ end }}
-		<span class="preview-icon" title="{{ $title }}">
-			{{ embedIcon $previewIcon }}
-		</span>
-
 		{{ end }}
 
 		<!-- Always render icon because we can use it as a fallback -->

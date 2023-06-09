@@ -22,17 +22,6 @@ a.entry {
 	}
 }
 
-.preview-icon {
-	cursor: help;
-	height: 20px;
-	opacity: 0.5;
-	position: absolute;
-	right: 0px;
-	top: 0px;
-	width: 20px;
-	z-index: 1;
-}
-
 .icon-wrapper {
 	text-align: center;
 	min-height: 60px;

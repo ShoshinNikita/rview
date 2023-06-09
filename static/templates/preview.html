@@ -122,6 +122,36 @@
 		transform: translate(-50%, -50%);
 	}
 
+	.preview-not-available {
+		grid-template-rows: repeat(2, auto);
+		display: grid;
+		justify-items: center;
+		left: 50%;
+		position: absolute;
+		top: 25%;
+		transform: translateX(-50%);
+		row-gap: 15px;
+		width: 70%;
+	}
+
+	.preview-not-available-text {
+		align-items: center;
+		column-gap: 10px;
+		display: flex;
+		font-size: 24px;
+	}
+
+	.preview-not-available-info-icon {
+		/* Use "min-width" instead of "width" for cases when filename is too long */
+		height: 30px;
+		min-width: 30px;
+	}
+
+	.preview-not-available-download-icon {
+		height: 40px;
+		width: 40px;
+	}
+
 	:root {
 		--switch-preview-button-size: 50px;
 	}
@@ -278,6 +308,11 @@
 			padding-right: 0;
 		}
 
+		.preview-not-available {
+			top: 10%;
+			width: calc(100% - 2 * var(--switch-preview-button-size));
+		}
+
 		.preview-side-panel {
 			padding-left: 20px;
 			padding-right: 20px;
@@ -337,12 +372,29 @@
 				{{ $index := 0 }}
 				{{ range .Entries }}
 
-				{{ if not .CanPreview}}
+				{{ if .IsDir }}
 				{{ continue }}
 				{{ end }}
 
 				<div class="preview-carousel-element" id="preview-carousel-element-{{ $index }}" data-filename="{{ .Filename }}">
-					{{ if eq .FileType "image" }}
+					<!-- TODO: detect what we can preview in JS? -->
+
+					{{ if not .CanPreview }}
+					<div class="preview-not-available">
+						<span class="preview-not-available-text">
+							<span class="preview-not-available-info-icon"> {{ embedIcon "alert-circle" }} </span>
+							<!--
+								In theory, we could use CSS to trim a filename with "text-overflow". But it would require
+								writing some non-trivial code. So, just trim it with Go.
+							-->
+							<span>Preview for <i>"{{ trim .Filename 60 }}"</i> is not available</span>
+						</span>
+
+						<a class="icon-button preview-not-available-download-icon" title="Download" href="{{ .OriginalFileURL }}" download="">
+							{{ embedIcon "download" }}
+						</a>
+					</div>
+					{{ else if eq .FileType "image" }}
 					<!-- TODO: add loader -->
 					<img class="preview-image" src="{{ .ThumbnailURL }}" loading="lazy"></img>
 					{{ else if eq .FileType "text" }}
@@ -389,7 +441,7 @@
 	<ul class="selector card">
 		{{ range .Entries }}
 
-		{{ if .CanPreview }}
+		{{ if not .IsDir }}
 		<div id="selector-thumbnail-{{ .Filename }}" class="selector-thumbnail-wrapper">
 			{{
 				template "entry.html" (dict
@@ -408,7 +460,7 @@
 
 <script>
 	// Don't use "const entries = {{ .Entries }}" to avoid IDE errors.
-	const entries = JSON.parse("{{ marshalJSON .Entries }}").filter(v => { return v.can_preview; });
+	const entries = JSON.parse("{{ marshalJSON .Entries }}").filter(v => { return !v.is_dir; });
 
 	const previewWrapper = document.getElementsByClassName("preview-wrapper")[0];
 	const previewContent = document.getElementsByClassName("preview-content")[0];

@@ -238,37 +238,23 @@
 			{{ $target := "_self" }}
 			{{ $title := printf "Open %q" .Filename }}
 			{{ $onclick := "" }}
-			{{ $download := "" }}
 
 			{{ if not .IsDir }}
-			{{ $href = .OriginalFileURL }}
-			{{ $target = "_blank" }}
-			{{ $title = printf "%q\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
-			{{ end }}
-
-			<!-- Open preview or download -->
-
-			{{ if .CanPreview }}
-			{{ $onclick = printf `openPreview('%s'); return false` .Filename }}
-			{{ $title = printf `Preview %s` $title }}
 			{{ $href = "#" }}
 			{{ $target = "" }}
-			{{ else if not .IsDir }}
-			{{ $download = .Filename }}
-			{{ $title = printf `Download %s` $title }}
+			{{ $title = printf "Preview %q\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
+			{{ $onclick = printf `openPreview('%s'); return false` .Filename }}
 			{{ end }}
 
 			{{
-			template "entry.html" (dict
-				"Entry" .
-				"Href" $href
-				"Target" $target
-				"Title" $title
-				"Onclick" $onclick
-				"Download" $download
-				"ShowPreviewIcon" true
-			)
-		}}
+				template "entry.html" (dict
+					"Entry" .
+					"Href" $href
+					"Target" $target
+					"Title" $title
+					"Onclick" $onclick
+				)
+			}}
 
 			{{ end }}
 		</div>

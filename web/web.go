@@ -165,6 +165,13 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 			"add": func(a, b int) int {
 				return a + b
 			},
+			"trim": func(s string, maxSize int) string {
+				runes := []rune(s)
+				if len(runes) > maxSize {
+					return string(runes[:maxSize]) + "…"
+				}
+				return s
+			},
 			"prepareStaticLink": func(rawURL string) (string, error) {
 				hash := s.cfg.BuildInfo.ShortGitHash
 				if s.cfg.ReadStaticFilesFromDisk {
