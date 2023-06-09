@@ -114,7 +114,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 			web.DirInfo{
 				Dir: "/",
 				Breadcrumbs: []web.DirBreadcrumb{
-					{Link: "/ui/", Text: "Root"},
+					{Link: "/ui/", Text: "Home"},
 				},
 				Entries: []web.DirEntry{
 					{
@@ -208,7 +208,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 			web.DirInfo{
 				Dir: "/Other/a & b/x",
 				Breadcrumbs: []web.DirBreadcrumb{
-					{Link: "/ui/", Text: "Root"},
+					{Link: "/ui/", Text: "Home"},
 					{Link: "/ui/Other/", Text: "Other"},
 					{Link: "/ui/Other/a%20&%20b/", Text: "a & b"},
 					{Link: "/ui/Other/a%20&%20b/x/", Text: "x"},
@@ -234,7 +234,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 			web.DirInfo{
 				Dir: "/Other/spe'sial ! cha<racters/x/y",
 				Breadcrumbs: []web.DirBreadcrumb{
-					{Link: "/ui/", Text: "Root"},
+					{Link: "/ui/", Text: "Home"},
 					{Link: "/ui/Other/", Text: "Other"},
 					{Link: "/ui/Other/spe%27sial%20%21%20cha%3Cracters/", Text: "spe'sial ! cha<racters"},
 					{Link: "/ui/Other/spe%27sial%20%21%20cha%3Cracters/x/", Text: "x"},

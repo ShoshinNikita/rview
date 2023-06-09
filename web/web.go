@@ -309,7 +309,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo) (DirInfo, er
 
 		text := breadcrumb.Text
 		if text == "/" {
-			text = "Root"
+			text = "Home"
 		}
 
 		uiURL := mustParseURL("/ui").JoinPath(info.dirURL.String()).String()
