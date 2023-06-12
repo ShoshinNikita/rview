@@ -10,8 +10,7 @@
 
 ## Dirs & Files
 
-<img src="screenshots/dir_root.jpg"></img>
-<img src="screenshots/dir_images.jpg"></img>
+<img src="screenshots/dir_home.jpg"></img>
 
 ## Previews
 
@@ -37,7 +36,7 @@
    add the following code to `common.css`:
 
    ```css
-   body,
+   #app,
    .preview-close-layer {
      border: 1px solid #21262d;
    }
@@ -45,17 +44,10 @@
 
    Note: `#21262d` is `var(--color-border-muted)` on GitHub.
 
-2. Use `tests/testdata` as `RCLONE_TARGET`.
-3. Remove files for testing corner-cases: `Images/vertical.jpg`, `test.gif` and so on.
+2. Prepare demo files.
 4. Make `.png` screenshots.
-5. Use this command to convert screenshots to `.jpg`:
+5. Use the following command to convert screenshots to `.jpg`:
 
    ```sh
-   vipsthumbnail --size 1920x1080 -o %s.jpg[Q=90,optimize_coding] *.png
-   ```
-
-6. Remove `.png` screenshots:
-
-   ```sh
-   rm *.png
+   vipsthumbnail --size 1600x900 -o ./jpg/%s.jpg[Q=90,optimize_coding] *.png
    ```
