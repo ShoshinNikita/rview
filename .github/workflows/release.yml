@@ -3,6 +3,11 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Additional image tag
+        required: true
 
 jobs:
   release:
@@ -10,11 +15,19 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v3
-      - run: make docker-build
-      - run: docker tag rview ghcr.io/shoshinnikita/rview:main
       - uses: docker/login-action@v2
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - run: docker push ghcr.io/shoshinnikita/rview:main
+
+      - run: make docker-build
+
+      - run: |
+          docker tag rview ghcr.io/shoshinnikita/rview:main
+          docker push ghcr.io/shoshinnikita/rview:main
+
+      - if: ${{ github.event.inputs.image_tag }}
+        run: |
+          docker tag rview ghcr.io/shoshinnikita/rview:${{ github.event.inputs.image_tag }}
+          docker push ghcr.io/shoshinnikita/rview:${{ github.event.inputs.image_tag }}
