@@ -12,8 +12,8 @@ on:
         required: true
 
 jobs:
-  release:
-    name: release
+  tag:
+    name: tag
     runs-on: ubuntu-22.04
     env:
       image_to_pull: ghcr.io/shoshinnikita/rview:${{ github.event.inputs.tag_to_pull }}
