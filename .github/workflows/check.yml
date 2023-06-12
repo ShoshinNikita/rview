@@ -2,6 +2,8 @@
 name: check
 on:
   push:
+    tags-ignore:
+      - '**'
     paths-ignore:
       - "README.md"
 
