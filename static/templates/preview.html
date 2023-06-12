@@ -535,8 +535,8 @@
 	const openPreview = (filename, scroll = true) => {
 		const ok = _openPreview(filename, scroll);
 		if (!ok) {
-			// Just in case.
-			closePreview();
+			// Just in case. Pass goBack=false because url wasn't updated.
+			closePreview(false);
 			return;
 		}
 
@@ -680,24 +680,31 @@
 		document.getElementById(previewElementIDPrefix + newIndex).scrollIntoView({ behavior: "instant" });
 	};
 
-	const closePreview = () => {
-		stopAnyPlayback();
-		setPreviewInQuery("");
-
+	const closePreview = (goBack = true) => {
+		if (!isPreviewOpened) {
+			return;
+		}
 		isPreviewOpened = false;
+
+		stopAnyPlayback();
+
+		if (goBack) {
+			// Use "history.back" to remove "preview" from params. Using this method
+			// instead of calling "setPreviewInQuery" with empty fixes a bug with
+			// duplicate records in history.
+			history.back();
+		}
 
 		previewWrapper.classList.remove("opened");
 		document.body.classList.remove("noscroll");
 	};
 
 	const setPreviewInQuery = (filename) => {
+		console.assert(filename, "filename can't be empty");
+
 		const params = new URLSearchParams(window.location.search);
 		const firstTime = !params.get("preview");
-		if (filename) {
-			params.set("preview", filename);
-		} else {
-			params.delete("preview");
-		}
+		params.set("preview", filename);
 
 		const currentPath = window.location.pathname + window.location.search;
 		const encodedParams = params.toString();
@@ -719,10 +726,13 @@
 	// Event listeners
 
 	window.addEventListener("popstate", (ev) => {
-		// Close preview on "Go back".
-		const params = new URLSearchParams(window.location.search);
-		if (!params.get("preview")) {
-			closePreview();
+		// Close preview on "Go back" and open on "Go forward".
+		const preview = new URLSearchParams(window.location.search).get("preview");
+		if (preview) {
+			openPreview(preview);
+		} else {
+			// Don't call "Go back" again.
+			closePreview(false);
 		}
 	});
 
