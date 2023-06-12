@@ -1,13 +1,9 @@
+# This workflow builds a docker image and pushes it.
 name: release
 on:
   push:
     branches:
       - main
-  workflow_dispatch:
-    inputs:
-      image_tag:
-        description: Additional image tag
-        required: true
 
 jobs:
   release:
@@ -20,14 +16,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-
       - run: make docker-build
-
-      - run: |
-          docker tag rview ghcr.io/shoshinnikita/rview:main
-          docker push ghcr.io/shoshinnikita/rview:main
-
-      - if: ${{ github.event.inputs.image_tag }}
-        run: |
-          docker tag rview ghcr.io/shoshinnikita/rview:${{ github.event.inputs.image_tag }}
-          docker push ghcr.io/shoshinnikita/rview:${{ github.event.inputs.image_tag }}
+      - run: docker tag rview ghcr.io/shoshinnikita/rview:main
+      - run: docker push ghcr.io/shoshinnikita/rview:main

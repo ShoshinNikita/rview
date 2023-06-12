@@ -1,3 +1,4 @@
+# This workflow runs tests and linters.
 name: check
 on:
   push:

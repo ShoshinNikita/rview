@@ -1,0 +1,30 @@
+# This workflow adds an additional tag for the existing "ghcr.io/shoshinnikita/rview" image.
+name: tag
+on:
+  workflow_dispatch:
+    inputs:
+      tag_to_pull:
+        description: Image tag to pull
+        required: true
+        default: main
+      tag_to_push:
+        description: Image tag to push
+        required: true
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-22.04
+    env:
+      image_to_pull: ghcr.io/shoshinnikita/rview:${{ github.event.inputs.tag_to_pull }}
+      image_to_push: ghcr.io/shoshinnikita/rview:${{ github.event.inputs.tag_to_push }}
+    steps:
+      - uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - run: docker pull $image_to_pull
+      - run: docker tag $image_to_pull $image_to_push
+      - run: docker push $image_to_push
