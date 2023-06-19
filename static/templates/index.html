@@ -4,7 +4,11 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	{{ if .IsNotFound }}
+	<title>Rview • ???</title>
+	{{ else }}
 	<title>Rview • {{ .Dir }}</title>
+	{{ end }}
 
 	<script src="{{ prepareStaticLink `/static/js/theme.js` }}"></script>
 
@@ -160,6 +164,15 @@
 
 	<!-- Files -->
 	<style>
+		.not-found-message {
+			font-size: 24px;
+			left: 50%;
+			position: absolute;
+			text-align: center;
+			top: 25%;
+			transform: translateX(-50%);
+		}
+
 		.files {
 			column-gap: 20px;
 			display: grid;
@@ -231,6 +244,11 @@
 			</div>
 		</div>
 
+		{{ if .IsNotFound }}
+		<div class="not-found-message">
+			<span>Directory <i>"{{ .Dir }}"</i> not found<br><br>Go back to <a href="/">Home</a>?</span>
+		</div>
+		{{ else if .Entries }}
 		<div class="files">
 			{{ range .Entries }}
 
@@ -258,6 +276,7 @@
 
 			{{ end }}
 		</div>
+		{{ end }}
 
 		{{ template "footer.html" . }}
 

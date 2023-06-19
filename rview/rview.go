@@ -75,7 +75,6 @@ type (
 	}
 
 	RcloneDirInfo struct {
-		Path  string `json:"path"`
 		Sort  string `json:"sort"`
 		Order string `json:"order"`
 

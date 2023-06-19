@@ -123,12 +123,11 @@ func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
 
 	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
-		if rview.IsRcloneNotFoundError(err) {
-			writeError(w, http.StatusNotFound, "dir %q not found", dir)
-			return
-		}
-
 		writeInternalServerError(w, "couldn't get dir info: %s", err)
+		return
+	}
+	if info.IsNotFound {
+		writeError(w, http.StatusNotFound, "dir %q not found", dir)
 		return
 	}
 
@@ -144,12 +143,6 @@ func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 
 	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
-		if rview.IsRcloneNotFoundError(err) {
-			// TODO: render some error page?
-			writeError(w, http.StatusNotFound, "dir %q not found", dir)
-			return
-		}
-
 		writeInternalServerError(w, "couldn't get dir info: %s", err)
 		return
 	}
@@ -265,27 +258,58 @@ func embedIcon(fs fs.FS, name string) (template.HTML, error) {
 // getDirInfo requests the directory information from Rclone and converts it into
 // the appropriate format. It also sends tasks to generate thumbnail for the images.
 func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (DirInfo, error) {
+	dir = pkgPath.Clean(dir)
+	if dir == "." {
+		dir = "/"
+	}
+
+	// Dir must start and end with a slash.
+	if !strings.HasPrefix(dir, "/") {
+		dir = "/" + dir
+	}
+	if !strings.HasSuffix(dir, "/") {
+		dir += "/"
+	}
+
+	var isNotFound bool
+
 	rcloneInfo, err := s.rclone.GetDirInfo(ctx, dir, query.Get("sort"), query.Get("order"))
+	if rview.IsRcloneNotFoundError(err) {
+		// It's hard to replicate the logic of "DirInfo" preparation. Therefore, just
+		// set error to nil and init RcloneDirInfo with the predefined values.
+		err = nil
+		isNotFound = true
+
+		rcloneInfo = &rview.RcloneDirInfo{
+			Breadcrumbs: []rview.RcloneDirBreadcrumb{
+				{Text: "/"},   // for link to Home
+				{Text: "???"}, // indicate that something went wrong
+			},
+		}
+	}
 	if err != nil {
 		return DirInfo{}, fmt.Errorf("couldn't get rclone info: %w", err)
 	}
 
-	info, err := s.convertRcloneInfo(rcloneInfo)
+	info, err := s.convertRcloneInfo(rcloneInfo, dir)
 	if err != nil {
 		return DirInfo{}, fmt.Errorf("couldn't convert rclone info: %w", err)
 	}
 
 	info = s.sendGenerateThumbnailTasks(info)
 
+	info.IsNotFound = isNotFound
+
 	return info, nil
 }
 
-func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo) (DirInfo, error) {
+func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) (DirInfo, error) {
 	info := DirInfo{
 		BuildInfo: s.cfg.BuildInfo,
 		//
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
+		Dir:   dir,
 		// Always encode entries as a slice.
 		Entries: []DirEntry{},
 		//
@@ -296,9 +320,6 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo) (DirInfo, er
 		if breadcrumb.Text == "" {
 			continue
 		}
-
-		// Dir name must not be escaped.
-		info.Dir = pkgPath.Join(info.Dir, breadcrumb.Text)
 
 		// It doesn't make any sense to add another trailing slash (especially, escaped).
 		if breadcrumb.Text != "/" {

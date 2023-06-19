@@ -15,12 +15,15 @@ type (
 		Sort  string `json:"sort"`
 		Order string `json:"order"`
 
-		// Dir is the unescaped path of current directory. It is used for page title.
+		// Dir is the unescaped path of the requested directory.
 		Dir string `json:"dir"`
 		// Breadcrumbs contains info about parent directories.
 		Breadcrumbs []DirBreadcrumb `json:"breadcrumbs"`
 		// Entries contains info about files or directories in the current directory.
 		Entries []DirEntry `json:"entries"`
+
+		// IsNotFound indicates whether the requested directory wasn't found.
+		IsNotFound bool `json:"is_not_found"`
 
 		// dirURL is the url of current directory, only for internal use.
 		dirURL *url.URL

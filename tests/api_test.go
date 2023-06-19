@@ -206,7 +206,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 		dirInfo = getDirInfo(t, "/Other/a%20&%20b/x/", "")
 		r.Equal(
 			web.DirInfo{
-				Dir: "/Other/a & b/x",
+				Dir: "/Other/a & b/x/",
 				Breadcrumbs: []web.DirBreadcrumb{
 					{Link: "/ui/", Text: "Home"},
 					{Link: "/ui/Other/", Text: "Other"},
@@ -232,7 +232,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 		dirInfo = getDirInfo(t, "/Other/spe%27sial%20%21%20cha%3Cracters/x/y/", "")
 		r.Equal(
 			web.DirInfo{
-				Dir: "/Other/spe'sial ! cha<racters/x/y",
+				Dir: "/Other/spe'sial ! cha<racters/x/y/",
 				Breadcrumbs: []web.DirBreadcrumb{
 					{Link: "/ui/", Text: "Home"},
 					{Link: "/ui/Other/", Text: "Other"},
@@ -339,7 +339,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 		r := require.New(t)
 
 		status, _, _ := makeRequest(t, "/ui/qwerty/")
-		r.Equal(404, status)
+		r.Equal(200, status)
 
 		status, _, _ = makeRequest(t, "/api/dir/qwerty/")
 		r.Equal(404, status)

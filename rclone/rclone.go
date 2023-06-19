@@ -188,7 +188,6 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 
 	// We have to unescape response. It is safe because we will either use it for rendering
 	// with Go templates or return it as JSON.
-	rcloneInfo.Path = html.UnescapeString(rcloneInfo.Path)
 	for i := range rcloneInfo.Breadcrumbs {
 		rcloneInfo.Breadcrumbs[i].Text = html.UnescapeString(rcloneInfo.Breadcrumbs[i].Text)
 	}
