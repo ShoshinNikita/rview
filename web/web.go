@@ -426,8 +426,6 @@ func (s *Server) sendGenerateThumbnailTasks(info DirInfo) DirInfo {
 			continue
 		}
 
-		// TODO: limit max image size?
-
 		thumbnailURL := fileIDToURL("/api/thumbnail", info.dirURL, id)
 
 		if s.thumbnailService.IsThumbnailReady(id) {

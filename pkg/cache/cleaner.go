@@ -143,8 +143,6 @@ func (c Cleaner) getFilesToRemove(files []fileInfo, now time.Time) []fileInfo {
 	}
 
 	// Remove old files first.
-	// TODO: use another strategy? For example, there can be one large fresh file and many
-	// small old files. It would be better to remove one large file.
 	sort.Slice(activeFiles, func(i, j int) bool {
 		return activeFiles[i].modTime.Before(activeFiles[j].modTime)
 	})

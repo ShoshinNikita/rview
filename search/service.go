@@ -42,7 +42,6 @@ type builtIndexes struct {
 }
 
 func NewService(rclone Rclone, cache rview.Cache) *Service {
-	// TODO: allow to configure?
 	const (
 		minPrefixLen = 2
 		maxPrefixLen = 7
