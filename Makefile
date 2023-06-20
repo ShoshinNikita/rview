@@ -1,5 +1,7 @@
 -include .env .env.local
 
+.PHONY: build check default docker-build lint run test
+
 default: run
 
 run: build
@@ -40,4 +42,4 @@ lint:
 		-v $(shell go env GOPATH)/pkg:/go/pkg \
 		-v $(shell pwd):/app \
 		-w /app \
-		golangci/golangci-lint:v1.52.2-alpine golangci-lint run --config .golangci.yml
+		golangci/golangci-lint:v1.53.3-alpine golangci-lint run -v --config .golangci.yml
