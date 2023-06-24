@@ -32,9 +32,8 @@ WORKDIR /srv
 # For rclone - https://rclone.org/docs/#config-config-file
 ENV XDG_CONFIG_HOME=/config
 
-# Add rclone and demo files first for better caching.
+# Add rclone first for better caching.
 COPY --from=rclone-src /usr/local/bin/rclone /usr/local/bin/rclone
-COPY ./tests/testdata ./demo
 
 # Install vips.
 RUN apk add --update --no-cache \
@@ -43,8 +42,7 @@ RUN apk add --update --no-cache \
 		ca-certificates && \
 	vips --version
 
-# Add rclone.
+# Add rview.
 COPY --from=builder /rview/bin .
 
 ENTRYPOINT [ "./rview" ]
-CMD [ "--rclone-target=./demo" ]

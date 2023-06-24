@@ -10,9 +10,8 @@
 
 - [Features](#features)
 - [Limitations](#limitations)
+- [Demo](#demo)
 - [Run](#run)
-  - [With Demo Files](#with-demo-files)
-  - [With Your Files](#with-your-files)
 - [Configuration](#configuration)
 - [Development](#development)
   - [API](#api)
@@ -38,20 +37,10 @@
   such as Nginx or Caddy. Placing **Rview** behind a proxy also allows gzip compression, which sometimes can
   significantly improve response time.
 
+## Demo
+Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for Basic Auth: `rview:rview`.
+
 ## Run
-
-### With Demo Files
-
-1. You have to install [docker](https://docs.docker.com/).
-2. Run this command:
-
-   ```sh
-   docker run --rm -p 8080:8080 ghcr.io/shoshinnikita/rview:main
-   ```
-
-4. Go to http://localhost:8080.
-
-### With Your Files
 
 1. You have to install [docker](https://docs.docker.com/) and [docker compose](https://docs.docker.com/compose/).
 2. Let's consider you use Rclone S3 backend, and your `~/.config/rclone/rclone.conf` looks like this:
@@ -149,5 +138,6 @@ Response models can be found in [web/models.go](web/models.go).
 
 A special thanks to these open-source projects:
 
+- [Rclone](https://github.com/rclone/rclone) - rsync for cloud storage.
 - [Material Icon Theme](https://github.com/PKief/vscode-material-icon-theme) - Material Design icons for VS Code.
 - [Feather](https://github.com/feathericons/feather) - Simply beautiful open source icons.
