@@ -12,7 +12,7 @@ RUN make build && ./bin/rview --version
 
 
 # Download rclone.
-FROM rclone/rclone:1.62 AS rclone-src
+FROM rclone/rclone:1.63 AS rclone-src
 
 RUN rclone --version
 
