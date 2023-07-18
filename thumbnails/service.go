@@ -278,13 +278,11 @@ func createCacheFileFromTempFile(tempFile *os.File, cacheFilepath string, origin
 func resizeWithVips(originalFile, cacheFile string, fileID rview.FileID) error {
 	output := cacheFile
 	switch getImageType(fileID) {
-	case heicImageType:
-		// We generate .jpeg thumbnails for .heic images.
+	case pngImageType, heicImageType:
+		// We generate .jpeg thumbnails for .png and .heic images.
 		fallthrough
 	case jpegImageType:
 		output += "[Q=80,optimize_coding,strip]"
-	case pngImageType:
-		output += "[strip]"
 	case webpImageType:
 		output += "[strip]"
 	default:
@@ -459,8 +457,8 @@ func (c *cacheWrapper) Remove(id rview.FileID) error {
 // convertToThumbnailFileID returns a file id for working with the thumbnail cache.
 func convertToThumbnailFileID(id rview.FileID) rview.FileID {
 	switch id.GetExt() {
-	case ".heic":
-		// We generate .jpeg thumbnails for .heic images.
+	case ".png", ".heic":
+		// We generate .jpeg thumbnails for .png and .heic images.
 		path := id.GetPath() + ".jpeg"
 		return rview.NewFileID(path, id.GetModTime().Unix())
 

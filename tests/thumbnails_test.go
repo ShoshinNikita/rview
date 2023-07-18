@@ -29,7 +29,7 @@ func TestThumbnailGeneration(t *testing.T) {
 		mimeType  string
 	}{
 		{imageType: "jpg", file: "Images/birds-g64b44607c_640.jpg", mimeType: "image/jpeg"},
-		{imageType: "png", file: "Images/ytrewq.png", mimeType: "image/png"},
+		{imageType: "png", file: "Images/ytrewq.png", mimeType: "image/jpeg"},
 		{imageType: "webp", file: "Images/qwerty.webp", mimeType: "image/webp"},
 		{imageType: "heic", file: "Images/asdfgh.heic", mimeType: "image/jpeg"}, // we should generate .jpeg thumbnails for .heic images
 	} {
