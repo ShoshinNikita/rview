@@ -136,7 +136,7 @@ Response models can be found in [web/models.go](web/models.go).
 
 ## Thanks
 
-A special thanks to these open-source projects:
+Special thanks to these open-source projects:
 
 - [Rclone](https://github.com/rclone/rclone) - rsync for cloud storage.
 - [Material Icon Theme](https://github.com/PKief/vscode-material-icon-theme) - Material Design icons for VS Code.
