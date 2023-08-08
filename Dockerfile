@@ -37,7 +37,7 @@ COPY --from=rclone-src /usr/local/bin/rclone /usr/local/bin/rclone
 
 # Install vips.
 RUN apk add --update --no-cache \
-		vips-tools=8.14.2-r3 \
+		vips-tools=8.14.3-r0 \
 		libheif=1.16.2-r0 \
 		ca-certificates && \
 	vips --version
