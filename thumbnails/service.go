@@ -6,9 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"mime"
 	"os"
 	"os/exec"
+	pkgPath "path"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -35,7 +36,7 @@ var (
 
 type ThumbnailService struct {
 	cache    rview.Cache
-	resizeFn func(originalFile, cacheFile string, id rview.FileID) error
+	resizeFn func(originalFile, cacheFile string, id rview.ThumbnailID) error
 	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
 	// used without resizing. The main purpose of resizing is to reduce image size, and with small
 	// files it is not always possible - after resizing they become just larger.
@@ -44,7 +45,7 @@ type ThumbnailService struct {
 	workersCount int
 
 	tasksCh           chan generateThumbnailTask
-	inProgressTasks   map[rview.FileID]struct{}
+	inProgressTasks   map[rview.ThumbnailID]struct{}
 	inProgressTasksMu sync.RWMutex
 
 	stopped       *atomic.Bool
@@ -52,7 +53,8 @@ type ThumbnailService struct {
 }
 
 type generateThumbnailTask struct {
-	rview.FileID
+	fileID      rview.FileID
+	thumbnailID rview.ThumbnailID
 
 	openFileFn rview.OpenFileFn
 }
@@ -75,14 +77,14 @@ func CheckVips() error {
 // for .heic images we generate .jpeg thumbnails.
 func NewThumbnailService(cache rview.Cache, workersCount int, generateThumbnailsForSmallFiles bool) *ThumbnailService {
 	r := &ThumbnailService{
-		cache:                         &cacheWrapper{cache},
+		cache:                         cache,
 		resizeFn:                      resizeWithVips,
 		useOriginalImageThresholdSize: 200 << 10, // 200 KiB
 		//
 		workersCount: workersCount,
 		//
 		tasksCh:         make(chan generateThumbnailTask, 200),
-		inProgressTasks: make(map[rview.FileID]struct{}),
+		inProgressTasks: make(map[rview.ThumbnailID]struct{}),
 		//
 		stopped:       new(atomic.Bool),
 		workersDoneCh: make(chan struct{}),
@@ -121,11 +123,11 @@ func (s *ThumbnailService) startWorkers() {
 				switch {
 				case err != nil:
 					metrics.ThumbnailsErrors.Inc()
-					rlog.Errorf("couldn't process task for %q: %s", task.GetPath(), err)
+					rlog.Errorf("couldn't process task for %q: %s", task.fileID.GetPath(), err)
 
 				case stats.originalImageUsed:
 					metrics.ThumbnailsOriginalImageUsed.Inc()
-					rlog.Debugf("use original image for %q, size: %s", task.GetPath(), toMiB(stats.originalSize))
+					rlog.Debugf("use original image for %q, size: %s", task.fileID.GetPath(), toMiB(stats.originalSize))
 
 				default:
 					metrics.ThumbnailsProcessTaskDuration.Observe(dur.Seconds())
@@ -133,7 +135,7 @@ func (s *ThumbnailService) startWorkers() {
 
 					msg := fmt.Sprintf(
 						"thumbnail for %q was generated in %s, original size: %s, new size: %s",
-						task.GetPath(), dur, toMiB(stats.originalSize), toMiB(stats.thumbnailSize),
+						task.fileID.GetPath(), dur, toMiB(stats.originalSize), toMiB(stats.thumbnailSize),
 					)
 
 					const reportThreshold = 10 << 10 // 10 Kib
@@ -148,7 +150,7 @@ func (s *ThumbnailService) startWorkers() {
 				cancel()
 
 				s.inProgressTasksMu.Lock()
-				delete(s.inProgressTasks, task.FileID)
+				delete(s.inProgressTasks, task.thumbnailID)
 				s.inProgressTasksMu.Unlock()
 			}
 		}()
@@ -165,7 +167,7 @@ type stats struct {
 }
 
 func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbnailTask) (finalStats stats, err error) {
-	rc, err := task.openFileFn(ctx, task.FileID)
+	rc, err := task.openFileFn(ctx, task.fileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get image reader: %w", err)
 	}
@@ -193,12 +195,12 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 
 	// Don't close temp file right after the copy operation because we still may use it.
 
-	cacheFilepath, err := s.cache.GetFilepath(task.FileID)
+	cacheFilepath, err := s.cache.GetFilepath(task.thumbnailID.FileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get path of a cache file: %w", err)
 	}
 
-	imageType := getImageType(task.FileID)
+	imageType := getImageType(task.fileID)
 
 	var saveOriginal bool
 	// It doesn't make much sense to resize small files.
@@ -222,10 +224,10 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		}, nil
 	}
 
-	err = s.resizeFn(tempFile.Name(), cacheFilepath, task.FileID)
+	err = s.resizeFn(tempFile.Name(), cacheFilepath, task.thumbnailID)
 	if err != nil {
-		if err := s.cache.Remove(task.FileID); err != nil {
-			rlog.Errorf("couldn't remove thumbnail for %s after resize error: %s", task.FileID, err)
+		if err := s.cache.Remove(task.thumbnailID.FileID); err != nil {
+			rlog.Errorf("couldn't remove thumbnail for %s after resize error: %s", task.fileID, err)
 		}
 
 		return stats{}, err
@@ -275,18 +277,16 @@ func createCacheFileFromTempFile(tempFile *os.File, cacheFilepath string, origin
 // than the original ones.
 //
 // See https://www.libvips.org/API/current/Using-vipsthumbnail.html for "vipsthumbnail" docs.
-func resizeWithVips(originalFile, cacheFile string, fileID rview.FileID) error {
+func resizeWithVips(originalFile, cacheFile string, id rview.ThumbnailID) error {
 	output := cacheFile
-	switch getImageType(fileID) {
-	case pngImageType, heicImageType:
-		// We generate .jpeg thumbnails for .png and .heic images.
-		fallthrough
+	switch t := getImageType(id.FileID); t {
+	// Ignore .heic, .png and etc. because thumbnail id must already have the correct extension.
 	case jpegImageType:
 		output += "[Q=80,optimize_coding,strip]"
 	case webpImageType:
 		output += "[strip]"
 	default:
-		return errors.New("unsupported image type")
+		return fmt.Errorf("unsupported image type: %q", t)
 	}
 
 	cmd := exec.Command(
@@ -303,7 +303,7 @@ func resizeWithVips(originalFile, cacheFile string, fileID rview.FileID) error {
 		return fmt.Errorf("couldn't resize image: %w, stderr: %q", err, stderr.String())
 	}
 	if stderr.Len() > 0 {
-		rlog.Infof("vips stderr for %q: %q", fileID, stderr.String())
+		rlog.Infof("vips stderr for %q: %q", id, stderr.String())
 	}
 	return nil
 }
@@ -330,8 +330,31 @@ func getImageType(id rview.FileID) imageType {
 	}
 }
 
+func (s *ThumbnailService) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
+	path := id.GetPath()
+	originalExt := pkgPath.Ext(path)
+	path = strings.TrimSuffix(path, originalExt)
+
+	// Generate .jpeg thumbnails for the following image types:
+	//
+	//  - .png - .jpeg thumbnails are much smaller
+	//  - .heic - most browsers don't support it
+	var newExt string
+	switch id.GetExt() {
+	case ".png", ".heic":
+		newExt = ".jpeg"
+	}
+
+	// Add .thumbnail to be able to more easily distinguish thumbnails from original files.
+	path += ".thumbnail" + originalExt + newExt
+
+	return rview.ThumbnailID{
+		FileID: rview.NewFileID(path, id.GetModTime().Unix()),
+	}
+}
+
 // IsThumbnailReady returns true for files with ready thumbnails.
-func (s *ThumbnailService) IsThumbnailReady(id rview.FileID) bool {
+func (s *ThumbnailService) IsThumbnailReady(id rview.ThumbnailID) bool {
 	s.inProgressTasksMu.RLock()
 	_, inProgress := s.inProgressTasks[id]
 	s.inProgressTasksMu.RUnlock()
@@ -339,12 +362,12 @@ func (s *ThumbnailService) IsThumbnailReady(id rview.FileID) bool {
 		return true
 	}
 
-	return s.cache.Check(id) == nil
+	return s.cache.Check(id.FileID) == nil
 }
 
 // OpenThumbnail returns io.ReadCloser for the image thumbnail. It waits for the files in queue, but no longer
 // than context timeout.
-func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.ThumbnailID) (io.ReadCloser, error) {
 	isInProgress := func() (inProgress bool) {
 		s.inProgressTasksMu.RLock()
 		defer s.inProgressTasksMu.RUnlock()
@@ -369,7 +392,7 @@ func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.FileID) (
 		}
 	}
 
-	return s.cache.Open(id)
+	return s.cache.Open(id.FileID)
 }
 
 // SendTask sends a task to the queue. It returns an error if the image format
@@ -385,31 +408,29 @@ func (s *ThumbnailService) SendTask(id rview.FileID, openFileFn rview.OpenFileFn
 		return ErrUnsupportedImageFormat
 	}
 
+	thumbnailID := s.NewThumbnailID(id)
+
 	var ignore bool
 	func() {
 		s.inProgressTasksMu.Lock()
 		defer s.inProgressTasksMu.Unlock()
 
-		if _, ok := s.inProgressTasks[id]; ok {
+		if _, ok := s.inProgressTasks[thumbnailID]; ok {
 			ignore = true
 			return
 		}
-		s.inProgressTasks[id] = struct{}{}
+		s.inProgressTasks[thumbnailID] = struct{}{}
 	}()
 	if ignore {
 		return nil
 	}
 
 	s.tasksCh <- generateThumbnailTask{
-		FileID:     id,
-		openFileFn: openFileFn,
+		fileID:      id,
+		thumbnailID: thumbnailID,
+		openFileFn:  openFileFn,
 	}
 	return nil
-}
-
-func (s *ThumbnailService) GetMimeType(id rview.FileID) string {
-	ext := convertToThumbnailFileID(id).GetExt()
-	return mime.TypeByExtension(ext)
 }
 
 // Shutdown drops all tasks in the queue and waits for ones that are in progress
@@ -426,43 +447,5 @@ func (s *ThumbnailService) Shutdown(ctx context.Context) error {
 		return ctx.Err()
 	case <-s.workersDoneCh:
 		return nil
-	}
-}
-
-// cacheWrapper converts all [rview.FileID] before passing them to [rview.Cache].
-type cacheWrapper struct {
-	c rview.Cache
-}
-
-func (c *cacheWrapper) Open(id rview.FileID) (io.ReadCloser, error) {
-	return c.c.Open(convertToThumbnailFileID(id))
-}
-
-func (c *cacheWrapper) Check(id rview.FileID) error {
-	return c.c.Check(convertToThumbnailFileID(id))
-}
-
-func (c *cacheWrapper) GetFilepath(id rview.FileID) (path string, err error) {
-	return c.c.GetFilepath(convertToThumbnailFileID(id))
-}
-
-func (c *cacheWrapper) Write(id rview.FileID, r io.Reader) (err error) {
-	return c.c.Write(convertToThumbnailFileID(id), r)
-}
-
-func (c *cacheWrapper) Remove(id rview.FileID) error {
-	return c.c.Remove(convertToThumbnailFileID(id))
-}
-
-// convertToThumbnailFileID returns a file id for working with the thumbnail cache.
-func convertToThumbnailFileID(id rview.FileID) rview.FileID {
-	switch id.GetExt() {
-	case ".png", ".heic":
-		// We generate .jpeg thumbnails for .png and .heic images.
-		path := id.GetPath() + ".jpeg"
-		return rview.NewFileID(path, id.GetModTime().Unix())
-
-	default:
-		return id
 	}
 }

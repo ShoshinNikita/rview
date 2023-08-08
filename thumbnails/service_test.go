@@ -11,6 +11,7 @@ import (
 
 	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/rview"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -26,14 +27,15 @@ func TestThumbnailService(t *testing.T) {
 	service.useOriginalImageThresholdSize = 10
 
 	var resizedCount int
-	service.resizeFn = func(originalFile, cacheFile string, id rview.FileID) error {
+	service.resizeFn = func(originalFile, cacheFile string, id rview.ThumbnailID) error {
 		resizedCount++
 		return os.WriteFile(cacheFile, []byte("resized-content-"+id.GetName()), 0o600)
 	}
 
 	fileID := rview.NewFileID("1.jpg", time.Now().Unix())
+	thumbnailID := service.NewThumbnailID(fileID)
 
-	r.False(service.IsThumbnailReady(fileID))
+	r.False(service.IsThumbnailReady(thumbnailID))
 
 	resizeStart := time.Now()
 
@@ -44,7 +46,7 @@ func TestThumbnailService(t *testing.T) {
 	r.NoError(err)
 
 	// Must take into account in-progress tasks.
-	r.True(service.IsThumbnailReady(fileID))
+	r.True(service.IsThumbnailReady(thumbnailID))
 
 	// Must ignore duplicate tasks.
 	for i := 0; i < 3; i++ {
@@ -52,12 +54,12 @@ func TestThumbnailService(t *testing.T) {
 		r.NoError(err)
 	}
 
-	rc, err := service.OpenThumbnail(context.Background(), fileID)
+	rc, err := service.OpenThumbnail(context.Background(), thumbnailID)
 	r.NoError(err)
 
 	data, err := io.ReadAll(rc)
 	r.NoError(err)
-	r.Equal("resized-content-1.jpg", string(data))
+	r.Equal("resized-content-1.thumbnail.jpg", string(data))
 
 	dur := time.Since(resizeStart)
 	if dur < 200*time.Millisecond {
@@ -65,24 +67,26 @@ func TestThumbnailService(t *testing.T) {
 	}
 
 	r.Equal(1, resizedCount)
-	r.True(service.IsThumbnailReady(fileID))
+	r.True(service.IsThumbnailReady(thumbnailID))
 
 	// Same path, but different mod time.
 	newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix()+5)
-	r.False(service.IsThumbnailReady(newFileID))
+	newThumbnailID := service.NewThumbnailID(newFileID)
+	r.False(service.IsThumbnailReady(newThumbnailID))
 
 	t.Run("remove resized file after error", func(t *testing.T) {
 		r := require.New(t)
 
 		fileID := rview.NewFileID("2.jpg", time.Now().Unix())
+		thumbnailID := service.NewThumbnailID(fileID)
 
-		service.resizeFn = func(originalFile, cacheFile string, id rview.FileID) error {
+		service.resizeFn = func(originalFile, cacheFile string, id rview.ThumbnailID) error {
 			// File must be created by vips, emulate it.
 			f, err := os.Create(cacheFile)
 			r.NoError(err)
 			r.NoError(f.Close())
 
-			r.NoError(service.cache.Check(fileID))
+			r.NoError(service.cache.Check(thumbnailID.FileID))
 
 			return errors.New("some error")
 		}
@@ -92,7 +96,7 @@ func TestThumbnailService(t *testing.T) {
 		})
 		r.NoError(err)
 
-		_, err = service.OpenThumbnail(context.Background(), fileID)
+		_, err = service.OpenThumbnail(context.Background(), thumbnailID)
 		r.ErrorIs(err, rview.ErrCacheMiss)
 
 		// Cache file must be removed.
@@ -103,9 +107,10 @@ func TestThumbnailService(t *testing.T) {
 		r := require.New(t)
 
 		fileID := rview.NewFileID("3.jpg", time.Now().Unix())
+		thumbnailID := service.NewThumbnailID(fileID)
 
 		var resizeCalled bool
-		service.resizeFn = func(_, _ string, _ rview.FileID) error {
+		service.resizeFn = func(_, _ string, _ rview.ThumbnailID) error {
 			resizeCalled = true
 			return errors.New("should not be called")
 		}
@@ -115,7 +120,7 @@ func TestThumbnailService(t *testing.T) {
 		})
 		r.NoError(err)
 
-		rc, err = service.OpenThumbnail(context.Background(), fileID)
+		rc, err = service.OpenThumbnail(context.Background(), thumbnailID)
 		r.NoError(err)
 		data, err := io.ReadAll(rc)
 		r.NoError(err)
@@ -141,4 +146,22 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 	r.True(canGenerate(rview.NewFileID("/home/users/test with space.jpeg", now)))
 	r.True(canGenerate(rview.NewFileID("/test.gif", now)))
 	r.False(canGenerate(rview.NewFileID("/home/users/x.txt", now)))
+}
+
+func TestThumbnailService_NewThumbnailID(t *testing.T) {
+	t.Parallel()
+
+	service := NewThumbnailService(nil, 0, false)
+
+	for path, wantThumbnail := range map[string]string{
+		"/home/cat.jpeg":             "/home/cat.thumbnail.jpeg",
+		"/home/abc/qwe/ghj/dog.heic": "/home/abc/qwe/ghj/dog.thumbnail.heic.jpeg",
+		"/x/mouse.JPG":               "/x/mouse.thumbnail.JPG",
+		"/x/y/z/screenshot.PNG":      "/x/y/z/screenshot.thumbnail.PNG.jpeg",
+	} {
+		id := rview.NewFileID(path, 33)
+		thumbnail := service.NewThumbnailID(id)
+		assert.Equal(t, wantThumbnail, thumbnail.GetPath())
+		assert.Equal(t, int64(33), thumbnail.GetModTime().Unix())
+	}
 }

@@ -16,11 +16,15 @@ func NewNoopThumbnailService() *NoopThumbnailService {
 	return &NoopThumbnailService{}
 }
 
+func (NoopThumbnailService) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
+	return rview.ThumbnailID{FileID: id}
+}
+
 func (NoopThumbnailService) CanGenerateThumbnail(rview.FileID) bool {
 	return false
 }
 
-func (NoopThumbnailService) IsThumbnailReady(rview.FileID) bool {
+func (NoopThumbnailService) IsThumbnailReady(rview.ThumbnailID) bool {
 	return false
 }
 
@@ -28,14 +32,10 @@ func (NoopThumbnailService) SendTask(rview.FileID, rview.OpenFileFn) error {
 	return ErrNoopThumbnailService
 }
 
-func (NoopThumbnailService) GetMimeType(rview.FileID) string {
-	return ""
-}
-
 func (NoopThumbnailService) Shutdown(context.Context) error {
 	return nil
 }
 
-func (NoopThumbnailService) OpenThumbnail(context.Context, rview.FileID) (io.ReadCloser, error) {
+func (NoopThumbnailService) OpenThumbnail(context.Context, rview.ThumbnailID) (io.ReadCloser, error) {
 	return nil, ErrNoopThumbnailService
 }

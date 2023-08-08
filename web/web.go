@@ -426,9 +426,10 @@ func (s *Server) sendGenerateThumbnailTasks(info DirInfo) DirInfo {
 			continue
 		}
 
-		thumbnailURL := fileIDToURL("/api/thumbnail", info.dirURL, id)
+		thumbnailID := s.thumbnailService.NewThumbnailID(id)
+		thumbnailURL := fileIDToURL("/api/thumbnail", info.dirURL, thumbnailID.FileID)
 
-		if s.thumbnailService.IsThumbnailReady(id) {
+		if s.thumbnailService.IsThumbnailReady(thumbnailID) {
 			info.Entries[i].ThumbnailURL = thumbnailURL
 			continue
 		}
@@ -504,16 +505,18 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 
 // handleThumbnail returns the thumbnail.
 func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
-	fileID, err := fileIDFromRequest(r, "/api/thumbnail")
+	id, err := fileIDFromRequest(r, "/api/thumbnail")
 	if err != nil {
 		writeBadRequestError(w, err.Error())
 		return
 	}
 
-	rc, err := s.thumbnailService.OpenThumbnail(r.Context(), fileID)
+	thumbnailID := rview.ThumbnailID{FileID: id}
+
+	rc, err := s.thumbnailService.OpenThumbnail(r.Context(), thumbnailID)
 	if err != nil {
 		if errors.Is(err, rview.ErrCacheMiss) {
-			writeError(w, http.StatusNotFound, "no thumbnail for file %q", fileID.GetPath())
+			writeError(w, http.StatusNotFound, "no thumbnail %q", id.GetPath())
 			return
 		}
 		writeBadRequestError(w, "couldn't open thumbnail: %s", err)
@@ -521,12 +524,12 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rc.Close()
 
-	contentType := s.thumbnailService.GetMimeType(fileID)
+	contentType := mime.TypeByExtension(thumbnailID.GetExt())
 	if contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}
 	// Use mod time as a value for ETag.
-	etag := strconv.Itoa(int(fileID.GetModTime().Unix()))
+	etag := strconv.Itoa(int(id.GetModTime().Unix()))
 	setCacheHeaders(w, 30*24*time.Hour, etag)
 
 	io.Copy(w, rc)

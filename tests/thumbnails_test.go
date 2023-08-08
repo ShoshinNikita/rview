@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"mime"
 	"os"
 	"path/filepath"
 	"testing"
@@ -38,6 +39,7 @@ func TestThumbnailGeneration(t *testing.T) {
 			r := require.New(t)
 
 			fileID := rview.NewFileID(tt.file, 0)
+			thumbnailID := thumbnailService.NewThumbnailID(fileID)
 
 			originalImage, err := os.ReadFile(filepath.Join("testdata", tt.file))
 			r.NoError(err)
@@ -49,7 +51,7 @@ func TestThumbnailGeneration(t *testing.T) {
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 			defer cancel()
-			rc, err := thumbnailService.OpenThumbnail(ctx, fileID)
+			rc, err := thumbnailService.OpenThumbnail(ctx, thumbnailID)
 			r.NoError(err)
 			defer rc.Close()
 
@@ -57,7 +59,7 @@ func TestThumbnailGeneration(t *testing.T) {
 			r.NoError(err)
 			r.NotEqual(len(thumbnail), len(originalImage), "size of thumbnail and original file should differ")
 
-			mimeType := thumbnailService.GetMimeType(fileID)
+			mimeType := mime.TypeByExtension(thumbnailID.GetExt())
 			r.Equal(tt.mimeType, mimeType)
 		})
 	}

@@ -195,7 +195,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 						FileType:             rview.FileTypeImage,
 						CanPreview:           true,
 						OriginalFileURL:      "/api/file/test.gif?mod_time=1672585200",
-						ThumbnailURL:         "/api/thumbnail/test.gif?mod_time=1672585200",
+						ThumbnailURL:         "/api/thumbnail/test.thumbnail.gif?mod_time=1672585200",
 						IconName:             "image",
 					},
 				},
@@ -426,9 +426,9 @@ func TestAPI_Thumbnails(t *testing.T) {
 	generatedFileModTime := generateImage(generatedFile, 500, time.March)
 
 	testFileTime := mustParseTime(t, TestDataModTimes[testFile])
-	testFileThumbnailURL := "/api/thumbnail/" + testFile + "?mod_time=" + strconv.Itoa(int(testFileTime.Unix()))
+	testFileThumbnailURL := "/api/thumbnail/Other/test-thumbnails/cloudy-g1a943401b_640.thumbnail.png.jpeg?mod_time=" + strconv.Itoa(int(testFileTime.Unix()))
 
-	generatedFileThumbnailURL := "/api/thumbnail/" + generatedFile + "?mod_time=" + strconv.Itoa(int(generatedFileModTime.Unix()))
+	generatedFileThumbnailURL := "/api/thumbnail/Other/test-thumbnails/generated.thumbnail.jpeg?mod_time=" + strconv.Itoa(int(generatedFileModTime.Unix()))
 
 	// Thumbnails were not generated yet.
 	for _, url := range []string{
@@ -457,18 +457,20 @@ func TestAPI_Thumbnails(t *testing.T) {
 
 	// Thumbnails must be ready.
 	var generatedFileThumbnailSize int
-	for thumbnailURL, originalFileUsed := range map[string]bool{
-		testFileThumbnailURL:      true,
-		generatedFileThumbnailURL: false,
-	} {
+	for _, largeFile := range []bool{false, true} {
+		fileURL, thumbnailURL, modTime := testFile, testFileThumbnailURL, testFileTime
+		if largeFile {
+			fileURL, thumbnailURL, modTime = generatedFile, generatedFileThumbnailURL, generatedFileModTime
+		}
+		fileURL = "/api/file/" + fileURL + "?mod_time=" + strconv.Itoa(int(modTime.Unix()))
+
 		status, thumbnailBody, _ := makeRequest(t, thumbnailURL)
 		r.Equal(200, status)
 
-		fileURL := strings.Replace(thumbnailURL, "/api/thumbnail/", "/api/file/", 1)
 		status, fileBody, _ := makeRequest(t, fileURL)
 		r.Equal(200, status)
 
-		if originalFileUsed {
+		if !largeFile {
 			r.Equal(len(thumbnailBody), len(fileBody))
 		} else {
 			r.Less(len(thumbnailBody), len(fileBody))
