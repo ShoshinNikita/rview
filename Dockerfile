@@ -1,5 +1,5 @@
 # Build rview.
-FROM golang:1.20.5-alpine AS builder
+FROM golang:1.21-alpine AS builder
 
 WORKDIR /rview
 
