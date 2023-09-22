@@ -2,8 +2,7 @@ a.entry {
 	align-items: center;
 	border: 1px solid #00000000;
 	color: var(--font-color);
-	display: grid;
-	grid-template-rows: 1fr min-content;
+	display: block;
 	padding: 5px;
 	text-decoration: none;
 	width: 100%;
@@ -23,16 +22,15 @@ a.entry {
 }
 
 .icon-wrapper {
+	height: 100px;
 	text-align: center;
-	min-height: 60px;
-	min-width: 100%;
 	position: relative;
 }
 
 .thumbnail {
 	box-shadow: var(--image-box-shadow);
-	max-height: 120px;
-	max-width: 90%;
+	max-height: 90%;
+	max-width: 95%;
 }
 
 .icon {
@@ -43,7 +41,10 @@ a.entry {
 
 .icon,
 .thumbnail {
-	position: relative;
+	left: 50%;
+	position: absolute;
+	top: 50%;
+	transform: translate(-50%, -50%);
 	z-index: 1;
 }
 
@@ -92,8 +93,7 @@ a.entry {
 .entry-filename {
 	display: inline-block;
 	overflow: hidden;
+	overflow-wrap: break-word;
 	text-align: center;
-	text-overflow: ellipsis;
 	width: 100%;
-	white-space: nowrap;
 }

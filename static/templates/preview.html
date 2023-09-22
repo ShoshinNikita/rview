@@ -135,7 +135,7 @@
 
 	.preview-not-available-text {
 		align-items: center;
-		column-gap: 10px;
+		column-gap: 16px;
 		display: flex;
 		font-size: 24px;
 	}
@@ -264,8 +264,6 @@
 
 		.preview-file-info {
 			grid-area: file-info;
-			overflow: hidden;
-			white-space: nowrap;
 		}
 
 		.preview-file-info>* {
@@ -336,13 +334,22 @@
 		display: contents;
 	}
 
-	.selector-thumbnail-wrapper .thumbnail {
-		max-height: 50px;
+	.selector-thumbnail-wrapper .entry {
+		padding: 0 5px;
+	}
+
+	.selector-thumbnail-wrapper .icon-wrapper {
+		height: 60px;
 	}
 
 	.selector-thumbnail-wrapper .icon {
 		height: 50px;
 		width: 50px;
+	}
+
+	.selector-thumbnail-wrapper .entry-filename {
+		text-overflow: ellipsis;
+		white-space: nowrap;
 	}
 </style>
 
