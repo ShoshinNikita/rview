@@ -470,19 +470,6 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rc.Close()
 
-	fileModTime, err := time.Parse(http.TimeFormat, rcloneHeaders.Get("Last-Modified"))
-	if err != nil {
-		writeInternalServerError(w, "rclone response must have valid Last-Modified header: %s", err)
-		return
-	}
-	if !fileModTime.Equal(fileID.GetModTime()) {
-		writeInternalServerError(w,
-			"rclone file and requested file have different mod times: %q, %q",
-			fileModTime, fileID.GetModTime(),
-		)
-		return
-	}
-
 	for _, headerName := range []string{
 		"Content-Type",
 		"Content-Length",

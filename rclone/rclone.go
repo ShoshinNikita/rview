@@ -157,7 +157,28 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
 	rcloneURL := r.rcloneURL.JoinPath(id.GetPath())
 
-	return r.makRequest(ctx, rcloneURL)
+	body, headers, err := r.makRequest(ctx, rcloneURL)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err := checkLastModified(id, headers); err != nil {
+		body.Close()
+		return nil, nil, err
+	}
+
+	return body, headers, nil
+}
+
+func checkLastModified(id rview.FileID, fileHeaders http.Header) error {
+	fileModTime, err := time.Parse(http.TimeFormat, fileHeaders.Get("Last-Modified"))
+	if err != nil {
+		return fmt.Errorf("rclone response has invalid Last-Modified header: %w", err)
+	}
+	if !fileModTime.Equal(id.GetModTime()) {
+		return fmt.Errorf("rclone response has different mod time: %q, expected: %q", fileModTime, id.GetModTime())
+	}
+	return nil
 }
 
 func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string) (*rview.RcloneDirInfo, error) {
