@@ -31,7 +31,7 @@ type Service struct {
 }
 
 type Rclone interface {
-	GetAllFiles(ctx context.Context) ([]string, error)
+	GetAllFiles(ctx context.Context) (dirs, files []string, err error)
 }
 
 type builtIndexes struct {
@@ -78,10 +78,20 @@ func (s *Service) Start() (err error) {
 
 	rlog.Infof("couldn't load search indexes from cache, prepare new ones: %s", err)
 
-	if err := s.RefreshIndexes(context.Background()); err != nil {
-		return fmt.Errorf("couldn't prepare search indexes: %w", err)
+	// The first few requests can fail with error "connection refused" because
+	// rclone is still starting.
+	for i := 0; true; i++ {
+		err = s.RefreshIndexes(context.Background())
+		if err == nil {
+			return nil
+		}
+		if i == 5 {
+			return fmt.Errorf("couldn't prepare search indexes: %w", err)
+		}
+
+		time.Sleep(50 * time.Millisecond)
 	}
-	return nil
+	panic("unreachable")
 }
 
 func (s *Service) loadIndexesFromCache() (res *builtIndexes, err error) {
@@ -194,20 +204,16 @@ func (s *Service) RefreshIndexes(ctx context.Context) (finalErr error) {
 		rlog.Infof("search indexes were successfully refreshed in %s, entries count: %d", dur, entriesCount)
 	}()
 
-	allFilenames, err := s.rclone.GetAllFiles(ctx)
+	dirs, filenames, err := s.rclone.GetAllFiles(ctx)
 	if err != nil {
 		return fmt.Errorf("couldn't get all files from rclone: %w", err)
 	}
-	entriesCount = len(allFilenames)
-
-	var dirs, filenames []string
-	for _, f := range allFilenames {
-		if strings.HasSuffix(f, "/") {
-			dirs = append(dirs, f)
-		} else {
-			filenames = append(filenames, f)
+	for i := range dirs {
+		if !strings.HasSuffix(dirs[i], "/") {
+			dirs[i] += "/"
 		}
 	}
+	entriesCount = len(dirs) + len(filenames)
 
 	indexes := &builtIndexes{
 		Dirs:      newPrefixIndex(dirs, s.minPrefixLen, s.maxPrefixLen),

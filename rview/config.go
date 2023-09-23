@@ -18,27 +18,30 @@ type Config struct {
 	ServerPort int
 	Dir        string
 
-	RcloneTarget string
-	RclonePort   int
-
 	Thumbnails                 bool
 	ThumbnailsMaxAgeInDays     int
 	ThumbnailsMaxTotalSizeInMB int
 	ThumbnailsWorkersCount     int
 
+	Rclone RcloneConfig
+
 	// Debug options
 
 	DebugLogLevel           bool
 	ReadStaticFilesFromDisk bool
-
-	// Internal
-
-	RcloneDirCacheTime time.Duration
 }
 
 type BuildInfo struct {
 	ShortGitHash string
 	CommitTime   string
+}
+
+type RcloneConfig struct {
+	URL    string
+	User   string
+	Pass   string
+	Target string
+	Port   int
 }
 
 type flagParams struct {
@@ -57,11 +60,17 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 			p: &cfg.Dir, defaultValue: "./var", desc: "directory for app data",
 		},
 		//
-		"rclone-port": {
-			p: &cfg.RclonePort, defaultValue: 8181, desc: "port of a rclone instance",
+		"rclone-url": {
+			p: &cfg.Rclone.URL, defaultValue: "", desc: "url of an existing rclone instance, optional",
+		},
+		"rclone-user": {
+			p: &cfg.Rclone.User, defaultValue: "", desc: "user to access an existing rclone instance, optional",
+		},
+		"rclone-pass": {
+			p: &cfg.Rclone.Pass, defaultValue: "", desc: "password to access an existing rclone instance, optional",
 		},
 		"rclone-target": {
-			p: &cfg.RcloneTarget, defaultValue: "", desc: "rclone target",
+			p: &cfg.Rclone.Target, defaultValue: "", desc: "rclone target, required",
 		},
 		//
 		"thumbnails": {
@@ -88,8 +97,10 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 
 func ParseConfig() (Config, error) {
 	cfg := Config{
-		BuildInfo:          readBuildInfo(),
-		RcloneDirCacheTime: time.Minute,
+		BuildInfo: readBuildInfo(),
+		Rclone: RcloneConfig{
+			Port: 8181,
+		},
 	}
 
 	var printVersion bool
@@ -119,7 +130,7 @@ func ParseConfig() (Config, error) {
 	if cfg.ServerPort == 0 {
 		return cfg, errors.New("server port must be > 0")
 	}
-	if cfg.RcloneTarget == "" {
+	if cfg.Rclone.Target == "" {
 		return cfg, errors.New("rclone target can't be empty")
 	}
 	if cfg.Dir == "" {

@@ -47,23 +47,26 @@ func startTestRview() {
 			ServerPort: mustGetFreePort(),
 			Dir:        tempDir,
 			//
-			RcloneTarget: "./testdata",
-			RclonePort:   mustGetFreePort(),
+			Rclone: rview.RcloneConfig{
+				Target: "./testdata",
+				Port:   mustGetFreePort(),
+			},
 			//
 			Thumbnails:             true,
 			ThumbnailsWorkersCount: 1,
 			//
 			DebugLogLevel: true,
-			//
-			RcloneDirCacheTime: 0,
 		}
 		rviewAPIAddr = fmt.Sprintf("http://localhost:%d", cfg.ServerPort)
-		rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.RclonePort)
+		rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.Rclone.Port)
 
 		testRview = cmd.NewRview(cfg)
 		if err := testRview.Prepare(); err != nil {
 			panic(fmt.Errorf("couldn't prepare rview: %w", err))
 		}
+
+		time.Sleep(100 * time.Millisecond)
+
 		testRviewDone = testRview.Start(func() {
 			panic(fmt.Errorf("rview error"))
 		})
@@ -120,6 +123,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 					{
 						Filename:             "Audio",
 						IsDir:                true,
+						Size:                 -1,
 						ModTime:              mustParseTime(t, "2022-08-09 00:15:30"),
 						HumanReadableModTime: "2022-08-09 00:15:30 UTC",
 						DirURL:               "/api/dir/Audio/",
@@ -129,6 +133,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 					{
 						Filename:             "Images",
 						IsDir:                true,
+						Size:                 -1,
 						ModTime:              mustParseTime(t, "2023-01-01 18:35:00"),
 						HumanReadableModTime: "2023-01-01 18:35:00 UTC",
 						DirURL:               "/api/dir/Images/",
@@ -138,6 +143,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 					{
 						Filename:             "Other",
 						IsDir:                true,
+						Size:                 -1,
 						ModTime:              mustParseTime(t, "2022-09-08 11:37:02"),
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						DirURL:               "/api/dir/Other/",
@@ -147,6 +153,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 					{
 						Filename:             "Video",
 						IsDir:                true,
+						Size:                 -1,
 						ModTime:              mustParseTime(t, "2022-09-08 11:37:02"),
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						DirURL:               "/api/dir/Video/",

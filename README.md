@@ -12,6 +12,7 @@
 - [Limitations](#limitations)
 - [Demo](#demo)
 - [Run](#run)
+  - [Advanced](#advanced)
 - [Configuration](#configuration)
 - [Development](#development)
   - [API](#api)
@@ -78,7 +79,13 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
 
 5. Go to http://localhost:8080.
 
+### Advanced
+
+You can run **Rview** without access to the internet. You can find more [here](./docs/Advanced%20Setup.md).
+
 ## Configuration
+
+<!-- TODO: update -->
 
 | Flag                             | Default Value              | Description                                  |
 | -------------------------------- | -------------------------- | -------------------------------------------- |

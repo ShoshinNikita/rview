@@ -22,7 +22,6 @@ linters:
     - govet
     - ineffassign
     - misspell
-    - nestif
     - nilerr
     - nilnil
     - noctx
