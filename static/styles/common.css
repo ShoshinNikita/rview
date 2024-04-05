@@ -6,6 +6,7 @@
 	--shadow-color: #0000004d;
 	--shadow-color-2: #000000b4;
 	--border-color: #babfc4;
+	--error-color: #dc4738;
 
 	--hover-background-color: #d0d7de52;
 	--hover-border-color: #d0d7de;
@@ -40,6 +41,7 @@
 	--shadow-color: #010409;
 	--shadow-color-2: var(--shadow-color);
 	--border-color: #30363d;
+	--error-color: #ea4c3b;
 
 	--hover-background-color: #21262c;
 	--hover-border-color: #373f49;

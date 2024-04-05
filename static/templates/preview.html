@@ -103,6 +103,10 @@
 		white-space: pre-wrap;
 	}
 
+	.preview-text.error {
+		color: var(--error-color);
+	}
+
 	.preview-audio {
 		height: revert;
 		top: 50%;
@@ -588,7 +592,7 @@
 			(async () => {
 				const pre = previewElement.querySelector("pre");
 
-				if (pre.innerHTML) {
+				if (pre.innerHTML && !pre.classList.contains("error")) {
 					// The file content should be already downloaded.
 					return;
 				}
@@ -612,10 +616,12 @@
 					finally(() => {
 						if (statusCode != 200) {
 							textToShow = `* Error: ${textToShow}`;
+							pre.classList.add("error");
 						} else {
-							pre.innerHTML = "";
+							pre.classList.remove("error");
 						}
 
+						pre.innerHTML = "";
 						const escapedText = document.createTextNode(textToShow);
 						pre.appendChild(escapedText);
 					});
