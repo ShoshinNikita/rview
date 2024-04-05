@@ -47,23 +47,24 @@ func startTestRview() {
 			ServerPort: mustGetFreePort(),
 			Dir:        tempDir,
 			//
-			RcloneTarget: "./testdata",
-			RclonePort:   mustGetFreePort(),
+			Rclone: rview.RcloneConfig{
+				Target: "./testdata",
+				Port:   mustGetFreePort(),
+			},
 			//
 			Thumbnails:             true,
 			ThumbnailsWorkersCount: 1,
 			//
 			DebugLogLevel: true,
-			//
-			RcloneDirCacheTime: 0,
 		}
 		rviewAPIAddr = fmt.Sprintf("http://localhost:%d", cfg.ServerPort)
-		rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.RclonePort)
+		rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.Rclone.Port)
 
 		testRview = cmd.NewRview(cfg)
 		if err := testRview.Prepare(); err != nil {
 			panic(fmt.Errorf("couldn't prepare rview: %w", err))
 		}
+
 		testRviewDone = testRview.Start(func() {
 			panic(fmt.Errorf("rview error"))
 		})
@@ -81,7 +82,16 @@ func startTestRview() {
 		}
 
 		// Wait for components to be ready.
-		time.Sleep(100 * time.Millisecond)
+		for i := 0; i < 10; i++ {
+			if i != 0 {
+				time.Sleep(100 * time.Millisecond)
+			}
+
+			resp, err := http.DefaultClient.Get(rviewAPIAddr + "/api/search?search=test") //nolint:noctx
+			if err == nil && resp.StatusCode == 200 {
+				break
+			}
+		}
 	})
 }
 

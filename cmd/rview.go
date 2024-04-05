@@ -46,7 +46,7 @@ func (r *Rview) Prepare() (err error) {
 	}
 
 	// Rclone Instance
-	r.rcloneInstance, err = rclone.NewRclone(r.cfg.RclonePort, r.cfg.RcloneTarget, r.cfg.RcloneDirCacheTime)
+	r.rcloneInstance, err = rclone.NewRclone(r.cfg.Rclone)
 	if err != nil {
 		return fmt.Errorf("couldn't prepare rclone: %w", err)
 	}
