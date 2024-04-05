@@ -27,7 +27,7 @@ func TestThumbnailService(t *testing.T) {
 	service.useOriginalImageThresholdSize = 10
 
 	var resizedCount int
-	service.resizeFn = func(originalFile, cacheFile string, id rview.ThumbnailID) error {
+	service.resizeFn = func(_, cacheFile string, id rview.ThumbnailID) error {
 		resizedCount++
 		return os.WriteFile(cacheFile, []byte("resized-content-"+id.GetName()), 0o600)
 	}
@@ -39,7 +39,7 @@ func TestThumbnailService(t *testing.T) {
 
 	resizeStart := time.Now()
 
-	err = service.SendTask(fileID, func(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+	err = service.SendTask(fileID, func(_ context.Context, id rview.FileID) (io.ReadCloser, error) {
 		time.Sleep(110 * time.Millisecond)
 		return io.NopCloser(bytes.NewReader([]byte("original-content-" + id.String()))), nil
 	})
@@ -80,7 +80,7 @@ func TestThumbnailService(t *testing.T) {
 		fileID := rview.NewFileID("2.jpg", time.Now().Unix())
 		thumbnailID := service.NewThumbnailID(fileID)
 
-		service.resizeFn = func(originalFile, cacheFile string, id rview.ThumbnailID) error {
+		service.resizeFn = func(_, cacheFile string, _ rview.ThumbnailID) error {
 			// File must be created by vips, emulate it.
 			f, err := os.Create(cacheFile)
 			r.NoError(err)
