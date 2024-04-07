@@ -59,7 +59,7 @@ type thumbnailServiceStub struct {
 
 func newThumbnailServiceStub() *thumbnailServiceStub {
 	return &thumbnailServiceStub{
-		s: thumbnails.NewThumbnailService(cache.NewInMemoryCache(), 0, false),
+		s: thumbnails.NewThumbnailService(nil, cache.NewInMemoryCache(), 0, false),
 	}
 }
 
@@ -71,7 +71,7 @@ func (s *thumbnailServiceStub) IsThumbnailReady(id rview.ThumbnailID) bool {
 	return id.GetName() == "resized.thumbnail.jpg"
 }
 
-func (s *thumbnailServiceStub) SendTask(id rview.FileID, _ rview.OpenFileFn) error {
+func (s *thumbnailServiceStub) SendTask(id rview.FileID) error {
 	s.taskCount++
 
 	if id.GetName() == "error.jpg" {

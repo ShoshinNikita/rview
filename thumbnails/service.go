@@ -35,8 +35,9 @@ var (
 )
 
 type ThumbnailService struct {
-	cache    rview.Cache
-	resizeFn func(originalFile, cacheFile string, id rview.ThumbnailID) error
+	cache      rview.Cache
+	openFileFn rview.OpenFileFn
+	resizeFn   func(originalFile, cacheFile string, id rview.ThumbnailID) error
 	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
 	// used without resizing. The main purpose of resizing is to reduce image size, and with small
 	// files it is not always possible - after resizing they become just larger.
@@ -55,8 +56,6 @@ type ThumbnailService struct {
 type generateThumbnailTask struct {
 	fileID      rview.FileID
 	thumbnailID rview.ThumbnailID
-
-	openFileFn rview.OpenFileFn
 }
 
 func CheckVips() error {
@@ -75,8 +74,9 @@ func CheckVips() error {
 //
 // For some images we can generate thumbnails of different formats. For example,
 // for .heic images we generate .jpeg thumbnails.
-func NewThumbnailService(cache rview.Cache, workersCount int, generateThumbnailsForSmallFiles bool) *ThumbnailService {
+func NewThumbnailService(openFileFn rview.OpenFileFn, cache rview.Cache, workersCount int, generateThumbnailsForSmallFiles bool) *ThumbnailService {
 	r := &ThumbnailService{
+		openFileFn:                    openFileFn,
 		cache:                         cache,
 		resizeFn:                      resizeWithVips,
 		useOriginalImageThresholdSize: 200 << 10, // 200 KiB
@@ -167,7 +167,7 @@ type stats struct {
 }
 
 func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbnailTask) (finalStats stats, err error) {
-	rc, err := task.openFileFn(ctx, task.fileID)
+	rc, err := s.openFileFn(ctx, task.fileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get image reader: %w", err)
 	}
@@ -400,7 +400,7 @@ func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.Thumbnail
 // must be absolute.
 //
 // SendTask ignores duplicate tasks. However, it doesn't check files on disk.
-func (s *ThumbnailService) SendTask(id rview.FileID, openFileFn rview.OpenFileFn) error {
+func (s *ThumbnailService) SendTask(id rview.FileID) error {
 	if s.stopped.Load() {
 		return errors.New("can't send tasks after Shutdown call")
 	}
@@ -428,7 +428,6 @@ func (s *ThumbnailService) SendTask(id rview.FileID, openFileFn rview.OpenFileFn
 	s.tasksCh <- generateThumbnailTask{
 		fileID:      id,
 		thumbnailID: thumbnailID,
-		openFileFn:  openFileFn,
 	}
 	return nil
 }

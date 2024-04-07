@@ -68,31 +68,29 @@ func IsRcloneNotFoundError(err error) bool {
 	return errors.As(err, &rcloneErr) && rcloneErr.StatusCode == http.StatusNotFound
 }
 
-type (
-	Rclone interface {
-		GetFile(ctx context.Context, id FileID) (io.ReadCloser, http.Header, error)
-		GetDirInfo(ctx context.Context, path string, sort, order string) (*RcloneDirInfo, error)
-	}
+type Rclone interface {
+	GetFile(ctx context.Context, id FileID) (io.ReadCloser, http.Header, error)
+	GetDirInfo(ctx context.Context, path string, sort, order string) (*RcloneDirInfo, error)
+}
 
-	RcloneDirInfo struct {
-		Sort  string `json:"sort"`
-		Order string `json:"order"`
+type RcloneDirInfo struct {
+	Sort  string `json:"sort"`
+	Order string `json:"order"`
 
-		Breadcrumbs []RcloneDirBreadcrumb `json:"breadcrumbs"`
-		Entries     []RcloneDirEntry      `json:"entries"`
-	}
+	Breadcrumbs []RcloneDirBreadcrumb `json:"breadcrumbs"`
+	Entries     []RcloneDirEntry      `json:"entries"`
+}
 
-	RcloneDirBreadcrumb struct {
-		Text string `json:"text"`
-	}
+type RcloneDirBreadcrumb struct {
+	Text string `json:"text"`
+}
 
-	RcloneDirEntry struct {
-		URL     string `json:"url"`
-		IsDir   bool   `json:"is_dir"`
-		Size    int64  `json:"size"`
-		ModTime int64  `json:"mod_time"`
-	}
-)
+type RcloneDirEntry struct {
+	URL     string `json:"url"`
+	IsDir   bool   `json:"is_dir"`
+	Size    int64  `json:"size"`
+	ModTime int64  `json:"mod_time"`
+}
 
 var (
 	ErrCacheMiss = errors.New("cache miss")
@@ -114,28 +112,24 @@ type ThumbnailID struct {
 	FileID
 }
 
-type (
-	ThumbnailService interface {
-		NewThumbnailID(FileID) ThumbnailID
-		CanGenerateThumbnail(FileID) bool
-		IsThumbnailReady(ThumbnailID) bool
-		OpenThumbnail(context.Context, ThumbnailID) (io.ReadCloser, error)
-		SendTask(id FileID, openFileFn OpenFileFn) error
-		Shutdown(context.Context) error
-	}
+type ThumbnailService interface {
+	NewThumbnailID(FileID) ThumbnailID
+	CanGenerateThumbnail(FileID) bool
+	IsThumbnailReady(ThumbnailID) bool
+	OpenThumbnail(context.Context, ThumbnailID) (io.ReadCloser, error)
+	SendTask(id FileID) error
+	Shutdown(context.Context) error
+}
 
-	OpenFileFn func(ctx context.Context, id FileID) (io.ReadCloser, error)
-)
+type OpenFileFn func(ctx context.Context, id FileID) (io.ReadCloser, error)
 
-type (
-	SearchService interface {
-		GetMinSearchLength() int
-		Search(ctx context.Context, search string, dirLimit, fileLimit int) (dirs, files []SearchHit, err error)
-		RefreshIndexes(ctx context.Context) error
-	}
+type SearchService interface {
+	GetMinSearchLength() int
+	Search(ctx context.Context, search string, dirLimit, fileLimit int) (dirs, files []SearchHit, err error)
+	RefreshIndexes(ctx context.Context) error
+}
 
-	SearchHit struct {
-		Path  string
-		Score float64
-	}
-)
+type SearchHit struct {
+	Path  string
+	Score float64
+}

@@ -434,11 +434,7 @@ func (s *Server) sendGenerateThumbnailTasks(info DirInfo) DirInfo {
 			continue
 		}
 
-		openFile := func(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
-			rc, _, err := s.rclone.GetFile(ctx, id)
-			return rc, err
-		}
-		err := s.thumbnailService.SendTask(id, openFile)
+		err := s.thumbnailService.SendTask(id)
 		if err != nil {
 			rlog.Errorf("couldn't start resizing for file %q: %s", entry.filepath, err)
 			continue

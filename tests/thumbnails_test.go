@@ -22,8 +22,6 @@ func TestThumbnailGeneration(t *testing.T) {
 	cache, err := cache.NewDiskCache(t.TempDir())
 	require.NoError(t, err)
 
-	thumbnailService := thumbnails.NewThumbnailService(cache, 1, true)
-
 	for _, tt := range []struct {
 		imageType string
 		file      string
@@ -38,15 +36,18 @@ func TestThumbnailGeneration(t *testing.T) {
 		t.Run(tt.imageType, func(t *testing.T) {
 			r := require.New(t)
 
-			fileID := rview.NewFileID(tt.file, 0)
-			thumbnailID := thumbnailService.NewThumbnailID(fileID)
-
 			originalImage, err := os.ReadFile(filepath.Join("testdata", tt.file))
 			r.NoError(err)
 
-			err = thumbnailService.SendTask(fileID, func(context.Context, rview.FileID) (io.ReadCloser, error) {
+			openFileFn := func(context.Context, rview.FileID) (io.ReadCloser, error) {
 				return io.NopCloser(bytes.NewReader(originalImage)), nil
-			})
+			}
+			thumbnailService := thumbnails.NewThumbnailService(openFileFn, cache, 1, true)
+
+			fileID := rview.NewFileID(tt.file, 0)
+			thumbnailID := thumbnailService.NewThumbnailID(fileID)
+
+			err = thumbnailService.SendTask(fileID)
 			r.NoError(err)
 
 			ctx, cancel := context.WithTimeout(context.Background(), time.Second)

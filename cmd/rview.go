@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"io"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -44,6 +45,12 @@ func (r *Rview) Prepare() (err error) {
 		return fmt.Errorf("couldn't prepare disk cache for service needs: %w", err)
 	}
 
+	// Rclone Instance
+	r.rcloneInstance, err = rclone.NewRclone(r.cfg.RclonePort, r.cfg.RcloneTarget, r.cfg.RcloneDirCacheTime)
+	if err != nil {
+		return fmt.Errorf("couldn't prepare rclone: %w", err)
+	}
+
 	// Thumbnail Service
 	if r.cfg.Thumbnails {
 		err := thumbnails.CheckVips()
@@ -61,19 +68,19 @@ func (r *Rview) Prepare() (err error) {
 		maxTotalFileSize := int64(r.cfg.ThumbnailsMaxTotalSizeInMB * 1 << 20)
 
 		r.thumbnailCleaner = cache.NewCleaner(thumbnailsCacheDir, maxFileAge, maxTotalFileSize)
-		r.thumbnailService = thumbnails.NewThumbnailService(thumbnailsCache, r.cfg.ThumbnailsWorkersCount, false)
+		openFileFn := func(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+			rc, _, err := r.rcloneInstance.GetFile(ctx, id)
+			return rc, err
+		}
+		r.thumbnailService = thumbnails.NewThumbnailService(
+			openFileFn, thumbnailsCache, r.cfg.ThumbnailsWorkersCount, false,
+		)
 
 	} else {
 		rlog.Info("thumbnail service is disabled")
 
 		r.thumbnailService = thumbnails.NewNoopThumbnailService()
 		r.thumbnailCleaner = cache.NewNoopCleaner()
-	}
-
-	// Rclone Instance
-	r.rcloneInstance, err = rclone.NewRclone(r.cfg.RclonePort, r.cfg.RcloneTarget, r.cfg.RcloneDirCacheTime)
-	if err != nil {
-		return fmt.Errorf("couldn't prepare rclone: %w", err)
 	}
 
 	// Search Service

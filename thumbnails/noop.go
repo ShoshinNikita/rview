@@ -28,7 +28,7 @@ func (NoopThumbnailService) IsThumbnailReady(rview.ThumbnailID) bool {
 	return false
 }
 
-func (NoopThumbnailService) SendTask(rview.FileID, rview.OpenFileFn) error {
+func (NoopThumbnailService) SendTask(rview.FileID) error {
 	return ErrNoopThumbnailService
 }
 
