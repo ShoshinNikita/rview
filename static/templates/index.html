@@ -481,12 +481,15 @@
 		window.addEventListener("load", () => {
 			const params = new URLSearchParams(window.location.search);
 
-			// The first history entry must be without the "preview" param.
+			// The first history entry must not contain "preview" param.
 			// Otherwise, "Go back" would take user back to the previous page.
 			//
 			// Worth noting that this logic doesn't work in some browsers,
 			// see: https://github.com/whatwg/html/issues/7832
-			history.replaceState(null, "", window.location.pathname);
+			const paramsWithoutPreview = new URLSearchParams(params);
+			paramsWithoutPreview.delete("preview");
+			const url = window.location.pathname + (paramsWithoutPreview.size > 0 ? "?" + paramsWithoutPreview.toString() : "");
+			history.replaceState(null, "", url);
 
 			const previewFilename = params.get("preview");
 			if (previewFilename) {
