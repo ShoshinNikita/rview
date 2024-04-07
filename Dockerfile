@@ -12,7 +12,9 @@ RUN make build && ./bin/rview --version
 
 
 # Download rclone.
-FROM rclone/rclone:1.64 AS rclone-src
+# We use beta image because we need this fix - https://github.com/rclone/rclone/issues/7335.
+# TODO: update on next release.
+FROM rclone/rclone:beta AS rclone-src
 
 RUN rclone --version
 

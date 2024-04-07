@@ -18,27 +18,28 @@ type Config struct {
 	ServerPort int
 	Dir        string
 
-	RcloneTarget string
-	RclonePort   int
-
 	Thumbnails                 bool
 	ThumbnailsMaxAgeInDays     int
 	ThumbnailsMaxTotalSizeInMB int
 	ThumbnailsWorkersCount     int
 
+	Rclone RcloneConfig
+
 	// Debug options
 
 	DebugLogLevel           bool
 	ReadStaticFilesFromDisk bool
-
-	// Internal
-
-	RcloneDirCacheTime time.Duration
 }
 
 type BuildInfo struct {
 	ShortGitHash string
 	CommitTime   string
+}
+
+type RcloneConfig struct {
+	URL    string
+	Target string
+	Port   int
 }
 
 type flagParams struct {
@@ -51,49 +52,54 @@ type flagParams struct {
 func (cfg *Config) getFlagParams() map[string]flagParams {
 	return map[string]flagParams{
 		"port": {
-			p: &cfg.ServerPort, defaultValue: 8080, desc: "server port",
+			p: &cfg.ServerPort, defaultValue: 8080, desc: "Server port",
 		},
 		"dir": {
-			p: &cfg.Dir, defaultValue: "./var", desc: "directory for app data",
+			p: &cfg.Dir, defaultValue: "./var", desc: "Directory for app data (thumbnails and etc.)",
 		},
 		//
-		"rclone-port": {
-			p: &cfg.RclonePort, defaultValue: 8181, desc: "port of a rclone instance",
+		"rclone-url": {
+			p: &cfg.Rclone.URL, defaultValue: "", desc: "" +
+				"Url of an existing rclone instance, optional. If url is not specified,\n" +
+				"a local rclone instance will be launched with the default config file.\n" +
+				"Url should include credentials for Basic Auth, e.g., http://user:pass@rclone:80",
 		},
 		"rclone-target": {
-			p: &cfg.RcloneTarget, defaultValue: "", desc: "rclone target",
+			p: &cfg.Rclone.Target, defaultValue: "", desc: "Rclone target, required",
 		},
 		//
 		"thumbnails": {
-			p: &cfg.Thumbnails, defaultValue: true, desc: "generate image thumbnails",
+			p: &cfg.Thumbnails, defaultValue: true, desc: "Generate image thumbnails",
 		},
 		"thumbnails-max-age-days": {
-			p: &cfg.ThumbnailsMaxAgeInDays, defaultValue: 365, desc: "max age of thumbnails, days",
+			p: &cfg.ThumbnailsMaxAgeInDays, defaultValue: 365, desc: "Max age of thumbnails, days",
 		},
 		"thumbnails-max-total-size-mb": {
-			p: &cfg.ThumbnailsMaxTotalSizeInMB, defaultValue: 500, desc: "max total size of thumbnails, MiB",
+			p: &cfg.ThumbnailsMaxTotalSizeInMB, defaultValue: 500, desc: "Max total size of thumbnails, MiB",
 		},
 		"thumbnails-workers-count": {
-			p: &cfg.ThumbnailsWorkersCount, defaultValue: runtime.NumCPU(), desc: "number of workers for thumbnail generation",
+			p: &cfg.ThumbnailsWorkersCount, defaultValue: runtime.NumCPU(), desc: "Number of workers for thumbnail generation",
 		},
 		//
 		"debug-log-level": {
-			p: &cfg.DebugLogLevel, defaultValue: false, desc: "display debug log messages",
+			p: &cfg.DebugLogLevel, defaultValue: false, desc: "Display debug log messages",
 		},
 		"read-static-files-from-disk": {
-			p: &cfg.ReadStaticFilesFromDisk, defaultValue: false, desc: "read static files directly from disk",
+			p: &cfg.ReadStaticFilesFromDisk, defaultValue: false, desc: "Read static files directly from disk",
 		},
 	}
 }
 
 func ParseConfig() (Config, error) {
 	cfg := Config{
-		BuildInfo:          readBuildInfo(),
-		RcloneDirCacheTime: time.Minute,
+		BuildInfo: readBuildInfo(),
+		Rclone: RcloneConfig{
+			Port: 8181,
+		},
 	}
 
 	var printVersion bool
-	flag.BoolVar(&printVersion, "version", false, "print version and exit")
+	flag.BoolVar(&printVersion, "version", false, "Print version and exit")
 
 	flags := cfg.getFlagParams()
 	for name, params := range flags {
@@ -119,7 +125,7 @@ func ParseConfig() (Config, error) {
 	if cfg.ServerPort == 0 {
 		return cfg, errors.New("server port must be > 0")
 	}
-	if cfg.RcloneTarget == "" {
+	if cfg.Rclone.Target == "" {
 		return cfg, errors.New("rclone target can't be empty")
 	}
 	if cfg.Dir == "" {

@@ -3,7 +3,7 @@
 <p align="center">
   <img src="docs/screenshots/dir_home.jpg" width="90%">
   <br>
-  <i> More screenshots <a href="./docs/Screenshots.md">here</a> </i>
+  <i> More screenshots <a href="./docs/screenshots.md">here</a> </i>
 </p>
 
 ***
@@ -12,10 +12,11 @@
 - [Limitations](#limitations)
 - [Demo](#demo)
 - [Run](#run)
+	- [Advanced](#advanced)
 - [Configuration](#configuration)
 - [Development](#development)
-  - [API](#api)
-  - [Metrics](#metrics)
+	- [API](#api)
+	- [Metrics](#metrics)
 - [Thanks](#thanks)
 
 ## Features
@@ -23,7 +24,7 @@
 - :framed_picture: **Automatic thumbnail generation**: You don't have to download hundreds of MiBs to preview your photos.
   Image thumbnails are generated with the help of [libvips](https://github.com/libvips/libvips), an extremely
   fast image processing library.
-- :mag: **Search**: You can search for files by name. Search tips can be found [here](./docs/Search.md).
+- :mag: **Search**: You can search for files by name. Search tips can be found [here](./docs/search.md).
 - :iphone: **Responsive**: UI is designed to be responsive, which means you can browse you files on both desktop
   and mobile.
 - :feather: **Lightweight & minimalistic**: All pages are rendered on the server side using Go templates. JavaScript
@@ -38,6 +39,7 @@
   significantly improve response time.
 
 ## Demo
+
 Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for Basic Auth: `rview:rview`.
 
 ## Run
@@ -78,26 +80,32 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
 
 5. Go to http://localhost:8080.
 
+### Advanced
+
+You can run **Rview** with an existing Rclone instance and without access to the internet.
+Read more [here](./docs/advanced_setup.md).
+
 ## Configuration
 
-| Flag                             | Default Value              | Description                                  |
-| -------------------------------- | -------------------------- | -------------------------------------------- |
-| `--debug-log-level`              | `false`                    | display debug log messages                   |
-| `--dir`                          | `./var`                    | directory for app data (thumbnails and etc.) |
-| `--port`                         | `8080`                     | server port                                  |
-| `--rclone-port`                  | `8181`                     | port of a rclone instance                    |
-| `--rclone-target`                | no default value, required | rclone target                                |
-| `--read-static-files-from-disk`  | `false`                    | read static files directly from disk         |
-| `--thumbnails`                   | `true`                     | generate image thumbnails                    |
-| `--thumbnails-max-age-days`      | `365`                      | max age of thumbnails, days                  |
-| `--thumbnails-max-total-size-mb` | `500`                      | max total size of thumbnails, MiB            |
-| `--thumbnails-workers-count`     | number of logical CPUs     | number of workers for thumbnail generation   |
+| Flag                             | Default                | Description                                                                                                                                                                                                                     |
+| -------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--rclone-target`                | none, **required**     | Rclone target                                                                                                                                                                                                                   |
+| `--rclone-url`                   | none, optional         | Url of an existing rclone instance. If url is not specified,<br> a local rclone instance will be launched with the default <br>config file. Url should include credentials for<br> Basic Auth, e.g., http://user:pass@rclone:80 |
+| `--debug-log-level`              | `false`                | Display debug log messages                                                                                                                                                                                                      |
+| `--dir`                          | `./var`                | Directory for app data                                                                                                                                                                                                          |
+| `--port`                         | `8080`                 | Server port                                                                                                                                                                                                                     |
+| `--read-static-files-from-disk`  | `false`                | Read static files directly from disk                                                                                                                                                                                            |
+| `--thumbnails`                   | `true`                 | Generate image thumbnails                                                                                                                                                                                                       |
+| `--thumbnails-max-age-days`      | `365`                  | Max age of thumbnails, days                                                                                                                                                                                                     |
+| `--thumbnails-max-total-size-mb` | `500`                  | Max total size of thumbnails, MiB                                                                                                                                                                                               |
+| `--thumbnails-workers-count`     | number of logical CPUs | Number of workers for thumbnail generation                                                                                                                                                                                      |
+| `--version`                      |                        | Print version and exit                                                                                                                                                                                                          |
 
 ## Development
 
 First, you have to install the following dependencies:
 
-1. [rclone](https://github.com/rclone/rclone) - instructions can be found [here](https://rclone.org/install/).
+1. [Rclone](https://github.com/rclone/rclone) - instructions can be found [here](https://rclone.org/install/).
 2. [libvips](https://github.com/libvips/libvips) - you can install it with this command:
 
 	```bash
@@ -141,3 +149,4 @@ Special thanks to these open-source projects:
 - [Rclone](https://github.com/rclone/rclone) - rsync for cloud storage.
 - [Material Icon Theme](https://github.com/PKief/vscode-material-icon-theme) - Material Design icons for VS Code.
 - [Feather](https://github.com/feathericons/feather) - Simply beautiful open source icons.
+- [libvips](https://github.com/libvips/libvips) - A fast image processing library with low memory needs.

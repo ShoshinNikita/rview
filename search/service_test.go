@@ -14,11 +14,12 @@ func TestService_RefreshIndexes(t *testing.T) {
 	ctx := context.Background()
 
 	rclone := &rcloneStub{
-		GetAllFilesFn: func(context.Context) ([]string, error) {
-			return []string{
+		GetAllFilesFn: func(context.Context) (dirs, files []string, err error) {
+			files = []string{
 				"hello world.go",
 				"arts/games/1.jpeg",
-			}, nil
+			}
+			return dirs, files, nil
 		},
 	}
 	s := NewService(rclone, cache.NewInMemoryCache())
@@ -34,11 +35,12 @@ func TestService_RefreshIndexes(t *testing.T) {
 	r.Empty(dirs)
 	r.NotEmpty(files)
 
-	rclone.GetAllFilesFn = func(context.Context) ([]string, error) {
-		return []string{
+	rclone.GetAllFilesFn = func(context.Context) (dirs, files []string, err error) {
+		files = []string{
 			"hello world.go",
 			"qwerty.txt",
-		}, nil
+		}
+		return dirs, files, nil
 	}
 
 	err = s.RefreshIndexes(ctx)
@@ -51,10 +53,10 @@ func TestService_RefreshIndexes(t *testing.T) {
 }
 
 type rcloneStub struct {
-	GetAllFilesFn func(context.Context) ([]string, error)
+	GetAllFilesFn func(context.Context) (dirs, files []string, err error)
 }
 
-func (s rcloneStub) GetAllFiles(ctx context.Context) ([]string, error) {
+func (s rcloneStub) GetAllFiles(ctx context.Context) (dirs, files []string, err error) {
 	return s.GetAllFilesFn(ctx)
 }
 
@@ -106,7 +108,7 @@ func ExampleSearch() {
 	}
 
 	rclone := &rcloneStub{
-		GetAllFilesFn: func(context.Context) ([]string, error) { return files, nil },
+		GetAllFilesFn: func(context.Context) (_, _ []string, err error) { return nil, files, nil },
 	}
 	s := NewService(rclone, cache.NewInMemoryCache())
 	assertNoError(s.Start())

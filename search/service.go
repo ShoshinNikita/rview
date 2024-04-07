@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"strings"
 	"sync"
 	"time"
@@ -31,7 +32,7 @@ type Service struct {
 }
 
 type Rclone interface {
-	GetAllFiles(ctx context.Context) ([]string, error)
+	GetAllFiles(ctx context.Context) (dirs, files []string, err error)
 }
 
 type builtIndexes struct {
@@ -78,10 +79,25 @@ func (s *Service) Start() (err error) {
 
 	rlog.Infof("couldn't load search indexes from cache, prepare new ones: %s", err)
 
-	if err := s.RefreshIndexes(context.Background()); err != nil {
-		return fmt.Errorf("couldn't prepare search indexes: %w", err)
+	// The first few requests can fail with error "connection refused" because
+	// rclone is still starting.
+	for i := 1; true; i++ {
+		err = s.RefreshIndexes(context.Background())
+		if err == nil {
+			return nil
+		}
+
+		err = fmt.Errorf("couldn't prepare search indexes, try %d: %w", i, err)
+		if i > 5 {
+			return err
+		}
+
+		rlog.Warn(err)
+
+		// Exponential Backoff: 100ms -> 200ms -> 400ms -> 800ms -> 1.4s (https://exponentialbackoffcalculator.com)
+		time.Sleep(100 * time.Millisecond * time.Duration(math.Pow(1.7, float64(i))))
 	}
-	return nil
+	panic("unreachable")
 }
 
 func (s *Service) loadIndexesFromCache() (res *builtIndexes, err error) {
@@ -194,20 +210,16 @@ func (s *Service) RefreshIndexes(ctx context.Context) (finalErr error) {
 		rlog.Infof("search indexes were successfully refreshed in %s, entries count: %d", dur, entriesCount)
 	}()
 
-	allFilenames, err := s.rclone.GetAllFiles(ctx)
+	dirs, filenames, err := s.rclone.GetAllFiles(ctx)
 	if err != nil {
 		return fmt.Errorf("couldn't get all files from rclone: %w", err)
 	}
-	entriesCount = len(allFilenames)
-
-	var dirs, filenames []string
-	for _, f := range allFilenames {
-		if strings.HasSuffix(f, "/") {
-			dirs = append(dirs, f)
-		} else {
-			filenames = append(filenames, f)
+	for i := range dirs {
+		if !strings.HasSuffix(dirs[i], "/") {
+			dirs[i] += "/"
 		}
 	}
+	entriesCount = len(dirs) + len(filenames)
 
 	indexes := &builtIndexes{
 		Dirs:      newPrefixIndex(dirs, s.minPrefixLen, s.maxPrefixLen),

@@ -2,8 +2,9 @@ package rclone
 
 import (
 	"bufio"
-	"bytes"
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,61 +33,105 @@ type Rclone struct {
 	stoppedByShutdown atomic.Bool
 	stoppedCh         chan struct{}
 
-	httpClient   *http.Client
+	httpClient *http.Client
+	// rcloneURL with username and password for basic auth.
 	rcloneURL    *url.URL
 	rcloneTarget string
 }
 
-func NewRclone(rclonePort int, rcloneTarget string, dirCacheTime time.Duration) (*Rclone, error) {
-	// Check if rclone is installed.
-	_, err := exec.LookPath("rclone")
-	if err != nil {
-		return nil, err
-	}
+func NewRclone(cfg rview.RcloneConfig) (_ *Rclone, err error) {
+	var (
+		cmd       *exec.Cmd
+		stopCmd   func()
+		rcloneURL *url.URL
+	)
+	if cfg.URL != "" {
+		// Use an existing rclone instance.
+		stopCmd = func() {}
+		rcloneURL, err = url.Parse(cfg.URL)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't parse rclone url %q: %w", cfg.URL, err)
+		}
 
-	f, err := os.CreateTemp("", "rview-rclone-template-*")
-	if err != nil {
-		return nil, fmt.Errorf("couldn't create temp file for rclone template: %w", err)
-	}
-	_, err = f.WriteString(static.RcloneTemplate)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't write rclone template file: %w", err)
-	}
-	if err := f.Close(); err != nil {
-		return nil, fmt.Errorf("couldn't close rclone template file: %w", err)
-	}
+	} else {
+		// Run a new rclone instance.
+		user := "rview"
+		pass, err := newRandomString(10)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't generate password for rclone rc: %w", err)
+		}
 
-	ctx, cancel := context.WithCancel(context.Background())
+		// Check if rclone is installed.
+		_, err = exec.LookPath("rclone")
+		if err != nil {
+			return nil, err
+		}
 
-	//nolint:gosec
-	return &Rclone{
-		cmd: exec.CommandContext(ctx,
+		f, err := os.CreateTemp("", "rview-rclone-template-*")
+		if err != nil {
+			return nil, fmt.Errorf("couldn't create temp file for rclone template: %w", err)
+		}
+		_, err = f.WriteString(static.RcloneTemplate)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't write rclone template file: %w", err)
+		}
+		if err := f.Close(); err != nil {
+			return nil, fmt.Errorf("couldn't close rclone template file: %w", err)
+		}
+
+		host := "localhost:" + strconv.Itoa(cfg.Port)
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		cmd = exec.CommandContext(ctx,
 			"rclone",
-			"serve",
-			"http",
-			"--addr", ":"+strconv.Itoa(rclonePort),
-			"--template", f.Name(),
-			"--dir-cache-time", dirCacheTime.String(),
-			rcloneTarget,
-		),
-		stopCmd:   cancel,
+			"rcd",
+			"--rc-user", user,
+			"--rc-pass", pass,
+			"--rc-serve",
+			"--rc-addr", host,
+			"--rc-template", f.Name(),
+			"--rc-web-gui-no-open-browser",
+		)
+		stopCmd = cancel
+		rcloneURL = &url.URL{
+			Scheme: "http",
+			Host:   host,
+			User:   url.UserPassword(user, pass),
+		}
+	}
+
+	return &Rclone{
+		cmd:       cmd,
+		stopCmd:   stopCmd,
 		stoppedCh: make(chan struct{}),
 		//
 		httpClient: &http.Client{
 			Timeout: 2 * time.Minute,
 		},
-		rcloneURL: &url.URL{
-			Scheme: "http",
-			Host:   "localhost:" + strconv.Itoa(rclonePort),
-		},
-		rcloneTarget: rcloneTarget,
+		rcloneURL:    rcloneURL,
+		rcloneTarget: cfg.Target,
 	}, nil
+}
+
+func newRandomString(size int) (string, error) {
+	data := make([]byte, size/2)
+	_, err := rand.Read(data)
+	if err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(data), nil
 }
 
 func (r *Rclone) Start() error {
 	defer func() {
 		close(r.stoppedCh)
 	}()
+
+	if r.cmd == nil {
+		// We use an existing rclone instance.
+		return nil
+	}
 
 	stdout, err := r.cmd.StdoutPipe()
 	if err != nil {
@@ -155,9 +200,9 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 }
 
 func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
-	rcloneURL := r.rcloneURL.JoinPath(id.GetPath())
+	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
 
-	body, headers, err := r.makRequest(ctx, rcloneURL)
+	body, headers, err := r.makeRequest(ctx, "GET", rcloneURL)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -190,12 +235,12 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 		rlog.Debugf("rclone info for %q was loaded in %s", path, dur)
 	}()
 
-	rcloneURL := r.rcloneURL.JoinPath(path)
+	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", path)
 	rcloneURL.RawQuery = url.Values{
 		"sort":  []string{sort},
 		"order": []string{order},
 	}.Encode()
-	body, _, err := r.makRequest(ctx, rcloneURL)
+	body, _, err := r.makeRequest(ctx, "GET", rcloneURL)
 	if err != nil {
 		return nil, err
 	}
@@ -216,14 +261,22 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 		rcloneInfo.Entries[i].URL = html.UnescapeString(rcloneInfo.Entries[i].URL)
 	}
 
+	// Rclone can't accurately report dir size. So, just reset it (and replicate behavior of 'rclone serve').
+	for i := range rcloneInfo.Entries {
+		if rcloneInfo.Entries[i].IsDir {
+			rcloneInfo.Entries[i].Size = 0
+		}
+	}
+
 	return &rcloneInfo, nil
 }
 
-func (r *Rclone) makRequest(ctx context.Context, url *url.URL) (io.ReadCloser, http.Header, error) {
-	req, err := http.NewRequestWithContext(ctx, "GET", url.String(), nil)
+func (r *Rclone) makeRequest(ctx context.Context, method string, url *url.URL) (io.ReadCloser, http.Header, error) {
+	req, err := http.NewRequestWithContext(ctx, method, url.String(), nil)
 	if err != nil {
 		return nil, nil, fmt.Errorf("couldn't prepare request: %w", err)
 	}
+
 	resp, err := r.httpClient.Do(req)
 	if err != nil {
 		return nil, nil, fmt.Errorf("request failed: %w", err)
@@ -245,34 +298,46 @@ func (r *Rclone) makRequest(ctx context.Context, url *url.URL) (io.ReadCloser, h
 	return resp.Body, resp.Header, nil
 }
 
-func (r *Rclone) GetAllFiles(ctx context.Context) (res []string, err error) {
-	//nolint:gosec
-	cmd := exec.CommandContext(ctx,
-		"rclone",
-		"lsf",
-		"-R",
-		r.rcloneTarget,
-	)
+func (r *Rclone) GetAllFiles(ctx context.Context) (dirs, files []string, err error) {
+	// Pass parameters as a query instead of JSON to be able to forbid access to
+	// other remotes via Nginx (see 'docs/advanced_setup.md').
 
-	data, err := cmd.Output()
+	opt, _ := json.Marshal(map[string]any{ // error is always nil
+		"noModTime":  true,
+		"noMimeType": true,
+		"recurse":    true,
+	})
+	query := url.Values{
+		"fs":     {r.rcloneTarget},
+		"remote": {""},
+		"opt":    {string(opt)},
+	}
+	url := r.rcloneURL.JoinPath("operations/list")
+	url.RawQuery = query.Encode()
+
+	body, _, err := r.makeRequest(ctx, "POST", url)
 	if err != nil {
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			stderr := string(exitErr.Stderr)
-			if len(stderr) > 50 {
-				stderr = stderr[:50] + "..."
-			}
-			err = fmt.Errorf("%s, stderr: %q", exitErr.ProcessState.String(), stderr)
-		}
-		return nil, fmt.Errorf("command error: %w", err)
+		return nil, nil, err
+	}
+	defer body.Close()
+
+	var resp struct {
+		List []struct {
+			Path  string
+			IsDir bool
+		} `json:"list"`
+	}
+	err = json.NewDecoder(body).Decode(&resp)
+	if err != nil {
+		return nil, nil, fmt.Errorf("couldn't decode rclone response: %w", err)
 	}
 
-	s := bufio.NewScanner(bytes.NewReader(data))
-	for s.Scan() {
-		res = append(res, s.Text())
+	for _, v := range resp.List {
+		if v.IsDir {
+			dirs = append(dirs, v.Path)
+		} else {
+			files = append(files, v.Path)
+		}
 	}
-	if err := s.Err(); err != nil {
-		return nil, fmt.Errorf("couldn't scan rclone output: %w", err)
-	}
-	return res, nil
+	return dirs, files, nil
 }
