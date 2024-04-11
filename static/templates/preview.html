@@ -50,6 +50,7 @@
 	}
 
 	.preview-carousel {
+		column-gap: 20px;
 		display: flex;
 		flex-flow: row nowrap;
 		height: 100%;
@@ -88,7 +89,6 @@
 		/* Can't use box-shadow because it would apply to the container instead of an image */
 		filter: drop-shadow(0 0 5px var(--shadow-color));
 		object-fit: contain;
-		padding: 10px;
 		/* Images don't have any controls. Therefore we can make them slightly bigger. */
 		width: 100%;
 	}
@@ -156,7 +156,7 @@
 	}
 
 	:root {
-		--switch-preview-button-size: 50px;
+		--switch-preview-button-size: 100px;
 	}
 
 	/*
@@ -167,29 +167,41 @@
 	.switch-preview-button {
 		height: 100%;
 		left: 0;
-		opacity: 0.2;
 		position: sticky;
 		width: 0;
 		z-index: 1;
 	}
 
-	@media(hover: hover) and (pointer: fine) {
-		.switch-preview-button:hover {
-			opacity: 0.8;
-		}
-	}
+	/* Use 'color-mix' instead of 'opacity' for correct transition effect. */
 
 	.switch-preview-button a {
 		align-items: center;
+		color: color-mix(in srgb, var(--border-color), #0000 80%);
 		display: flex;
 		justify-content: center;
 		height: 100%;
-		width: fit-content;
+		width: var(--switch-preview-button-size);
 	}
 
 	.switch-preview-button svg {
-		height: var(--switch-preview-button-size);
-		width: var(--switch-preview-button-size);
+		height: 50px;
+		width: 50px;
+	}
+
+	.switch-preview-button svg .outline {
+		stroke: #0000;
+		transition: stroke 0.1s;
+	}
+
+	@media(hover: hover) and (pointer: fine) {
+		.switch-preview-button:hover a {
+			color: color-mix(in srgb, var(--interactive-color), #0000 20%);
+		}
+
+		.switch-preview-button:hover svg .outline {
+			/* This color works well for both light and dark themes. */
+			stroke: color-mix(in srgb, #000, #0000 60%);
+		}
 	}
 
 	.switch-preview-button.prev svg {

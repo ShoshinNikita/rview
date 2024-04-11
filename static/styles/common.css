@@ -90,6 +90,7 @@ a {
 
 a.icon-button {
 	color: var(--border-color);
+	transition: color 0.1s;
 }
 
 @media(hover: hover) and (pointer: fine) {
