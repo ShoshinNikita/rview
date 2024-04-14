@@ -314,6 +314,7 @@
 				fetch(
 					"/api/search?" + new URLSearchParams({
 						search: searchValue,
+						"dir-limit": 5,
 						"file-limit": 7,
 						ui: "true"
 					}),

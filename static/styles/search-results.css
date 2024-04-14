@@ -29,6 +29,8 @@
 
 .search-hit-score {
 	cursor: default;
+	/* Useful for debugging */
+	display: none;
 	font-size: 12px;
 	font-style: italic;
 	margin-left: 8px;
