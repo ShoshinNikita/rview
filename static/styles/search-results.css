@@ -5,10 +5,10 @@
 
 .search-hit {
 	align-items: center;
-	column-gap: 5px;
+	column-gap: 4px;
 	display: flex;
 	margin: 0;
-	margin-bottom: 7px;
+	margin-bottom: 8px;
 }
 
 .search-hit:last-child {
@@ -29,14 +29,14 @@
 
 .search-hit-score {
 	cursor: default;
-	font-size: 13px;
+	font-size: 12px;
 	font-style: italic;
-	margin-left: 10px;
+	margin-left: 8px;
 	opacity: 0.4;
 	white-space: pre;
 }
 
 .search-separator {
 	max-width: 80%;
-	margin: 15px auto;
+	margin: 16px auto;
 }

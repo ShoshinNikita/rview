@@ -29,11 +29,11 @@
 			background-color: var(--header-background-color);
 			border-radius: 3px;
 			box-shadow: var(--header-box-shadow);
-			column-gap: 30px;
+			column-gap: 32px;
 			display: grid;
 			grid-template-columns: auto min-content min-content;
-			margin: 0 7px 10px;
-			padding: 10px 20px;
+			margin: 0 8px 12px;
+			padding: 12px 20px;
 			position: sticky;
 			top: 0;
 			z-index: 2;
@@ -46,7 +46,7 @@
 		}
 
 		.search {
-			column-gap: 10px;
+			column-gap: 12px;
 			display: flex;
 			position: relative;
 			width: 300px;
@@ -66,9 +66,9 @@
 		}
 
 		.search-input {
-			margin-right: 25px;
-			padding: 5px 0;
-			padding-left: 25px;
+			margin-right: 24px;
+			padding: 4px 0;
+			padding-left: 24px;
 			width: 100%;
 		}
 
@@ -85,7 +85,7 @@
 			min-height: 100px;
 			padding: 20px;
 			position: absolute;
-			right: 25px;
+			right: 24px;
 			top: 150%;
 			width: 700px;
 		}
@@ -103,7 +103,7 @@
 
 		.breadcrumb+.breadcrumb:before {
 			content: "/";
-			padding: 5px;
+			padding: 2px;
 		}
 
 		.breadcrumb:last-of-type .breadcrumb-link {
@@ -112,16 +112,18 @@
 		}
 
 		.sort-selector-wrapper {
+			/* Don't render whitespaces: between the label and the selector. */
+			font-size: 0;
 			white-space: nowrap;
 		}
 
 		#sort-selector {
-			padding: 5px 0;
+			padding: 4px 0;
 		}
 
 		label[for=sort-selector] {
-			font-size: 15px;
-			margin-right: 3px;
+			font-size: 16px;
+			margin-right: 4px;
 		}
 
 		/* Fix "backdrop-filter" for Chrome. Source: https://stackoverflow.com/a/64754474 */
@@ -176,8 +178,8 @@
 		.files {
 			column-gap: 12px;
 			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-			padding: 5px;
+			grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+			padding: 0 8px;
 			row-gap: 12px;
 		}
 	</style>
