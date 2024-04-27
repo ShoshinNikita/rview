@@ -417,9 +417,9 @@
 					{{ else if eq .FileType "text" }}
 					<pre class="preview-text"></pre>
 					{{ else if eq .FileType "audio" }}
-					<audio class="preview-audio" src="{{ .OriginalFileURL }}" controls></audio>
+					<audio class="preview-audio" src="{{ .OriginalFileURL }}" controls preload="none"></audio>
 					{{ else if eq .FileType "video" }}
-					<video class="preview-video" src="{{ .OriginalFileURL }}" controls></video>
+					<video class="preview-video" src="{{ .OriginalFileURL }}" controls preload="none"></video>
 					{{ end }}
 				</div>
 
@@ -598,6 +598,13 @@
 		}
 
 		stopAnyPlayback();
+
+		// Enable preload for the active audio or video.
+		if (entry.file_type === "audio" || entry.file_type === "video") {
+			previewElement.querySelectorAll("audio,video").forEach(v => {
+				v.preload = "auto";
+			});
+		}
 
 		// Load the file content.
 		if (entry.file_type === "text") {
