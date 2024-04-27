@@ -50,7 +50,6 @@
 	}
 
 	.preview-carousel {
-		column-gap: 20px;
 		display: flex;
 		flex-flow: row nowrap;
 		height: 100%;
@@ -89,6 +88,7 @@
 		/* Can't use box-shadow because it would apply to the container instead of an image */
 		filter: drop-shadow(0 0 5px var(--shadow-color));
 		object-fit: contain;
+		padding: 0 10px;
 		/* Images don't have any controls. Therefore we can make them slightly bigger. */
 		width: 100%;
 	}
