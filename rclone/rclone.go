@@ -12,10 +12,12 @@ import (
 	"io"
 	"io/fs"
 	"net/http"
+	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -180,7 +182,14 @@ func (r *Rclone) Start() error {
 func (r *Rclone) redirectRcloneLogs(pipe io.Reader) {
 	s := bufio.NewScanner(pipe)
 	for s.Scan() {
-		rlog.Infof("[RCLONE]: %s", s.Text())
+		text := s.Text()
+
+		// Skip errors caused by request cancellation.
+		if strings.Contains(text, "Didn't finish writing GET request") {
+			continue
+		}
+
+		rlog.Infof("[RCLONE]: %s", text)
 	}
 	if err := s.Err(); err != nil && !errors.Is(err, fs.ErrClosed) {
 		rlog.Errorf("couldn't read rclone logs: %s", err)
@@ -199,20 +208,53 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 	}
 }
 
-func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, http.Header, error) {
+func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
 	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
 
 	body, headers, err := r.makeRequest(ctx, "GET", rcloneURL)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	if err := checkLastModified(id, headers); err != nil {
 		body.Close()
-		return nil, nil, err
+		return nil, err
 	}
 
-	return body, headers, nil
+	return body, nil
+}
+
+func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *http.Request) {
+	proxy := httputil.ReverseProxy{
+		Rewrite: func(pr *httputil.ProxyRequest) {
+			u := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
+
+			// Rclone requires leading slash.
+			if !strings.HasPrefix(u.Path, "/") {
+				u.Path = "/" + u.Path
+			}
+
+			// Basic Auth should be passed via headers.
+			if u.User != nil {
+				user := u.User.Username()
+				pass, _ := u.User.Password()
+				pr.Out.SetBasicAuth(user, pass)
+			}
+
+			u.User = nil
+			pr.Out.URL = u
+		},
+		ModifyResponse: func(r *http.Response) error {
+			if r.StatusCode == http.StatusOK {
+				return checkLastModified(id, r.Header)
+			}
+			return nil
+		},
+		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
+			http.Error(w, fmt.Sprintf("couldn't proxy file request: %s", err), http.StatusInternalServerError)
+		},
+	}
+	proxy.ServeHTTP(w, req)
 }
 
 func checkLastModified(id rview.FileID, fileHeaders http.Header) error {

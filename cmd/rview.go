@@ -3,7 +3,6 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -68,12 +67,8 @@ func (r *Rview) Prepare() (err error) {
 		maxTotalFileSize := int64(r.cfg.ThumbnailsMaxTotalSizeInMB * 1 << 20)
 
 		r.thumbnailCleaner = cache.NewCleaner(thumbnailsCacheDir, maxFileAge, maxTotalFileSize)
-		openFileFn := func(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
-			rc, _, err := r.rcloneInstance.GetFile(ctx, id)
-			return rc, err
-		}
 		r.thumbnailService = thumbnails.NewThumbnailService(
-			openFileFn, thumbnailsCache, r.cfg.ThumbnailsWorkersCount, false,
+			r.rcloneInstance.GetFile, thumbnailsCache, r.cfg.ThumbnailsWorkersCount, false,
 		)
 
 	} else {

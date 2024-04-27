@@ -69,8 +69,9 @@ func IsRcloneNotFoundError(err error) bool {
 }
 
 type Rclone interface {
-	GetFile(ctx context.Context, id FileID) (io.ReadCloser, http.Header, error)
+	GetFile(ctx context.Context, id FileID) (io.ReadCloser, error)
 	GetDirInfo(ctx context.Context, path string, sort, order string) (*RcloneDirInfo, error)
+	ProxyFileRequest(id FileID, w http.ResponseWriter, req *http.Request)
 }
 
 type RcloneDirInfo struct {

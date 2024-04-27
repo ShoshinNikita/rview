@@ -446,7 +446,7 @@ func (s *Server) sendGenerateThumbnailTasks(info DirInfo) DirInfo {
 	return info
 }
 
-// handleFile proxy the original file from Rclone, copying some headers.
+// handleFile proxies the request to Rclone that knows how to handle 'Range' headers and other nuances.
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	fileID, err := fileIDFromRequest(r, "/api/file")
 	if err != nil {
@@ -454,36 +454,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rc, rcloneHeaders, err := s.rclone.GetFile(r.Context(), fileID)
-	if err != nil {
-		if rview.IsRcloneNotFoundError(err) {
-			writeError(w, http.StatusNotFound, "file %q not found", fileID.GetPath())
-			return
-		}
-
-		writeInternalServerError(w, "couldn't get file: %s", err)
-		return
-	}
-	defer rc.Close()
-
-	for _, headerName := range []string{
-		"Content-Type",
-		"Content-Length",
-		"Last-Modified",
-		"Date",
-	} {
-		for _, value := range rcloneHeaders.Values(headerName) {
-			w.Header().Add(headerName, value)
-		}
-	}
-	if w.Header().Get("Content-Type") == "" {
-		contentType := mime.TypeByExtension(fileID.GetExt())
-		if contentType != "" {
-			w.Header().Set("Content-Type", contentType)
-		}
-	}
-
-	io.Copy(w, rc)
+	s.rclone.ProxyFileRequest(fileID, w, r)
 }
 
 // handleThumbnail returns the thumbnail.
