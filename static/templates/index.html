@@ -228,12 +228,12 @@
 				<select id="sort-selector" title="Sort By">
 					{{
 					range $value, $text := (dict
-						"namedirfirst_asc"  "Name: A 🡒 Z"
-						"namedirfirst_desc" "Name: Z 🡒 A"
-						"size_asc"          "Size: Small 🡒 Large"
-						"size_desc"         "Size: Large 🡒 Small"
-						"time_asc"          "Time: Old 🡒 New"
-						"time_desc"         "Time: New 🡒 Old"
+						"namedirfirst_asc"  "Name: A – Z"
+						"namedirfirst_desc" "Name: Z – A"
+						"size_asc"          "Size: Small – Large"
+						"size_desc"         "Size: Large – Small"
+						"time_asc"          "Time: Old – New"
+						"time_desc"         "Time: New – Old"
 					)
 				}}
 					{{ $selected := "" }}
