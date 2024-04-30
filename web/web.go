@@ -296,8 +296,6 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 		return DirInfo{}, fmt.Errorf("couldn't convert rclone info: %w", err)
 	}
 
-	info = s.sendGenerateThumbnailTasks(info)
-
 	info.IsNotFound = isNotFound
 
 	return info, nil
@@ -355,9 +353,10 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 		var (
 			dirURL, webDirURL string
 			//
-			originalFileURL, humanReadableSize string
-			fileType                           rview.FileType
-			canPreview                         bool
+			originalFileURL, thumbnailURL string
+			humanReadableSize             string
+			fileType                      rview.FileType
+			canPreview                    bool
 		)
 		if entry.IsDir {
 			escapedFilename := url.PathEscape(filename)
@@ -377,7 +376,15 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 				canPreview = true
 
 			case rview.FileTypeImage:
-				canPreview = s.thumbnailService.CanGenerateThumbnail(id)
+				switch s.cfg.ImagePreviewMode {
+				case rview.ImagePreviewModeOriginal:
+					thumbnailURL = originalFileURL
+				case rview.ImagePreviewModeThumbnails:
+					thumbnailURL = s.sendGenerateImageThumbnailTask(id, info.dirURL)
+				}
+				if thumbnailURL != "" {
+					canPreview = true
+				}
 
 			case rview.FileTypeAudio:
 				switch id.GetExt() {
@@ -409,41 +416,32 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 			DirURL:          dirURL,
 			WebDirURL:       webDirURL,
 			OriginalFileURL: originalFileURL,
+			ThumbnailURL:    thumbnailURL,
 			IconName:        static.GetFileIcon(filename, entry.IsDir),
 		})
 	}
 	return info, nil
 }
 
-func (s *Server) sendGenerateThumbnailTasks(info DirInfo) DirInfo {
-	for i, entry := range info.Entries {
-		if entry.IsDir {
-			continue
-		}
-
-		id := rview.NewFileID(entry.filepath, entry.ModTime.Unix())
-		if !s.thumbnailService.CanGenerateThumbnail(id) {
-			continue
-		}
-
-		thumbnailID := s.thumbnailService.NewThumbnailID(id)
-		thumbnailURL := fileIDToURL("/api/thumbnail", info.dirURL, thumbnailID.FileID)
-
-		if s.thumbnailService.IsThumbnailReady(thumbnailID) {
-			info.Entries[i].ThumbnailURL = thumbnailURL
-			continue
-		}
-
-		err := s.thumbnailService.SendTask(id)
-		if err != nil {
-			rlog.Errorf("couldn't start resizing for file %q: %s", entry.filepath, err)
-			continue
-		}
-
-		info.Entries[i].ThumbnailURL = thumbnailURL
+func (s *Server) sendGenerateImageThumbnailTask(id rview.FileID, dirURL *url.URL) (thumbnailURL string) {
+	if !s.thumbnailService.CanGenerateThumbnail(id) {
+		return ""
 	}
 
-	return info
+	thumbnailID := s.thumbnailService.NewThumbnailID(id)
+	thumbnailURL = fileIDToURL("/api/thumbnail", dirURL, thumbnailID.FileID)
+
+	if s.thumbnailService.IsThumbnailReady(thumbnailID) {
+		return thumbnailURL
+	}
+
+	err := s.thumbnailService.SendTask(id)
+	if err != nil {
+		rlog.Errorf("couldn't start resizing for file %q: %s", id, err)
+		return ""
+	}
+
+	return thumbnailURL
 }
 
 // handleFile proxies the request to Rclone that knows how to handle 'Range' headers and other nuances.

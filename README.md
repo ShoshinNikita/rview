@@ -87,19 +87,35 @@ Read more [here](./docs/advanced_setup.md).
 
 ## Configuration
 
-| Flag                             | Default                | Description                                                                                                                                                                                                                     |
-| -------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--rclone-target`                | none, **required**     | Rclone target                                                                                                                                                                                                                   |
-| `--rclone-url`                   | none, optional         | Url of an existing rclone instance. If url is not specified,<br> a local rclone instance will be launched with the default <br>config file. Url should include credentials for<br> Basic Auth, e.g., http://user:pass@rclone:80 |
-| `--debug-log-level`              | `false`                | Display debug log messages                                                                                                                                                                                                      |
-| `--dir`                          | `./var`                | Directory for app data                                                                                                                                                                                                          |
-| `--port`                         | `8080`                 | Server port                                                                                                                                                                                                                     |
-| `--read-static-files-from-disk`  | `false`                | Read static files directly from disk                                                                                                                                                                                            |
-| `--thumbnails`                   | `true`                 | Generate image thumbnails                                                                                                                                                                                                       |
-| `--thumbnails-max-age-days`      | `365`                  | Max age of thumbnails, days                                                                                                                                                                                                     |
-| `--thumbnails-max-total-size-mb` | `500`                  | Max total size of thumbnails, MiB                                                                                                                                                                                               |
-| `--thumbnails-workers-count`     | number of logical CPUs | Number of workers for thumbnail generation                                                                                                                                                                                      |
-| `--version`                      |                        | Print version and exit                                                                                                                                                                                                          |
+```
+--rclone-target                   Rclone target, required
+
+--rclone-url                      Url of an existing rclone instance, optional. If url is
+                                  not specified, a local rclone instance will be launched
+                                  with the default config file. Url should include credentials
+                                  for Basic Auth, e.g., http://user:pass@rclone:80
+
+--dir                             Directory for app data: thumbnails and etc. (default: ./var)
+
+--port                            Server port (default: 8080)
+
+--image-preview-mode              Available image preview modes:
+                                    - thumbnails (default): generate thumbnails
+                                    - original: show original images
+                                    - none: don't show preview for images
+
+--thumbnails-max-age-days         Max age of thumbnails, days (default: 365)
+
+--thumbnails-max-total-size-mb    Max total size of thumbnails, MiB (default: 500)
+
+--thumbnails-workers-count        Number of workers for thumbnail generation (default: # of threads)
+
+--read-static-files-from-disk     Read static files directly from disk
+
+--debug-log-level                 Display debug log messages
+
+--version                         Print version and exit
+```
 
 ## Development
 

@@ -13,42 +13,140 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestServer_sendGenerateThumbnailTasks(t *testing.T) {
+func TestServer_convertRcloneInfo(t *testing.T) {
 	t.Parallel()
 
-	r := require.New(t)
+	getTestRcloneInfo := func() *rview.RcloneDirInfo {
+		return &rview.RcloneDirInfo{
+			Entries: []rview.RcloneDirEntry{
+				{URL: "a.txt"},
+				{URL: "b.jpg"},
+				{URL: "c.png"},
+				{URL: "c.bmp"},
+				{URL: "d.zip"},
+				{URL: "error.jpg"},
+				{URL: "resized.jpg"},
+			},
+		}
+	}
+	resetUnnecessaryFields := func(info *DirInfo) {
+		for i := range info.Entries {
+			info.Entries[i].filepath = ""
+			info.Entries[i].HumanReadableSize = ""
+			info.Entries[i].ModTime = time.Time{}
+			info.Entries[i].HumanReadableModTime = ""
+			info.Entries[i].OriginalFileURL = ""
+			info.Entries[i].IconName = ""
+		}
+	}
 
-	stub := newThumbnailServiceStub()
-	s := NewServer(rview.Config{}, nil, stub, nil)
+	t.Run("thumbnails mode", func(t *testing.T) {
+		r := require.New(t)
 
-	zeroModTime := time.Unix(0, 0)
+		stub := newThumbnailServiceStub()
+		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeThumbnails}, nil, stub, nil)
 
-	gotInfo := s.sendGenerateThumbnailTasks(DirInfo{
-		Entries: []DirEntry{
-			{filepath: "a.txt", ModTime: zeroModTime},
-			{filepath: "b.jpg", ModTime: zeroModTime},
-			{filepath: "c.png", ModTime: zeroModTime},
-			{filepath: "c.bmp", ModTime: zeroModTime},
-			{filepath: "d.zip", ModTime: zeroModTime},
-			{filepath: "error.jpg", ModTime: zeroModTime},
-			{filepath: "resized.jpg", ModTime: zeroModTime},
-		},
-		dirURL: mustParseURL("/"),
+		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")
+		r.NoError(err)
+		r.Equal(3, stub.taskCount)
+		resetUnnecessaryFields(&gotInfo)
+		r.Equal(
+			[]DirEntry{
+				{
+					Filename: "a.txt", FileType: rview.FileTypeText, CanPreview: true,
+					ThumbnailURL: "", // no thumbnail: text file
+				},
+				{
+					Filename: "b.jpg", FileType: rview.FileTypeImage,
+					ThumbnailURL: "/api/thumbnail/b.thumbnail.jpg?mod_time=0", CanPreview: true,
+				},
+				{
+					Filename: "c.png", FileType: rview.FileTypeImage,
+					ThumbnailURL: "/api/thumbnail/c.thumbnail.png.jpeg?mod_time=0", CanPreview: true,
+				},
+				{
+					Filename: "c.bmp", FileType: rview.FileTypeImage,
+					ThumbnailURL: "", // no thumbnail: unsupported image
+				},
+				{
+					Filename: "d.zip", FileType: rview.FileTypeUnknown,
+					ThumbnailURL: "", // no thumbnail: archive
+				},
+				{
+					Filename: "error.jpg", FileType: rview.FileTypeImage,
+					ThumbnailURL: "", // no thumbnail: got error
+				},
+				{
+					Filename: "resized.jpg", FileType: rview.FileTypeImage,
+					ThumbnailURL: "/api/thumbnail/resized.thumbnail.jpg?mod_time=0", CanPreview: true,
+				},
+			},
+			gotInfo.Entries,
+		)
 	})
-	r.Equal(3, stub.taskCount)
 
-	r.Equal(
-		[]DirEntry{
-			{filepath: "a.txt", ModTime: zeroModTime}, // no thumbnail: text file
-			{filepath: "b.jpg", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail/b.thumbnail.jpg?mod_time=0"},
-			{filepath: "c.png", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail/c.thumbnail.png.jpeg?mod_time=0"},
-			{filepath: "c.bmp", ModTime: zeroModTime},     // no thumbnail: unsupported image
-			{filepath: "d.zip", ModTime: zeroModTime},     // no thumbnail: archive
-			{filepath: "error.jpg", ModTime: zeroModTime}, // no thumbnail: got error
-			{filepath: "resized.jpg", ModTime: zeroModTime, ThumbnailURL: "/api/thumbnail/resized.thumbnail.jpg?mod_time=0"},
-		},
-		gotInfo.Entries,
-	)
+	t.Run("original mode", func(t *testing.T) {
+		r := require.New(t)
+
+		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeOriginal}, nil, nil, nil)
+
+		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")
+		r.NoError(err)
+		resetUnnecessaryFields(&gotInfo)
+		r.Equal(
+			[]DirEntry{
+				{
+					Filename: "a.txt", FileType: rview.FileTypeText, CanPreview: true,
+				},
+				{
+					Filename: "b.jpg", FileType: rview.FileTypeImage,
+					ThumbnailURL: "/api/file/b.jpg?mod_time=0", CanPreview: true,
+				},
+				{
+					Filename: "c.png", FileType: rview.FileTypeImage,
+					ThumbnailURL: "/api/file/c.png?mod_time=0", CanPreview: true,
+				},
+				{
+					Filename: "c.bmp", FileType: rview.FileTypeImage,
+					ThumbnailURL: "/api/file/c.bmp?mod_time=0", CanPreview: true,
+				},
+				{
+					Filename: "d.zip", FileType: rview.FileTypeUnknown,
+				},
+				{
+					Filename: "error.jpg", FileType: rview.FileTypeImage,
+					ThumbnailURL: "/api/file/error.jpg?mod_time=0", CanPreview: true,
+				},
+				{
+					Filename: "resized.jpg", FileType: rview.FileTypeImage,
+					ThumbnailURL: "/api/file/resized.jpg?mod_time=0", CanPreview: true,
+				},
+			},
+			gotInfo.Entries,
+		)
+	})
+
+	t.Run("no preview mode", func(t *testing.T) {
+		r := require.New(t)
+
+		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeNone}, nil, nil, nil)
+
+		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")
+		r.NoError(err)
+		resetUnnecessaryFields(&gotInfo)
+		r.Equal(
+			[]DirEntry{
+				{Filename: "a.txt", FileType: rview.FileTypeText, CanPreview: true},
+				{Filename: "b.jpg", FileType: rview.FileTypeImage},
+				{Filename: "c.png", FileType: rview.FileTypeImage},
+				{Filename: "c.bmp", FileType: rview.FileTypeImage},
+				{Filename: "d.zip", FileType: rview.FileTypeUnknown},
+				{Filename: "error.jpg", FileType: rview.FileTypeImage},
+				{Filename: "resized.jpg", FileType: rview.FileTypeImage},
+			},
+			gotInfo.Entries,
+		)
+	})
 }
 
 type thumbnailServiceStub struct {

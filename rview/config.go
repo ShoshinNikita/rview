@@ -1,6 +1,7 @@
 package rview
 
 import (
+	"encoding"
 	"errors"
 	"flag"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"reflect"
 	"runtime"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"time"
 )
@@ -18,7 +20,8 @@ type Config struct {
 	ServerPort int
 	Dir        string
 
-	Thumbnails                 bool
+	ImagePreviewMode ImagePreviewMode
+
 	ThumbnailsMaxAgeInDays     int
 	ThumbnailsMaxTotalSizeInMB int
 	ThumbnailsWorkersCount     int
@@ -40,6 +43,30 @@ type RcloneConfig struct {
 	URL    string
 	Target string
 	Port   int
+}
+
+type ImagePreviewMode string
+
+const (
+	ImagePreviewModeNone       ImagePreviewMode = "none"
+	ImagePreviewModeOriginal   ImagePreviewMode = "original"
+	ImagePreviewModeThumbnails ImagePreviewMode = "thumbnails"
+)
+
+func (m ImagePreviewMode) MarshalText() (text []byte, err error) {
+	return []byte(m), nil
+}
+
+func (m *ImagePreviewMode) UnmarshalText(text []byte) error {
+	*m = ImagePreviewMode(text)
+
+	supportedValues := []ImagePreviewMode{
+		ImagePreviewModeNone, ImagePreviewModeOriginal, ImagePreviewModeThumbnails,
+	}
+	if !slices.Contains(supportedValues, *m) {
+		return fmt.Errorf("supported values: %v", supportedValues)
+	}
+	return nil
 }
 
 type flagParams struct {
@@ -68,9 +95,14 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 			p: &cfg.Rclone.Target, defaultValue: "", desc: "Rclone target, required",
 		},
 		//
-		"thumbnails": {
-			p: &cfg.Thumbnails, defaultValue: true, desc: "Generate image thumbnails",
+		"image-preview-mode": {
+			p: &cfg.ImagePreviewMode, defaultValue: ImagePreviewModeThumbnails, desc: "" +
+				"Available image preview modes:\n" +
+				"  - thumbnails: generate thumbnails\n" +
+				"  - original: show original images\n" +
+				"  - none: don't show preview for images\n",
 		},
+		//
 		"thumbnails-max-age-days": {
 			p: &cfg.ThumbnailsMaxAgeInDays, defaultValue: 365, desc: "Max age of thumbnails, days",
 		},
@@ -112,6 +144,10 @@ func ParseConfig() (Config, error) {
 			flag.Int64Var(p, name, params.defaultValue.(int64), params.desc)
 		case *string:
 			flag.StringVar(p, name, params.defaultValue.(string), params.desc)
+		case encoding.TextUnmarshaler:
+			flag.TextVar(p, name, params.defaultValue.(encoding.TextMarshaler), params.desc)
+		default:
+			return Config{}, fmt.Errorf("flag %q has unsupported type: %T", name, p)
 		}
 	}
 

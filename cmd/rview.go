@@ -51,7 +51,7 @@ func (r *Rview) Prepare() (err error) {
 	}
 
 	// Thumbnail Service
-	if r.cfg.Thumbnails {
+	if r.cfg.ImagePreviewMode == rview.ImagePreviewModeThumbnails {
 		err := thumbnails.CheckVips()
 		if err != nil {
 			return err
@@ -72,7 +72,7 @@ func (r *Rview) Prepare() (err error) {
 		)
 
 	} else {
-		rlog.Info("thumbnail service is disabled")
+		rlog.Debug("thumbnail service is disabled")
 
 		r.thumbnailService = thumbnails.NewNoopThumbnailService()
 		r.thumbnailCleaner = cache.NewNoopCleaner()

@@ -10,6 +10,7 @@ run: build
 			--port=${SERVER_PORT} \
 			--dir=_var \
 			--rclone-target=${RCLONE_TARGET} \
+			--image-preview-mode=${IMAGE_PREVIEW_MODE} \
 			--read-static-files-from-disk
 
 build:

@@ -52,7 +52,7 @@ func startTestRview() {
 				Port:   mustGetFreePort(),
 			},
 			//
-			Thumbnails:             true,
+			ImagePreviewMode:       rview.ImagePreviewModeThumbnails,
 			ThumbnailsWorkersCount: 1,
 			//
 			DebugLogLevel: true,
