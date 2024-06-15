@@ -28,5 +28,5 @@ jobs:
         with:
           go-version: "1.22.*"
       - run: sudo apt-get update && sudo apt-get install libvips-tools
-      - run: curl https://rclone.org/install.sh | sudo bash -s beta
+      - run: curl https://rclone.org/install.sh | sudo bash
       - run: make test

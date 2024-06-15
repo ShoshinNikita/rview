@@ -86,8 +86,7 @@ services:
     ]
 
   rclone:
-    # We use beta image because we need this fix - https://github.com/rclone/rclone/issues/7335.
-    image: rclone/rclone:beta
+    image: rclone/rclone:1.67
     container_name: rclone
     ports:
       - "127.0.0.1:8080:8080"
