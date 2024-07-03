@@ -36,17 +36,21 @@ func loggingMiddleware(h http.Handler) http.Handler {
 		}
 
 		now := time.Now()
-		rw := newResponseWriter(w)
+		rw := newResponseWriter(w, r)
 
 		h.ServeHTTP(rw, r)
 
-		if rw.errMsg.Len() > 0 {
+		if !rw.requestCanceledByUser && rw.errMsg.Len() > 0 {
 			rlog.Errorf(`request "%s %s" failed with code %d: %s`, r.Method, r.URL.Path, rw.statusCode, rw.errMsg.String())
 		}
 
+		statusCode := rw.statusCode
+		if rw.requestCanceledByUser {
+			statusCode = 499 // 499 Client Closed Request (Nginx)
+		}
 		metrics.HTTPResponseStatuses.
 			With(prometheus.Labels{
-				"status": strconv.Itoa(rw.statusCode),
+				"status": strconv.Itoa(statusCode),
 			}).
 			Inc()
 
@@ -60,15 +64,18 @@ func loggingMiddleware(h http.Handler) http.Handler {
 
 type responseWriter struct {
 	w http.ResponseWriter
+	r *http.Request
 
-	statusCode    int
-	headerWritten bool
-	errMsg        *bytes.Buffer
+	statusCode            int
+	requestCanceledByUser bool
+	headerWritten         bool
+	errMsg                *bytes.Buffer
 }
 
-func newResponseWriter(w http.ResponseWriter) *responseWriter {
+func newResponseWriter(w http.ResponseWriter, r *http.Request) *responseWriter {
 	return &responseWriter{
 		w:      w,
+		r:      r,
 		errMsg: bytes.NewBuffer(nil),
 	}
 }
@@ -90,6 +97,14 @@ func (rw *responseWriter) Write(data []byte) (int, error) {
 
 func (rw *responseWriter) WriteHeader(code int) {
 	if !rw.headerWritten {
+		// Check the context just before writing the header to make sure that request
+		// was canceled during its processing, if it was.
+		select {
+		case <-rw.r.Context().Done():
+			rw.requestCanceledByUser = true
+		default:
+		}
+
 		rw.w.WriteHeader(code)
 	}
 

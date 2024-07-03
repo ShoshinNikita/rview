@@ -185,7 +185,7 @@ func (r *Rclone) redirectRcloneLogs(pipe io.Reader) {
 		text := s.Text()
 
 		// Skip errors caused by request cancellation.
-		if strings.Contains(text, "Didn't finish writing GET request") {
+		if strings.Contains(text, "Didn't finish writing GET request") || strings.Contains(text, "context canceled") {
 			continue
 		}
 
