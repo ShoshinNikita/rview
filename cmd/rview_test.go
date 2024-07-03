@@ -19,7 +19,7 @@ func TestSafeShutdown(t *testing.T) {
 	r.NoError(err)
 
 	err = safeShutdown(ctx, new(testShutdowner))
-	r.Equal(err.Error(), "test")
+	r.EqualError(err, "test")
 }
 
 type testShutdowner struct{}

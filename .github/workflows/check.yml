@@ -16,7 +16,7 @@ jobs:
           go-version: "1.22.*"
       - uses: golangci/golangci-lint-action@v6
         with:
-          version: v1.57.2
+          version: v1.59.1
           args: "-v"
 
   # TODO: use an alpine image to mimic the production environment?

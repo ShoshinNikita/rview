@@ -104,7 +104,7 @@ func (s *ThumbnailService) startWorkers() {
 	}
 
 	var wg sync.WaitGroup
-	for i := 0; i < s.workersCount; i++ {
+	for range s.workersCount {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

@@ -70,7 +70,7 @@ func startTestRview() {
 		})
 
 		// Wait for rclone to start.
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			if i != 0 {
 				time.Sleep(20 * time.Millisecond)
 			}
@@ -82,7 +82,7 @@ func startTestRview() {
 		}
 
 		// Wait for components to be ready.
-		for i := 0; i < 10; i++ {
+		for i := range 10 {
 			if i != 0 {
 				time.Sleep(100 * time.Millisecond)
 			}

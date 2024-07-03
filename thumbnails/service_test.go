@@ -71,7 +71,7 @@ func TestThumbnailService(t *testing.T) {
 		r.True(service.IsThumbnailReady(thumbnailID))
 
 		// Must ignore duplicate tasks.
-		for i := 0; i < 3; i++ {
+		for range 3 {
 			err = service.SendTask(fileID)
 			r.NoError(err)
 		}
