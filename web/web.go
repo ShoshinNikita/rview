@@ -60,14 +60,14 @@ func NewServer(cfg rview.Config, rclone rview.Rclone, thumbnailService rview.Thu
 	mux := http.NewServeMux()
 
 	// UI
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)
 			return
 		}
 		http.Redirect(w, r, "/ui/", http.StatusSeeOther)
 	})
-	mux.HandleFunc("/ui/", s.handleUI)
+	mux.HandleFunc("GET /ui/", s.handleUI)
 
 	// Static
 	for pattern, fs := range map[string]fs.FS{
@@ -81,25 +81,25 @@ func NewServer(cfg rview.Config, rclone rview.Rclone, thumbnailService rview.Thu
 			handler = cacheMiddleware(30*24*time.Hour, cfg.BuildInfo.ShortGitHash, handler)
 		}
 		handler = http.StripPrefix(pattern, handler)
-		mux.Handle(pattern, handler)
+		mux.Handle("GET "+pattern, handler)
 	}
 
 	// API
-	mux.HandleFunc("/api/dir/", s.handleDir)
-	mux.HandleFunc("/api/file/", s.handleFile)
-	mux.HandleFunc("/api/thumbnail/", s.handleThumbnail)
-	mux.HandleFunc("/api/search", s.handleSearch)
-	mux.HandleFunc("/api/search/refresh-indexes", s.handleRefreshIndexes)
+	mux.HandleFunc("GET /api/dir/", s.handleDir)
+	mux.HandleFunc("GET /api/file/", s.handleFile)
+	mux.HandleFunc("GET /api/thumbnail/", s.handleThumbnail)
+	mux.HandleFunc("GET /api/search", s.handleSearch)
+	mux.HandleFunc("POST /api/search/refresh-indexes", s.handleRefreshIndexes)
 
 	// Prometheus Metrics
-	mux.Handle("/debug/metrics", promhttp.Handler())
+	mux.Handle("GET /debug/metrics", promhttp.Handler())
 
 	// Pprof
-	mux.HandleFunc("/debug/pprof/", pprof.Index)
-	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
-	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
+	mux.HandleFunc("GET /debug/pprof/", pprof.Index)
+	mux.HandleFunc("GET /debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("GET /debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("GET /debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("GET /debug/pprof/trace", pprof.Trace)
 
 	handler := loggingMiddleware(mux)
 
