@@ -94,6 +94,7 @@ var (
 	)
 )
 
+// Search
 var (
 	SearchDuration = promauto.NewHistogram(
 		prometheus.HistogramOpts{

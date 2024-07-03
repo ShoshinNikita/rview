@@ -15,8 +15,7 @@
 	- [Advanced](#advanced)
 - [Configuration](#configuration)
 - [Development](#development)
-	- [API](#api)
-	- [Metrics](#metrics)
+	- [Metrics \& Pprof](#metrics--pprof)
 - [Thanks](#thanks)
 
 ## Features
@@ -142,21 +141,11 @@ make check
 
 By default `make run` uses environment variables from `.env` file. You can redefine these variables via `.env.local` file.
 
-### API
-
-API-endpoints exposed by **Rview**:
-
-- `GET /api/dir/<path>?mod_time=<unix_time>` - get directory info
-- `GET /api/file/<path>?mod_time=<unix_time>` - get original file
-- `GET /api/thumbnail/<path>?mod_time=<unix_time>` - get image thumbnail
-- `GET /api/search?search=<search>&dir-limit=3&file-limit=7` - search files by name
-- `POST /api/search/refresh-indexes` - refresh search indexes
-
-Response models can be found in [web/models.go](web/models.go).
-
-### Metrics
+### Metrics & Pprof
 
 **Rview** exposes Prometheus metrics on `/debug/metrics`. The list of all metrics can be found [here](pkg/metrics/metrics.go)
+
+[Pprof endpoints](https://pkg.go.dev/net/http/pprof#hdr-Usage_examples) are available on `/debug/pprof/`.
 
 ## Thanks
 

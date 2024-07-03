@@ -13,6 +13,7 @@ import (
 	"io/fs"
 	"mime"
 	"net/http"
+	"net/http/pprof"
 	"net/url"
 	pkgPath "path"
 	"strconv"
@@ -90,8 +91,15 @@ func NewServer(cfg rview.Config, rclone rview.Rclone, thumbnailService rview.Thu
 	mux.HandleFunc("/api/search", s.handleSearch)
 	mux.HandleFunc("/api/search/refresh-indexes", s.handleRefreshIndexes)
 
-	// Debug
+	// Prometheus Metrics
 	mux.Handle("/debug/metrics", promhttp.Handler())
+
+	// Pprof
+	mux.HandleFunc("/debug/pprof/", pprof.Index)
+	mux.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	mux.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	mux.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
+	mux.HandleFunc("/debug/pprof/trace", pprof.Trace)
 
 	handler := loggingMiddleware(mux)
 
