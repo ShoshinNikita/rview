@@ -83,7 +83,7 @@ func NewThumbnailService(openFileFn rview.OpenFileFn, cache rview.Cache, workers
 		//
 		workersCount: workersCount,
 		//
-		tasksCh:         make(chan generateThumbnailTask, 200),
+		tasksCh:         make(chan generateThumbnailTask, 10_000),
 		inProgressTasks: make(map[rview.ThumbnailID]struct{}),
 		//
 		stopped:       new(atomic.Bool),
