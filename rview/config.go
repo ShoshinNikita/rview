@@ -10,7 +10,6 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
-	"sort"
 	"time"
 )
 
@@ -233,7 +232,7 @@ func (cfg Config) Print() {
 		}
 		names = append(names, name)
 	}
-	sort.Strings(names)
+	slices.Sort(names)
 
 	fmt.Print("    Config:\n\n")
 	for _, name := range names {

@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sort"
+	"slices"
 	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/rlog"
@@ -143,8 +143,8 @@ func (c Cleaner) getFilesToRemove(files []fileInfo, now time.Time) []fileInfo {
 	}
 
 	// Remove old files first.
-	sort.Slice(activeFiles, func(i, j int) bool {
-		return activeFiles[i].modTime.Before(activeFiles[j].modTime)
+	slices.SortFunc(activeFiles, func(a, b fileInfo) int {
+		return a.modTime.Compare(b.modTime)
 	})
 
 	var index int

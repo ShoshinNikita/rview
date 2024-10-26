@@ -1,11 +1,12 @@
 package search
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"math"
 	"regexp"
-	"sort"
+	"slices"
 	"strings"
 	"unicode"
 
@@ -35,9 +36,7 @@ func newPrefixIndex(rawPaths []string, minPrefixLen, maxPrefixLen int) *prefixIn
 	}
 	for prefix, ids := range prefixes {
 		ids = unique(ids)
-		sort.Slice(ids, func(i, j int) bool {
-			return ids[i] < ids[j]
-		})
+		slices.Sort(ids)
 		prefixes[prefix] = ids
 	}
 
@@ -149,13 +148,11 @@ func (index *prefixIndex) Search(search string, limit int) []rview.SearchHit {
 		})
 	}
 
-	sort.Slice(res, func(i, j int) bool {
-		a := res[i]
-		b := res[j]
-		if a.Score == b.Score {
-			return a.Path < b.Path
+	slices.SortFunc(res, func(a, b rview.SearchHit) int {
+		if a.Score != b.Score {
+			return -1 * cmp.Compare(a.Score, b.Score)
 		}
-		return a.Score > b.Score
+		return cmp.Compare(a.Path, b.Path)
 	})
 
 	if len(res) > limit {
