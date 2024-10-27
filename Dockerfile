@@ -18,7 +18,7 @@ RUN rclone --version
 
 
 # Build the final image.
-FROM alpine:3.18
+FROM alpine:3.20
 
 LABEL org.opencontainers.image.title="Rview"
 LABEL org.opencontainers.image.description="Web-based UI for Rclone"
@@ -37,8 +37,8 @@ COPY --from=rclone-src /usr/local/bin/rclone /usr/local/bin/rclone
 
 # Install vips.
 RUN apk add --update --no-cache \
-		vips-tools=8.14.3-r0 \
-		libheif=1.16.2-r0 \
+		vips-tools=8.15.2-r1 \
+		libheif=1.17.6-r1 \
 		ca-certificates && \
 	vips --version
 
