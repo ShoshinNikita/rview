@@ -61,6 +61,8 @@ func (s rcloneStub) GetAllFiles(ctx context.Context) (dirs, files []string, err 
 }
 
 // ExampleSearch generates an output in Markdown format that is used in documentation for search.
+//
+//nolint:govet
 func ExampleSearch() {
 	assertNoError := func(err error) {
 		if err != nil {

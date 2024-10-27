@@ -220,6 +220,19 @@ func TestPrefixIndex(t *testing.T) {
 			hits,
 		)
 	})
+
+	t.Run("search with a one-letter word", func(t *testing.T) {
+		r := require.New(t)
+
+		index := newPrefixIndex([]string{"a beautiful picture"}, 3, 7)
+		hits := index.Search("a beautiful", 10)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "a beautiful picture", Score: 5},
+			},
+			hits,
+		)
+	})
 }
 
 func TestNewSearchRequest(t *testing.T) {

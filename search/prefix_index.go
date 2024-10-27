@@ -169,7 +169,7 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 		matchCounts        = make(map[uint64]int)
 		matchesForAllWords = make(map[uint64]bool)
 	)
-	for i, word := range words {
+	for _, word := range words {
 		// If a word length is less than MinPrefixLen, no prefixes will be generated, and
 		// no hits will be returned. So, ignore such words.
 		if len(word) < index.MinPrefixLen {
@@ -185,13 +185,13 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 			}
 		}
 
-		// No reason to continue search.
+		// No reason to continue search - all words have to match.
 		if len(matches) == 0 {
 			return nil
 		}
 
-		if i == 0 {
-			// Fill matchesForAllWords on first word.
+		if len(matchesForAllWords) == 0 {
+			// Fill matchesForAllWords on the first match.
 			for k, v := range matches {
 				matchesForAllWords[k] = v
 			}
@@ -201,6 +201,9 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 				if !matches[k] {
 					delete(matchesForAllWords, k)
 				}
+			}
+			if len(matchesForAllWords) == 0 {
+				return nil
 			}
 		}
 	}
