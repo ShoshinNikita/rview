@@ -456,7 +456,7 @@ func (s *Server) sendGenerateImageThumbnailTask(id rview.FileID, dirURL *url.URL
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	fileID, err := fileIDFromRequest(r, "/api/file")
 	if err != nil {
-		writeBadRequestError(w, err.Error())
+		writeBadRequestError(w, "invalid file id: %s", err.Error())
 		return
 	}
 
@@ -467,7 +467,7 @@ func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	id, err := fileIDFromRequest(r, "/api/thumbnail")
 	if err != nil {
-		writeBadRequestError(w, err.Error())
+		writeBadRequestError(w, "invalid file id: %s", err.Error())
 		return
 	}
 
