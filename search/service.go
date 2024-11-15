@@ -44,8 +44,8 @@ type builtIndexes struct {
 
 func NewService(rclone Rclone, cache rview.Cache) *Service {
 	const (
-		minPrefixLen = 2
-		maxPrefixLen = 7
+		minPrefixLen = 3
+		maxPrefixLen = 10
 	)
 
 	return &Service{
