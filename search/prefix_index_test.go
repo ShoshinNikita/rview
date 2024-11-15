@@ -233,6 +233,60 @@ func TestPrefixIndex(t *testing.T) {
 			hits,
 		)
 	})
+
+	t.Run("unicode", func(t *testing.T) {
+		r := require.New(t)
+
+		texts := []string{
+			"schüchternes Lächeln",
+			"hello world",
+			"ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", // hello
+			"белый",
+		}
+		index := newPrefixIndex(texts, 3, 7)
+
+		// Both searches, with and without accented characters, succeed.
+		hits := index.Search("schuchternes", 10)
+		r.Equal(
+			[]rview.SearchHit{{Path: "schüchternes Lächeln", Score: 5}},
+			hits,
+		)
+		hits = index.Search("schüchternes", 10)
+		r.Equal(
+			[]rview.SearchHit{{Path: "schüchternes Lächeln", Score: 5}},
+			hits,
+		)
+
+		// But exact search succeeds only for input with accented characters.
+		hits = index.Search(`"schuchternes"`, 10)
+		r.Empty(hits)
+		hits = index.Search(`"schüchternes"`, 10)
+		r.NotEmpty(hits)
+
+		// Other cases.
+		hits = index.Search("hello", 10)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "hello world", Score: 3},
+				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 3},
+			},
+			hits,
+		)
+		hits = index.Search("ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛", 10)
+		r.Equal(
+			[]rview.SearchHit{
+				{Path: "hello world", Score: 1},
+				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 1},
+			},
+			hits,
+		)
+		hits = index.Search("белыи", 10)
+		r.Equal(
+			[]rview.SearchHit{{Path: "белый", Score: 3}},
+			hits,
+		)
+
+	})
 }
 
 func TestNewSearchRequest(t *testing.T) {

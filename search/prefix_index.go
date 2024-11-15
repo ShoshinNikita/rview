@@ -10,6 +10,8 @@ import (
 	"strings"
 	"unicode"
 
+	"golang.org/x/text/unicode/norm"
+
 	"github.com/ShoshinNikita/rview/rview"
 )
 
@@ -289,12 +291,20 @@ func splitToNormalizedWords(v string) (res [][]rune) {
 			}
 		}
 	)
+
+	// Normalize text. For example, 'ü' (U+00FC) is transformed into 2 code
+	// points: U+0075 U+0308. We use only letters and digits, so, we will
+	// index 'ü' as 'u'.
+	v = norm.NFKD.String(v)
+
 	for _, r := range v {
 		switch {
-		case unicode.IsDigit(r), unicode.IsLetter(r):
-			word = append(word, unicode.ToLower(r))
-		case unicode.IsSpace(r) || r == '/' || r == '.':
+		case r == '/' || r == '.' || unicode.IsSpace(r):
 			appendWord()
+		case '0' <= r && r <= '9':
+			word = append(word, r)
+		case unicode.IsLetter(r):
+			word = append(word, unicode.ToLower(r))
 		}
 	}
 	appendWord()
