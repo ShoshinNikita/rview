@@ -71,7 +71,7 @@ body {
 
 #app {
 	min-height: 100vh;
-	min-width: 300px;
+	min-width: 350px;
 	padding-bottom: var(--footer-height);
 	position: relative;
 }

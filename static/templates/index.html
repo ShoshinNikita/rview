@@ -52,6 +52,11 @@
 			width: 300px;
 		}
 
+		.search-input-wrapper {
+			position: relative;
+			width: 100%;
+		}
+
 		.search-icon {
 			color: var(--border-color);
 			height: 20px;
@@ -76,18 +81,18 @@
 			color: var(--interactive-color);
 		}
 
-		.search-results {
+		.search-results-wrapper {
 			background-color: var(--header-background-color);
 			border: 1px solid var(--border-color);
 			box-shadow: var(--header-box-shadow);
 			display: none;
 			max-height: 500px;
 			min-height: 100px;
-			padding: 20px;
 			position: absolute;
-			right: 24px;
-			top: 165%;
+			right: 0;
+			top: calc(100% + 8px);
 			width: 700px;
+			z-index: 2;
 		}
 
 		.search-result-message {
@@ -139,12 +144,17 @@
 			z-index: -1;
 		}
 
+		/* Tablets */
 		@media only screen and (max-width: 1000px) {
+			.header {
+				column-gap: 20px;
+			}
+
 			.search {
 				width: 200px;
 			}
 
-			.search-results {
+			.search-results-wrapper {
 				width: 500px;
 			}
 
@@ -153,13 +163,53 @@
 			}
 		}
 
-		@media only screen and (max-width: 800px) {
+		/* Mobile */
+		@media only screen and (max-width: 720px) {
 			.header {
+				column-gap: 20px;
 				grid-template-columns: auto min-content;
+				grid-template-rows: repeat(2, auto);
+				padding: 12px 16px;
+				/* Sticky header takes up too much space. Use 'relative' value to position search results. */
+				position: relative;
+				row-gap: 8px;
+			}
+
+			.breadcrumbs {
+				/* Fill the first row */
+				grid-column-start: 1;
+				grid-column-end: 3;
 			}
 
 			.search {
-				display: none;
+				/* Second row, left */
+				grid-row-start: 2;
+				grid-row-end: 3;
+				max-width: 300px;
+				/* Position search results relative to the header, not to the input. */
+				position: unset;
+				width: 100%;
+			}
+
+			.search-results-wrapper {
+				top: calc(100% + 4px);
+				width: 100%;
+				overflow: auto;
+			}
+
+			.search-results {
+				width: fit-content;
+			}
+
+			.search-hits {
+				/* Allow scrolling the results */
+				width: fit-content;
+			}
+
+			.sort-selector-wrapper {
+				/* Second row, right */
+				grid-row-start: 2;
+				grid-row-end: 3;
 			}
 		}
 	</style>
@@ -198,15 +248,17 @@
 			</ul>
 
 			<div class="search">
-				<input class="search-input" type="text" placeholder="Search for files" autocomplete="off">
-				<span class="search-icon">
-					{{ embedIcon "search" }}
-				</span>
-				<a href="#" class="icon-button search-icon right" title="Manually refresh Search Indexes" onclick="refreshSearchIndexes(event); return false">
-					{{ embedIcon "refresh-cw" }}
-				</a>
+				<div class="search-input-wrapper">
+					<input class="search-input" type="text" placeholder="Search for files" autocomplete="off">
+					<span class="search-icon">
+						{{ embedIcon "search" }}
+					</span>
+					<a href="#" class="icon-button search-icon right" title="Manually refresh Search Indexes" onclick="refreshSearchIndexes(event); return false">
+						{{ embedIcon "refresh-cw" }}
+					</a>
+				</div>
 
-				<div class="search-results blurred"></div>
+				<div class="search-results-wrapper blurred"></div>
 			</div>
 
 			<div class="sort-selector-wrapper">
@@ -288,7 +340,7 @@
 	<!-- Search -->
 	<script>
 		const searchInput = document.getElementsByClassName("search-input")[0];
-		const searchResultWindow = document.getElementsByClassName("search-results")[0];
+		const searchResultWrapper = document.getElementsByClassName("search-results-wrapper")[0];
 
 		let timeoutId = null;
 		let abortController = null;
@@ -351,20 +403,20 @@
 						}
 
 						// Display results.
-						searchResultWindow.innerHTML = result;
+						searchResultWrapper.innerHTML = result;
 						lastSearchValue = searchValue;
 					});
 			}, 300);
 		};
 
 		function showSearchInfoMessage(text) {
-			searchResultWindow.innerHTML = "";
+			searchResultWrapper.innerHTML = "";
 
 			const div = document.createElement("div");
 			div.classList.add("search-result-message");
 			div.appendChild(document.createTextNode(text));
 
-			searchResultWindow.appendChild(div);
+			searchResultWrapper.appendChild(div);
 		};
 
 		let isSearchResultsVisible = false;
@@ -372,14 +424,14 @@
 		// Show search results on focus.
 		searchInput.addEventListener("focus", ev => {
 			isSearchResultsVisible = true;
-			searchResultWindow.style["display"] = "block";
+			searchResultWrapper.style["display"] = "block";
 			search();
 		});
 
 		// Hide search results on blur or click.
 		function hideSearchResults() {
 			isSearchResultsVisible = false;
-			searchResultWindow.style["display"] = "";
+			searchResultWrapper.style["display"] = "";
 		};
 		searchInput.addEventListener("blur", ev => { hideSearchResults(); });
 		window.addEventListener("mousedown", ev => {
@@ -389,7 +441,7 @@
 
 			let target = ev.target;
 			while (target) {
-				if (target === searchResultWindow || target == searchInput) {
+				if (target === searchResultWrapper || target == searchInput) {
 					return;
 				}
 				target = target.parentElement;
