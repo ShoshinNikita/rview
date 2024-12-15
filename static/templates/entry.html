@@ -6,16 +6,10 @@
 <!-- Optional params -->
 {{ $target := .Target }}
 {{ $title := .Title }}
-{{ $onclick := .Onclick}}
-
-{{ $attrs := "" }}
-
-{{ if $onclick }}
-{{ $attrs = printf `%s onclick="%s"` $attrs $onclick }}
-{{ end }}
+{{ $onclick := or .Onclick ";" }}
 
 <div>
-	<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}" {{ attr $attrs }}>
+	<a class="entry" href="{{ $href }}" target="{{ $target }}" title="{{ $title }}" onclick="{{ $onclick | js }}">
 		<div class="icon-wrapper">
 			{{ if $entry.ThumbnailURL }}
 			<!-- Show thumbnail if available -->

@@ -315,7 +315,7 @@
 			{{ $href = "#" }}
 			{{ $target = "" }}
 			{{ $title = printf "Preview %q\n\nFile Size: %s\nMod Time: %s" .Filename .HumanReadableSize .HumanReadableModTime }}
-			{{ $onclick = printf `openPreview('%s'); return false` .Filename }}
+			{{ $onclick = printf `openPreview('%s'); return false` (jsEscape .Filename) }}
 			{{ end }}
 
 			{{

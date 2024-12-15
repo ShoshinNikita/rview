@@ -1,0 +1,1 @@
+Can open preview for files with single quotes in their names.

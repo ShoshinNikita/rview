@@ -466,7 +466,7 @@
 					"Entry" .
 					"Href" "#"
 					"Title" .Filename
-					"Onclick" (printf `openPreview('%s'); return false` .Filename)
+					"Onclick" (printf `openPreview('%s'); return false` (jsEscape .Filename))
 				)
 			}}
 		</div>

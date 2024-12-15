@@ -198,6 +198,10 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 			"attr": func(s string) template.HTMLAttr {
 				return template.HTMLAttr(s)
 			},
+			"js": func(s string) template.JS {
+				return template.JS(s)
+			},
+			"jsEscape": template.JSEscapeString,
 			"marshalJSON": func(v any) (template.JSStr, error) {
 				res, err := json.Marshal(v)
 				if err != nil {
