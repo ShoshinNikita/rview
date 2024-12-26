@@ -32,19 +32,19 @@ func NewScriptsFS(readFromDisk bool) fs.FS {
 	return newFS(scriptsFS, "js", readFromDisk)
 }
 
-//go:embed feathericons/icons
+//go:embed icons
 var iconsFS embed.FS
 
 func NewIconsFS(readFromDisk bool) fs.FS {
-	return newFS(iconsFS, "feathericons/icons", readFromDisk)
+	return newFS(iconsFS, "icons", readFromDisk)
 }
 
-//go:embed material-icons/icons
-var fileIconsFS embed.FS
+type IconPack string
 
-func NewFileIconsFS(readFromDisk bool) fs.FS {
-	return newFS(fileIconsFS, "material-icons/icons", readFromDisk)
-}
+const (
+	MaterialIconsPack IconPack = "material-icons"
+	FeatherIconsPack  IconPack = "feathericons"
+)
 
 const (
 	defaultFileIcon   = "file"

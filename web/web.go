@@ -36,7 +36,6 @@ type Server struct {
 	searchService    rview.SearchService
 
 	iconsFS     fs.FS
-	fileIconsFS fs.FS
 	templatesFS fs.FS
 }
 
@@ -53,7 +52,6 @@ func NewServer(cfg rview.Config, rclone rview.Rclone, thumbnailService rview.Thu
 		searchService:    searchService,
 		//
 		iconsFS:     static.NewIconsFS(cfg.ReadStaticFilesFromDisk),
-		fileIconsFS: static.NewFileIconsFS(cfg.ReadStaticFilesFromDisk),
 		templatesFS: static.NewTemplatesFS(cfg.ReadStaticFilesFromDisk),
 	}
 
@@ -71,10 +69,9 @@ func NewServer(cfg rview.Config, rclone rview.Rclone, thumbnailService rview.Thu
 
 	// Static
 	for pattern, fs := range map[string]fs.FS{
-		"/static/icons/":     s.iconsFS,
-		"/static/fileicons/": s.fileIconsFS,
-		"/static/styles/":    static.NewStylesFS(cfg.ReadStaticFilesFromDisk),
-		"/static/js/":        static.NewScriptsFS(cfg.ReadStaticFilesFromDisk),
+		"/static/icons/":  s.iconsFS,
+		"/static/styles/": static.NewStylesFS(cfg.ReadStaticFilesFromDisk),
+		"/static/js/":     static.NewScriptsFS(cfg.ReadStaticFilesFromDisk),
 	} {
 		handler := http.FileServer(http.FS(fs))
 		if !cfg.ReadStaticFilesFromDisk {
@@ -210,10 +207,10 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 				return template.JSStr(res), nil
 			},
 			"embedIcon": func(name string) (template.HTML, error) {
-				return embedIcon(s.iconsFS, name)
+				return s.embedIcon(static.FeatherIconsPack, name)
 			},
 			"embedFileIcon": func(name string) (template.HTML, error) {
-				return embedIcon(s.fileIconsFS, name)
+				return s.embedIcon(static.MaterialIconsPack, name)
 			},
 			"dict": func(kvs ...any) (map[string]any, error) {
 				if len(kvs)%2 != 0 {
@@ -250,11 +247,11 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 	io.Copy(w, buf)
 }
 
-func embedIcon(fs fs.FS, name string) (template.HTML, error) {
+func (s *Server) embedIcon(pack static.IconPack, name string) (template.HTML, error) {
 	if !strings.HasSuffix(name, ".svg") {
 		name += ".svg"
 	}
-	f, err := fs.Open(name)
+	f, err := s.iconsFS.Open(pkgPath.Join(string(pack), name))
 	if err != nil {
 		return "", fmt.Errorf("couldn't open icon %q: %w", name, err)
 	}

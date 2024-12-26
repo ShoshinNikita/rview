@@ -1,6 +1,7 @@
 package static
 
 import (
+	"path"
 	"strings"
 	"testing"
 
@@ -22,9 +23,9 @@ func TestEmbeddedFileIcons(t *testing.T) {
 		allIcons[icon] = struct{}{}
 	}
 
-	fs := NewFileIconsFS(false)
+	fs := NewIconsFS(false)
 	for icon := range allIcons {
-		f, err := fs.Open(icon + ".svg")
+		f, err := fs.Open(path.Join(string(MaterialIconsPack), icon+".svg"))
 		if err != nil {
 			t.Errorf("couldn't open icon %q", icon)
 		} else {
