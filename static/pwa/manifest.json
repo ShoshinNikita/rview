@@ -1,0 +1,22 @@
+{
+	"short_name": "Rview",
+	"name": "Rview",
+	"display": "standalone",
+	"start_url": "/ui/",
+	"description": "Web-based UI for Rclone",
+	"orientation": "portrait",
+	"background_color": "#151a22",
+	"icons": [
+		{
+			"src": "/static/icons/logo/logo.png",
+			"sizes": "512x512",
+			"type": "image/png"
+		},
+		{
+			"src": "/static/icons/logo/logo-mask.png",
+			"sizes": "512x512",
+			"type": "image/png",
+			"purpose": "maskable"
+		}
+	]
+}

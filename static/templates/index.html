@@ -4,6 +4,15 @@
 <head>
 	<meta charset="UTF-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<!-- The value is updated in /static/js/theme.js. Default values is the dark mode background color. -->
+	<meta name="theme-color" content="#0d1117">
+
+	<link rel="manifest" href="/static/pwa/manifest.json" crossorigin="use-credentials">
+
+	<link rel="icon" type="image/svg+xml" href="/static/icons/logo/logo.svg">
+	<link rel="icon" type="image/png" href="/static/icons/logo/logo.png">
+	<link rel="apple-touch-icon" href="/static/icons/logo/logo.png">
+
 	{{ if .IsNotFound }}
 	<title>Rview • ???</title>
 	{{ else }}

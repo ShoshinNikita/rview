@@ -39,6 +39,13 @@ func NewIconsFS(readFromDisk bool) fs.FS {
 	return newFS(iconsFS, "icons", readFromDisk)
 }
 
+//go:embed pwa
+var pwaFS embed.FS
+
+func NewPwaFS(readFromDisk bool) fs.FS {
+	return newFS(pwaFS, "pwa", readFromDisk)
+}
+
 type IconPack string
 
 const (

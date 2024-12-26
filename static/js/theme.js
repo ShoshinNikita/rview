@@ -8,6 +8,12 @@ const lightTheme = "light";
 const systemTheme = "system";
 const darkTheme = "dark";
 
+// From /static/styles/common.css@3005a0c
+const themeColors = {
+	[lightTheme]: "#ffffff",
+	[darkTheme]: "#0d1117",
+};
+
 /**
  * Saves a new theme in the local storage and updates the styles
  */
@@ -27,6 +33,7 @@ function updateStyles() {
 	}
 
 	document.getElementsByTagName("html")[0].setAttribute("data-theme", newTheme);
+	document.querySelector('meta[name="theme-color"]').setAttribute("content", themeColors[newTheme]);
 
 	window.dispatchEvent(new Event(themeChangeEventName));
 }
