@@ -70,7 +70,8 @@ body {
 }
 
 #app {
-	min-height: 100vh;
+	/* Use svh instead of vh to keep the footer in the viewport when there is nothing to scroll (for mobile) */
+	min-height: 100svh;
 	min-width: 350px;
 	padding-bottom: var(--footer-height);
 	position: relative;
@@ -80,6 +81,7 @@ a {
 	color: var(--interactive-color);
 	cursor: pointer;
 	text-decoration: none;
+	-webkit-tap-highlight-color: transparent;
 }
 
 @media(hover: hover) and (pointer: fine) {

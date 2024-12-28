@@ -59,6 +59,10 @@
 		width: 100%;
 	}
 
+	.preview-carousel.no-scroll {
+		overflow: hidden;
+	}
+
 	/* Hide scrollbar in Safari and Chrome */
 	.preview-carousel::-webkit-scrollbar {
 		display: none;
@@ -490,6 +494,10 @@
 	const thumbnailIDPrefix = "selector-thumbnail-";
 	const previewElementIDPrefix = "preview-carousel-element-";
 
+	let isPreviewOpened = false;
+	let currentIndex = null;
+	let currentEntry = null;
+
 	// Sometimes rapid resize or orientation change can cause incorrect scroll position.
 	// So, we manually scroll to the correct preview.
 	window.addEventListener("resize", () => {
@@ -546,14 +554,12 @@
 		}
 	};
 
-	let isPreviewOpened = false;
-	let currentFilename = null;
-	let currentIndex = null;
-
+	// openPreview is a public function that should be used to open a preview.
 	const openPreview = (filename, scroll = true) => {
 		const ok = _openPreview(filename, scroll);
 		if (!ok) {
-			// Just in case. Pass goBack=false because url wasn't updated.
+			// Can happen when user opens the page with 'preview' param, but file doesn't exist.
+			// Pass goBack=false because url wasn't updated.
 			closePreview(false);
 			return;
 		}
@@ -568,7 +574,7 @@
 	// _openPreview returns true when preview for a file with the passed name
 	// was successfully prepared. This function should be called only by "openPreview".
 	const _openPreview = (newFilename, scroll) => {
-		if (currentFilename === newFilename) {
+		if (currentEntry?.filename === newFilename) {
 			// Everything should be already set.
 			return true;
 		}
@@ -579,11 +585,11 @@
 			return false;
 		}
 
-		const oldFilename = currentFilename;
-		currentFilename = newFilename;
+		const oldFilename = currentEntry?.filename;
 		currentIndex = newIndex;
+		currentEntry = entries[currentIndex];
 
-		const entry = entries[currentIndex];
+		const entry = currentEntry;
 
 		// Scroll selector.
 		const thumbnailWrapper = document.getElementById(thumbnailIDPrefix + entry.filename);
@@ -673,7 +679,7 @@
 		if (oldFilename) {
 			document.getElementById(thumbnailIDPrefix + oldFilename).classList.remove("selected");
 		}
-		document.getElementById(thumbnailIDPrefix + currentFilename).classList.add("selected");
+		document.getElementById(thumbnailIDPrefix + entry.filename).classList.add("selected");
 
 		// Hide switch preview buttons if necessary.
 		if (currentIndex === 0) {
@@ -749,11 +755,12 @@
 			history.replaceState(null, "", newPath);
 		}
 	};
+</script>
 
-	// Event listeners
-
+<!-- Event listeners -->
+<script>
+	// Close preview on "Go back" and open on "Go forward".
 	window.addEventListener("popstate", (ev) => {
-		// Close preview on "Go back" and open on "Go forward".
 		const preview = new URLSearchParams(window.location.search).get("preview");
 		if (preview) {
 			openPreview(preview);
@@ -763,12 +770,11 @@
 		}
 	});
 
-
+	// Change preview on pressing the left/right arrows.
 	window.addEventListener("keydown", (ev) => {
 		if (!isPreviewOpened) {
 			return;
 		}
-
 
 		// Call "ev.preventDefault" to prevent scroll on pressing left/right arrows - we
 		// implement this behavior ourselves. Without it we would scroll 2 elements at once.
@@ -784,4 +790,53 @@
 			closePreview();
 		}
 	});
+
+	// Load the original image on pinch-to-zoom on mobile devices and tablets.
+	if (window.matchMedia('(pointer: coarse)').matches) {
+		window.visualViewport.addEventListener("resize", ev => {
+			if (!ev.target?.scale) {
+				return;
+			}
+
+			const noScrollClass = "no-scroll";
+
+			// Default 'scale' can be equal to something like 1.007 or even 0.9999. So, compare it with 1.01.
+			if (ev.target.scale < 1.01) {
+				previewCarousel.classList.remove(noScrollClass);
+				return;
+			}
+
+			// Scrolling with zoom>1 is very laggy - disable.
+			previewCarousel.classList.add(noScrollClass);
+
+			if (!currentEntry) {
+				return;
+			}
+
+			const loadOriginal = true &&
+				ev.target.scale > 2 &&
+				currentEntry.file_type === "image" &&
+				!currentEntry.filename.endsWith(".heic") && // .heic images are not supported by most browsers
+				!currentEntry.filename.endsWith(".gif");    // we already display the original gif
+			if (!loadOriginal) {
+				return;
+			}
+
+			const img = document.getElementById(previewElementIDPrefix + currentIndex).querySelector("img");
+			if (!img) {
+				console.warn(`no <img> for ${currentEntry.filename}`);
+				return;
+			}
+			// 'img.src' contains the absolute url. So, we have to check the suffix.
+			if (img.src.endsWith(currentEntry.original_file_url)) {
+				return;
+			}
+
+			// Let the user know that we are loading the original image.
+			img.addEventListener("load", () => { img.style.filter = ""; });
+			img.style.filter = "blur(1px)";
+
+			img.src = currentEntry.original_file_url;
+		});
+	}
 </script>
