@@ -1,6 +1,6 @@
 # Advanced Setup for Paranoiacs
 
-You don't have to trust **Rview** - it can work isolated from the internet with access only
+You don't have to trust `Rview` - it can work isolated from the internet with access only
 to the small subset of read-only Rclone commands. Unfortunately, Rclone itself doesn't support
 fine-grained permissions. So, we have to use other tools - for example, Nginx.
 

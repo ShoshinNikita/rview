@@ -1,7 +1,5 @@
 .idea/
 .vscode/
-bin/
 _*
 
 .env.local
-material-icons.json

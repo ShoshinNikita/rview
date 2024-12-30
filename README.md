@@ -12,10 +12,9 @@
 - [Limitations](#limitations)
 - [Demo](#demo)
 - [Run](#run)
-	- [Advanced](#advanced)
 - [Configuration](#configuration)
 - [Development](#development)
-	- [Metrics \& Pprof](#metrics--pprof)
+  - [Metrics \& Pprof](#metrics--pprof)
 - [Thanks](#thanks)
 
 ## Features
@@ -23,17 +22,16 @@
 - :framed_picture: **Automatic thumbnail generation**: You don't have to download hundreds of MiBs to preview your images.
   Image thumbnails are generated with the help of [libvips](https://github.com/libvips/libvips), an extremely
   fast image processing library.
+- :iphone: **Mobile-friendly**: `Rview` can be installed as a PWA, desktop and mobile versions have feature parity.
 - :mag: **Search**: You can search for files by their name. Search tips can be found [here](./docs/search.md).
-- :iphone: **Responsive**: UI is designed to be responsive, which means you can browse you files on both desktop
-  and mobile.
 - :feather: **Lightweight & minimalistic**: All pages are rendered on the server side using Go templates. JavaScript
   is used only to make UI interactive.
 
 ## Limitations
 
-- **Rview** is read-only and there are no plans to change that. You should use Rclone directly
+- `Rview` is read-only and there are no plans to change that. You should use Rclone directly
   to upload, edit, or delete files.
-- **Rview** does not provide any authentication mechanism. It is therefore highly recommended to use a proxy
+- `Rview` does not provide any authentication mechanism. It is therefore highly recommended to use a proxy
   such as Nginx or Caddy. Enabling gzip compression is also recommended, as it can significantly improve response time.
 
 ## Demo
@@ -45,30 +43,29 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
 1. You have to install [docker](https://docs.docker.com/) and [docker compose](https://docs.docker.com/compose/).
 2. Let's consider you use Rclone S3 backend, and your `~/.config/rclone/rclone.conf` looks like this:
 
-	```ini
-	[my-s3]
-	type = s3
-	provider = Other
-	access_key_id = <key id>
-	secret_access_key = <access key>
-	endpoint = <endpoint>
-	```
+   ```ini
+   [my-s3]
+   type = s3
+   provider = Other
+   access_key_id = <key id>
+   secret_access_key = <access key>
+   endpoint = <endpoint>
+   ```
 
-3. Create `docker-compose.yml` with the following content:
+3. Create `compose.yml`:
 
-	```yml
-	version: "2"
-	services:
-	  rview:
-	    image: ghcr.io/shoshinnikita/rview:main
-	    container_name: rview
-	    volumes:
-	      - ./var:/srv/var                                          # mount app data directory
-	      - ~/.config/rclone/rclone.conf:/config/rclone/rclone.conf # mount Rclone config file
-	    ports:
-	      - "127.0.0.1:8080:8080"
-	    command: "--rclone-target=my-s3:" # pass Rclone target from the config file
-	```
+   ```yml
+   services:
+     rview:
+       image: ghcr.io/shoshinnikita/rview:main
+       container_name: rview
+       volumes:
+         - ./var:/srv/var                                          # mount app data directory
+         - ~/.config/rclone/rclone.conf:/config/rclone/rclone.conf # mount Rclone config file
+       ports:
+         - "127.0.0.1:8080:8080"
+       command: "--rclone-target=my-s3:" # pass Rclone target from the config file
+   ```
 
 4. Run this command:
 
@@ -78,10 +75,30 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
 
 5. Go to http://localhost:8080.
 
-### Advanced
+> [!TIP]
+> `rclone.conf` is not required when mounting a local directory:
+> <details>
+>   <summary><code>compose.yaml</code></summary>
+>
+>   ```yml
+>   services:
+>     rview:
+>       image: ghcr.io/shoshinnikita/rview:main
+>       container_name: rview
+>       volumes:
+>         - ./var:/srv/var      # mount app data directory
+>         - /dir/to/mount:/data # mount data directory
+>       ports:
+>         - "127.0.0.1:8080:8080"
+>       command: "--rclone-target=/data"
+>   ```
+>
+>   </div>
+> </details>
 
-You can run **Rview** with an existing Rclone instance and without access to the internet.
-Read more [here](./docs/advanced_setup.md).
+> [!TIP]
+> You can run `Rview` with an existing Rclone instance and without access to the
+> internet - [read more](./docs/advanced_setup.md).
 
 ## Configuration
 
@@ -126,7 +143,7 @@ First, you have to install the following dependencies:
 	sudo apt-get install libvips-tools
 	```
 
-After completion of these steps you should be able to run **Rview**:
+After completion of these steps you should be able to run `Rview`:
 
 ```bash
 # Build and run
@@ -138,11 +155,11 @@ make
 make check
 ```
 
-By default `make run` uses environment variables from `.env` file. You can redefine these variables via `.env.local` file.
+By default `make run` uses environment variables from `.env` file. You can redefine these variables in `.env.local` file.
 
 ### Metrics & Pprof
 
-**Rview** exposes Prometheus metrics on `/debug/metrics`. The list of all metrics can be found [here](pkg/metrics/metrics.go)
+`Rview` exposes Prometheus metrics on `/debug/metrics`. The list of all metrics can be found [here](pkg/metrics/metrics.go)
 
 [Pprof endpoints](https://pkg.go.dev/net/http/pprof#hdr-Usage_examples) are available on `/debug/pprof/`.
 

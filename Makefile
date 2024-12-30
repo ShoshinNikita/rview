@@ -6,7 +6,7 @@ default: run
 
 run: build
 	@ echo "Run..."
-	@ ./bin/rview \
+	@ ./_bin/rview \
 			--port=${SERVER_PORT} \
 			--dir=_var \
 			--rclone-target=${RCLONE_TARGET} \
@@ -15,7 +15,7 @@ run: build
 
 build:
 	@ echo "Build..."
-	@ CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ./bin/rview
+	@ CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ./_bin/rview
 
 docker-build:
 	@ echo "Build Docker Image..."
