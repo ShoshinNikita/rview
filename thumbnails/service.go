@@ -282,9 +282,9 @@ func resizeWithVips(originalFile, cacheFile string, id rview.ThumbnailID) error 
 	switch t := getImageType(id.FileID); t {
 	// Ignore .heic, .png and etc. because thumbnail id must already have the correct extension.
 	case jpegImageType:
-		output += "[Q=80,optimize_coding,strip]"
+		output += "[Q=80,optimize_coding,keep=icc]"
 	case webpImageType:
-		output += "[strip]"
+		output += "[keep=icc]"
 	default:
 		return fmt.Errorf("unsupported image type: %q", t)
 	}
