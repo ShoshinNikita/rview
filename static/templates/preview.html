@@ -233,6 +233,7 @@
 	}
 
 	.preview-file-info {
+		grid-area: file-info;
 		font-size: 18px;
 		word-break: break-all;
 	}
@@ -308,11 +309,56 @@
 		width: 28px;
 	}
 
-	/* Display close button only on medium and small displays. */
 	.preview-close-button {
+		/* Display close button only on medium and small displays. */
 		display: none;
+		grid-area: close-button;
 	}
 
+	.preview-download-button {
+		grid-area: download-button;
+	}
+</style>
+
+<!-- Selector -->
+<style>
+	.selector {
+		column-gap: 8px;
+		display: grid;
+		grid-auto-columns: 120px;
+		grid-auto-flow: column;
+		margin: 0;
+		overflow-x: auto;
+		padding: 4px 8px;
+		scroll-behavior: smooth;
+	}
+
+	.selector-thumbnail-wrapper {
+		display: contents;
+	}
+
+	.selector-thumbnail-wrapper .entry {
+		padding: 0 4px;
+	}
+
+	.selector-thumbnail-wrapper .icon-wrapper {
+		height: 60px;
+	}
+
+	.selector-thumbnail-wrapper .icon {
+		height: 48px;
+		width: 48px;
+	}
+
+	.selector-thumbnail-wrapper .entry-filename {
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+</style>
+
+<!-- @media rules -->
+<style>
+	/* Tablets */
 	@media only screen and (max-width: 1200px) {
 		.preview {
 			grid-template-columns: none;
@@ -334,10 +380,6 @@
 			flex-direction: row;
 		}
 
-		.preview-file-info {
-			grid-area: file-info;
-		}
-
 		.preview-file-info>* {
 			margin-bottom: 4px;
 			overflow: hidden;
@@ -355,15 +397,11 @@
 
 		.preview-download-button {
 			align-self: end;
-			grid-area: download-button;
-		}
-
-		.preview-close-button {
-			grid-area: close-button;
 		}
 	}
 
-	@media (max-width: 768px) or ((orientation: landscape) and (max-height: 768px)) {
+	/* Mobile devices */
+	@media only screen and ((max-width: 768px) or ((orientation: landscape) and (max-height: 768px))) {
 		.preview-wrapper {
 			padding: 0;
 		}
@@ -406,48 +444,11 @@
 			}
 
 			.selector {
-				/* TODO: remove !important */
-				grid-auto-flow: row !important;
+				grid-auto-flow: row;
 				grid-auto-rows: min-content;
 				row-gap: 8px;
 			}
 		}
-	}
-</style>
-
-<!-- Selector -->
-<style>
-	.selector {
-		column-gap: 8px;
-		display: grid;
-		grid-auto-columns: 120px;
-		grid-auto-flow: column;
-		margin: 0;
-		overflow-x: auto;
-		padding: 4px 8px;
-		scroll-behavior: smooth;
-	}
-
-	.selector-thumbnail-wrapper {
-		display: contents;
-	}
-
-	.selector-thumbnail-wrapper .entry {
-		padding: 0 4px;
-	}
-
-	.selector-thumbnail-wrapper .icon-wrapper {
-		height: 60px;
-	}
-
-	.selector-thumbnail-wrapper .icon {
-		height: 48px;
-		width: 48px;
-	}
-
-	.selector-thumbnail-wrapper .entry-filename {
-		text-overflow: ellipsis;
-		white-space: nowrap;
 	}
 </style>
 

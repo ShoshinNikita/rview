@@ -150,7 +150,30 @@
 			width: 100%;
 			z-index: -1;
 		}
+	</style>
 
+	<!-- Files -->
+	<style>
+		.not-found-message {
+			font-size: 24px;
+			left: 50%;
+			position: absolute;
+			text-align: center;
+			top: 25%;
+			transform: translateX(-50%);
+		}
+
+		.files {
+			column-gap: 12px;
+			display: grid;
+			grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+			padding: 0 8px;
+			row-gap: 12px;
+		}
+	</style>
+
+	<!-- @media rules -->
+	<style>
 		/* Tablets */
 		@media only screen and (max-width: 1000px) {
 			.header {
@@ -218,26 +241,6 @@
 				grid-row-start: 2;
 				grid-row-end: 3;
 			}
-		}
-	</style>
-
-	<!-- Files -->
-	<style>
-		.not-found-message {
-			font-size: 24px;
-			left: 50%;
-			position: absolute;
-			text-align: center;
-			top: 25%;
-			transform: translateX(-50%);
-		}
-
-		.files {
-			column-gap: 12px;
-			display: grid;
-			grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-			padding: 0 8px;
-			row-gap: 12px;
 		}
 	</style>
 </head>
