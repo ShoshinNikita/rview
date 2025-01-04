@@ -229,6 +229,7 @@
 		display: flex;
 		flex-direction: column;
 		justify-content: space-between;
+		position: relative;
 	}
 
 	.preview-file-info {
@@ -246,6 +247,56 @@
 
 	.preview-file-info-value {
 		font-style: italic;
+	}
+
+	.preview-file-info-mobile {
+		align-items: center;
+		cursor: help;
+		display: none;
+		font-size: 18px;
+		grid-area: file-info-mobile;
+		margin-right: 12px;
+		white-space: nowrap;
+		width: fit-content;
+
+		.preview-file-info-value {
+			overflow: hidden;
+			text-overflow: ellipsis;
+		}
+
+		.tooltip {
+			background-color: var(--background-color);
+			border-radius: 3px;
+			border: 1px solid var(--border-color);
+			margin-top: 4px;
+			max-width: 80%;
+			padding: 8px 12px;
+			position: absolute;
+			top: 100%;
+			visibility: hidden;
+			white-space: wrap;
+		}
+
+		&:hover .tooltip {
+			visibility: visible;
+		}
+
+		.filename {
+			align-items: center;
+			display: grid;
+			gap: 8px;
+			grid-template-columns: repeat(2, auto);
+
+			.more-info-icon {
+				color: var(--border-color);
+				height: 20px;
+				width: 20px;
+			}
+		}
+
+		&:hover .filename .more-info-icon {
+			color: var(--interactive-color);
+		}
 	}
 
 	.preview-close-button,
@@ -312,7 +363,7 @@
 		}
 	}
 
-	@media only screen and (max-width: 600px) {
+	@media (max-width: 768px) or ((orientation: landscape) and (max-height: 768px)) {
 		.preview-wrapper {
 			padding: 0;
 		}
@@ -322,8 +373,7 @@
 		}
 
 		.preview {
-			padding-left: 0;
-			padding-right: 0;
+			padding: 12px 0;
 		}
 
 		.preview-not-available {
@@ -332,8 +382,35 @@
 		}
 
 		.preview-side-panel {
-			padding-left: 20px;
-			padding-right: 20px;
+			column-gap: 16px;
+			grid-template-columns: auto min-content min-content;
+			grid-template-areas: "file-info-mobile download-button close-button";
+			/* Reset 'justify-content: space-between' */
+			justify-content: unset;
+			padding: 0 12px;
+		}
+
+		.preview-file-info {
+			display: none;
+		}
+
+		.preview-file-info-mobile {
+			display: flex;
+		}
+
+		@media (orientation: landscape) {
+			.preview-wrapper {
+				column-gap: 8px;
+				grid-template-columns: auto min-content;
+				grid-template-rows: unset;
+			}
+
+			.selector {
+				/* TODO: remove !important */
+				grid-auto-flow: row !important;
+				grid-auto-rows: min-content;
+				row-gap: 8px;
+			}
 		}
 	}
 </style>
@@ -447,6 +524,28 @@
 				<div>
 					<span class="preview-file-info-key">Mod Time:</span>
 					<span class="preview-file-info-value nowrap" data-type="mod_time"></span>
+				</div>
+			</div>
+
+			<div class="preview-file-info-mobile">
+				<div class="filename" title="Show more info">
+					<span class="preview-file-info-value" data-type="filename"></span>
+					<span class="more-info-icon"> {{ embedIcon "info" }} </span>
+				</div>
+
+				<div class="tooltip">
+					<div>
+						<span class="preview-file-info-key">Filename:</span>
+						<span class="preview-file-info-value" data-type="filename"></span>
+					</div>
+					<div>
+						<span class="preview-file-info-key">Size:</span>
+						<span class="preview-file-info-value nowrap" data-type="size"></span>
+					</div>
+					<div>
+						<span class="preview-file-info-key">Mod Time:</span>
+						<span class="preview-file-info-value nowrap" data-type="mod_time"></span>
+					</div>
 				</div>
 			</div>
 
@@ -595,7 +694,9 @@
 		const thumbnailWrapper = document.getElementById(thumbnailIDPrefix + entry.filename);
 		const thumbnail = thumbnailWrapper.children[0];
 		const selector = thumbnailWrapper.parentElement;
-		selector.scrollLeft = thumbnail.offsetLeft - selector.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;
+		const left = thumbnail.offsetLeft - selector.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;
+		const top = thumbnail.offsetTop - selector.offsetTop + thumbnail.clientHeight / 2 - selector.clientHeight / 2;
+		selector.scroll(left, top);
 
 		const previewElement = document.getElementById(previewElementIDPrefix + `${newIndex}`);
 
