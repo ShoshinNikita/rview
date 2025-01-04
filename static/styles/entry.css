@@ -9,7 +9,7 @@ a.entry {
 }
 
 .selected .entry,
-.entry:focus {
+.entry:active {
 	background-color: var(--hover-background-color);
 	border: var(--hover-border);
 }
