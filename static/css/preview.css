@@ -331,28 +331,28 @@
 	overflow-x: auto;
 	padding: 4px 8px;
 	scroll-behavior: smooth;
-}
 
-.selector-thumbnail-wrapper {
-	display: contents;
-}
+	.selector-thumbnail-wrapper {
+		display: contents;
 
-.selector-thumbnail-wrapper .entry {
-	padding: 0 4px;
-}
+		.entry {
+			padding: 0 4px;
 
-.selector-thumbnail-wrapper .icon-wrapper {
-	height: 60px;
-}
+			.icon-wrapper {
+				height: 60px;
 
-.selector-thumbnail-wrapper .icon {
-	height: 48px;
-	width: 48px;
-}
+				.icon {
+					height: 48px;
+					width: 48px;
+				}
+			}
 
-.selector-thumbnail-wrapper .entry-filename {
-	text-overflow: ellipsis;
-	white-space: nowrap;
+			.entry-filename {
+				text-overflow: ellipsis;
+				white-space: nowrap;
+			}
+		}
+	}
 }
 
 /*

@@ -5,73 +5,74 @@ a.entry {
 	display: block;
 	padding: 4px;
 	text-decoration: none;
+	transition: background-color 0.05s, border-color 0.05s;
 	width: 100%;
-}
 
-.selected .entry,
-.entry:active {
-	background-color: var(--hover-background-color);
-	border: var(--hover-border);
-}
-
-@media(hover: hover) and (pointer: fine) {
-	.entry:hover {
+	.selected &,
+	&:active {
 		background-color: var(--hover-background-color);
 		border: var(--hover-border);
 	}
-}
 
-.icon-wrapper {
-	height: 100px;
-	text-align: center;
-	position: relative;
-}
+	@media(hover: hover) and (pointer: fine) {
+		&:hover {
+			background-color: var(--hover-background-color);
+			border: var(--hover-border);
+		}
+	}
 
-.thumbnail {
-	box-shadow: var(--image-box-shadow);
-	max-height: 90%;
-	max-width: 95%;
-}
+	.icon-wrapper {
+		height: 100px;
+		text-align: center;
+		position: relative;
+	}
 
-.icon {
-	height: 88px;
-	margin: auto;
-	width: 88px;
-}
+	.thumbnail {
+		box-shadow: var(--image-box-shadow);
+		max-height: 90%;
+		max-width: 95%;
+	}
 
-.icon,
-.thumbnail {
-	left: 50%;
-	position: absolute;
-	top: 50%;
-	transform: translate(-50%, -50%);
-	z-index: 1;
-}
+	.icon {
+		height: 88px;
+		margin: auto;
+		width: 88px;
+	}
 
-.thumbnail~.icon {
-	/* Use thumbnail if available */
-	display: none;
-}
+	.icon,
+	.thumbnail {
+		left: 50%;
+		position: absolute;
+		top: 50%;
+		transform: translate(-50%, -50%);
+		z-index: 1;
+	}
 
-.thumbnail.failed {
-	display: none;
-}
+	.thumbnail~.icon {
+		/* Use thumbnail if available */
+		display: none;
+	}
 
-.thumbnail.failed~.icon {
-	/* Fallback to icon in case of image load error */
-	display: block;
-}
+	.thumbnail.failed {
+		display: none;
+	}
 
-.thumbnail.loaded~.g-loader,
-.thumbnail.failed~.g-loader {
-	/* Hide loader after image load or error */
-	display: none;
-}
+	.thumbnail.failed~.icon {
+		/* Fallback to icon in case of image load error */
+		display: block;
+	}
 
-.entry-filename {
-	display: inline-block;
-	overflow: hidden;
-	overflow-wrap: break-word;
-	text-align: center;
-	width: 100%;
+	.thumbnail.loaded~.g-loader,
+	.thumbnail.failed~.g-loader {
+		/* Hide loader after image load or error */
+		display: none;
+	}
+
+	.entry-filename {
+		display: inline-block;
+		overflow: hidden;
+		overflow-wrap: break-word;
+		text-align: center;
+		width: 100%;
+	}
 }
