@@ -62,20 +62,8 @@ a.entry {
 	display: block;
 }
 
-.loader {
-	animation: spin 1.2s linear infinite;
-	border: 4px solid var(--loader-border-color);
-	border-radius: 50%;
-	border-top: 4px solid var(--loader-border-color--accent);
-	height: 40px;
-	left: 50%;
-	position: absolute;
-	top: 50%;
-	width: 40px;
-}
-
-.thumbnail.loaded~.loader,
-.thumbnail.failed~.loader {
+.thumbnail.loaded~.g-loader,
+.thumbnail.failed~.g-loader {
 	/* Hide loader after image load or error */
 	display: none;
 }

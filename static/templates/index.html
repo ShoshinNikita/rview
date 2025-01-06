@@ -28,6 +28,32 @@
 		.noscroll {
 			overflow: hidden;
 		}
+
+		#app {
+			/* Use svh instead of vh to keep the footer in the viewport when there is nothing to scroll (for mobile) */
+			min-height: 100svh;
+			min-width: 350px;
+			padding-bottom: var(--footer-height);
+			position: relative;
+
+			.new-page-loader {
+				display: none;
+			}
+
+			&.loading {
+				.new-page-loader {
+					border-width: 5px;
+					display: revert;
+					height: 52px;
+					top: 30%;
+					width: 52px;
+				}
+
+				.files {
+					display: none;
+				}
+			}
+		}
 	</style>
 
 	<!-- Header -->
@@ -248,6 +274,8 @@
 <body>
 	<!-- Fix click events on iOS: https://stackoverflow.com/a/39712411 -->
 	<div id="app" onclick="void(0);">
+		<div class="g-loader new-page-loader"></div>
+
 		<div class="header blurred">
 			<ul class="breadcrumbs">
 				{{ range .Breadcrumbs }}
@@ -560,6 +588,49 @@
 			if (previewFilename) {
 				openPreview(previewFilename);
 			}
+		})
+	</script>
+
+	<!-- New page loader -->
+	<script>
+		window.addEventListener("click", (ev) => {
+			const link = ev.target.closest("a");
+			if (!link) {
+				return;
+			}
+			const href = link.getAttribute("href");
+			if (!href || !href.startsWith("/ui/")) {
+				return;
+			}
+			const url = URL.parse(link.href); // 'URL.parse' can parse only absolute urls
+			if (!url) {
+				console.warn(`couldn't parse href "${link.href}"`);
+				return;
+			}
+
+			const newBreadcrumbs = [];
+			url.pathname.split("/").forEach(text => {
+				if (!text) {
+					return;
+				}
+				text = text === "ui" ? "Home" : text;
+
+				const a = document.createElement("a");
+				a.href = "#"; // use fake breadcrumbs because the page will be reloaded anyway
+				a.classList.add("breadcrumb-link");
+				a.innerText = decodeURIComponent(text);
+
+				const li = document.createElement("li");
+				li.classList.add("breadcrumb");
+				li.append(" ", a, " ");
+
+				newBreadcrumbs.push(li);
+			});
+
+			document.querySelector("#app").classList.add("loading");
+
+			const breadcrumbs = document.querySelector(".breadcrumbs");
+			breadcrumbs.replaceChildren(...newBreadcrumbs);
 		})
 	</script>
 </body>
