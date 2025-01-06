@@ -252,6 +252,17 @@ func TestAPI_GetDirInfo(t *testing.T) {
 				},
 				Entries: []web.DirEntry{
 					{
+						Filename:             "a + b.txt",
+						Size:                 0,
+						HumanReadableSize:    "0 B",
+						ModTime:              mustParseTime(t, "2022-09-08 11:37:02"),
+						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
+						FileType:             rview.FileTypeText,
+						CanPreview:           true,
+						OriginalFileURL:      "/api/file/Other/spe%27sial%20%21%20cha%3Cracters/x/y/a%20+%20b.txt?mod_time=1662637022",
+						IconName:             "document",
+					},
+					{
 						Filename:             "f>ile.txt",
 						Size:                 0,
 						HumanReadableSize:    "0 B",

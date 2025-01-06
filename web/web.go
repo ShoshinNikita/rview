@@ -354,7 +354,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 			continue
 		}
 
-		filename, err := url.QueryUnescape(pkgPath.Clean(entry.URL))
+		filename, err := url.PathUnescape(pkgPath.Clean(entry.URL))
 		if err != nil {
 			return DirInfo{}, fmt.Errorf("invalid url %q: %w", entry.URL, err)
 		}
