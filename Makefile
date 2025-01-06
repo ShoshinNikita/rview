@@ -36,7 +36,7 @@ lint:
 	@ echo "Run golangci-lint..."
 	@ docker run --rm -t \
 		--network=none \
-		--user $(shell id -u):$(shell id -g) \
+		--user ${UID}:${GID} \
 		-e GOCACHE=/cache/go \
 		-e GOLANGCI_LINT_CACHE=/cache/go \
 		-v $(shell go env GOCACHE):/cache/go \
