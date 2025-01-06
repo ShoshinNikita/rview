@@ -1,0 +1,451 @@
+.preview-wrapper {
+	/*
+		Use "visibility: hidden" to be able to scroll selector on first open and
+		to prevent all pointer events: https://stackoverflow.com/a/34529598.
+	*/
+	background-color: #00000000;
+	display: grid;
+	grid-template-rows: auto min-content;
+	overflow: hidden;
+	position: fixed;
+	padding: 3vh 5vw;
+	row-gap: 8px;
+	top: 0;
+	visibility: hidden;
+	width: 100%;
+	z-index: 3;
+}
+
+.preview-wrapper.opened {
+	visibility: visible;
+}
+
+.preview-close-layer {
+	height: 100%;
+	left: 0;
+	position: fixed;
+	top: 0;
+	width: 100%;
+	z-index: -1;
+}
+
+.preview-wrapper.opened .preview-close-layer {
+	background-color: var(--preview-background-color);
+}
+
+.preview {
+	column-gap: 12px;
+	display: grid;
+	grid-template-columns: auto 300px;
+	padding: 20px;
+	position: relative;
+	width: 100%;
+}
+
+.preview-content {
+	position: relative;
+	width: 100%;
+}
+
+.preview-carousel {
+	display: flex;
+	flex-flow: row nowrap;
+	height: 100%;
+	overflow-x: scroll;
+	scroll-snap-type: x mandatory;
+	scrollbar-width: none;
+	width: 100%;
+}
+
+.preview-carousel.no-scroll {
+	overflow: hidden;
+}
+
+/* Hide scrollbar in Safari and Chrome */
+.preview-carousel::-webkit-scrollbar {
+	display: none;
+}
+
+.preview-carousel-element {
+	flex: none;
+	position: relative;
+	scroll-snap-align: center;
+	scroll-snap-stop: always;
+	width: 100%;
+}
+
+.preview-image,
+.preview-text,
+.preview-audio,
+.preview-video {
+	height: 100%;
+	left: 50%;
+	position: absolute;
+	transform: translateX(-50%);
+	/* Leave space for the buttons */
+	width: calc(100% - 2 * var(--switch-preview-button-size));
+}
+
+.preview-image {
+	/* Can't use box-shadow because it would apply to the container instead of an image */
+	filter: drop-shadow(0 0 5px var(--shadow-color));
+	object-fit: contain;
+	padding: 0 10px;
+	/* Images don't have any controls. Therefore we can make them slightly bigger. */
+	width: 100%;
+}
+
+.preview-text {
+	border: 1px solid var(--border-color);
+	/* The bottom border won't be visible without -1px on some screens */
+	height: calc(100% - 1px);
+	margin: 0;
+	overflow-y: auto;
+	padding: 4px 8px;
+	white-space: pre-wrap;
+}
+
+.preview-text.error {
+	color: var(--error-color);
+}
+
+.preview-audio {
+	height: revert;
+	top: 50%;
+	transform: translate(-50%, -50%);
+	width: 50%;
+}
+
+.preview-video {
+	/*
+		Set "max-height" instead of "height" to avoid gap between controls and video.
+		Controls still can be wider than a video. But all attempts to fix it have failed.
+	*/
+	height: auto;
+	max-height: 100%;
+	top: 50%;
+	transform: translate(-50%, -50%);
+}
+
+.preview-not-available {
+	grid-template-rows: repeat(2, auto);
+	display: grid;
+	justify-items: center;
+	left: 50%;
+	position: absolute;
+	top: 25%;
+	transform: translateX(-50%);
+	row-gap: 16px;
+	width: 70%;
+}
+
+.preview-not-available-text {
+	align-items: center;
+	column-gap: 16px;
+	display: flex;
+	font-size: 24px;
+	word-break: break-word;
+}
+
+.preview-not-available-info-icon {
+	/* Use "min-width" instead of "width" for cases when filename is too long */
+	height: 28px;
+	min-width: 28px;
+}
+
+.preview-not-available-download-icon {
+	height: 32px;
+	width: 32px;
+}
+
+:root {
+	--switch-preview-button-size: 100px;
+}
+
+.switch-preview-button {
+	/*
+		We use "position: sticky" and "width: 0" to prevent buttons from
+		interfering with the scroll. We can't use non-zero width because it
+		creates extra space to scroll, that causes lags on mobile devices.
+	*/
+	height: 100%;
+	left: 0;
+	position: sticky;
+	width: 0;
+	z-index: 1;
+}
+
+.switch-preview-button a {
+	align-items: center;
+	/* Use 'color-mix' instead of 'opacity' for correct transition effect. */
+	color: color-mix(in srgb, var(--border-color), #0000 80%);
+	display: flex;
+	justify-content: center;
+	height: 100%;
+	width: var(--switch-preview-button-size);
+}
+
+.switch-preview-button svg {
+	height: 48px;
+	width: 48px;
+}
+
+.switch-preview-button svg .outline {
+	stroke: #0000;
+	transition: stroke 0.1s;
+}
+
+@media(hover: hover) and (pointer: fine) {
+	.switch-preview-button:hover a {
+		color: color-mix(in srgb, var(--interactive-color), #0000 20%);
+	}
+
+	.switch-preview-button:hover svg .outline {
+		/* This color works well for both light and dark themes. */
+		stroke: color-mix(in srgb, #000, #0000 60%);
+	}
+}
+
+.switch-preview-button.prev svg {
+	transform: rotate(90deg);
+}
+
+.switch-preview-button.next {
+	left: calc(100% - var(--switch-preview-button-size));
+}
+
+.switch-preview-button.next svg {
+	transform: rotate(270deg);
+}
+
+.switch-preview-button.hidden {
+	display: none;
+}
+
+.preview-side-panel {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	position: relative;
+}
+
+.preview-file-info {
+	grid-area: file-info;
+	font-size: 18px;
+	word-break: break-all;
+}
+
+.preview-file-info>* {
+	margin-bottom: 8px;
+}
+
+.preview-file-info-key {
+	opacity: 0.6;
+}
+
+.preview-file-info-value {
+	font-style: italic;
+}
+
+.preview-file-info-mobile {
+	align-items: center;
+	cursor: help;
+	display: none;
+	font-size: 18px;
+	grid-area: file-info-mobile;
+	margin-right: 12px;
+	white-space: nowrap;
+	width: fit-content;
+
+	.preview-file-info-value {
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.tooltip {
+		background-color: var(--background-color);
+		border-radius: 3px;
+		border: 1px solid var(--border-color);
+		margin-top: 4px;
+		max-width: 80%;
+		padding: 8px 12px;
+		position: absolute;
+		top: 100%;
+		visibility: hidden;
+		white-space: wrap;
+	}
+
+	&:hover .tooltip {
+		visibility: visible;
+	}
+
+	.filename {
+		align-items: center;
+		display: grid;
+		gap: 8px;
+		grid-template-columns: repeat(2, auto);
+
+		.more-info-icon {
+			color: var(--border-color);
+			height: 20px;
+			width: 20px;
+		}
+	}
+
+	&:hover .filename .more-info-icon {
+		color: var(--interactive-color);
+	}
+}
+
+.preview-close-button,
+.preview-download-button {
+	height: 28px;
+	margin: 0 auto;
+	min-height: 28px;
+	min-width: 28px;
+	width: 28px;
+}
+
+.preview-close-button {
+	/* Display close button only on medium and small displays. */
+	display: none;
+	grid-area: close-button;
+}
+
+.preview-download-button {
+	grid-area: download-button;
+}
+
+/*
+ * Selector
+ */
+
+.selector {
+	column-gap: 8px;
+	display: grid;
+	grid-auto-columns: 120px;
+	grid-auto-flow: column;
+	margin: 0;
+	overflow-x: auto;
+	padding: 4px 8px;
+	scroll-behavior: smooth;
+}
+
+.selector-thumbnail-wrapper {
+	display: contents;
+}
+
+.selector-thumbnail-wrapper .entry {
+	padding: 0 4px;
+}
+
+.selector-thumbnail-wrapper .icon-wrapper {
+	height: 60px;
+}
+
+.selector-thumbnail-wrapper .icon {
+	height: 48px;
+	width: 48px;
+}
+
+.selector-thumbnail-wrapper .entry-filename {
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+/*
+ * @media rules
+ */
+
+/* Tablets */
+@media only screen and (max-width: 1200px) {
+	.preview {
+		grid-template-columns: none;
+		grid-template-rows: repeat(2, max-content);
+		row-gap: 8px;
+	}
+
+	.preview-content {
+		/* Move content to the bottom */
+		grid-row-start: -1;
+	}
+
+	.preview-side-panel {
+		display: grid;
+		grid-template:
+			"file-info close-button"
+			"file-info download-button";
+		column-gap: 8px;
+		flex-direction: row;
+	}
+
+	.preview-file-info>* {
+		margin-bottom: 4px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+
+	.preview-close-button,
+	.preview-download-button {
+		margin: 0;
+	}
+
+	.preview-close-button {
+		display: block;
+	}
+
+	.preview-download-button {
+		align-self: end;
+	}
+}
+
+/* Mobile devices */
+@media only screen and ((max-width: 768px) or ((orientation: landscape) and (max-height: 768px))) {
+	.preview-wrapper {
+		padding: 0;
+	}
+
+	.preview-close-layer {
+		pointer-events: none;
+	}
+
+	.preview {
+		padding: 12px 0;
+	}
+
+	.preview-not-available {
+		top: 10%;
+		width: calc(100% - 2 * var(--switch-preview-button-size));
+	}
+
+	.preview-side-panel {
+		column-gap: 16px;
+		grid-template-columns: auto min-content min-content;
+		grid-template-areas: "file-info-mobile download-button close-button";
+		/* Reset 'justify-content: space-between' */
+		justify-content: unset;
+		padding: 0 12px;
+	}
+
+	.preview-file-info {
+		display: none;
+	}
+
+	.preview-file-info-mobile {
+		display: flex;
+	}
+
+	@media (orientation: landscape) {
+		.preview-wrapper {
+			column-gap: 8px;
+			grid-template-columns: auto min-content;
+			grid-template-rows: unset;
+		}
+
+		.selector {
+			grid-auto-flow: row;
+			grid-auto-rows: min-content;
+			row-gap: 8px;
+		}
+	}
+}
