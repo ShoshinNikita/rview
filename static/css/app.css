@@ -1,7 +1,3 @@
-.noscroll {
-	overflow: hidden;
-}
-
 #app {
 	/* Use svh instead of vh to keep the footer in the viewport when there is nothing to scroll (for mobile) */
 	min-height: 100svh;
@@ -172,7 +168,7 @@ label[for=sort-selector] {
 	row-gap: 12px;
 }
 
-/* 
+/*
  * @media rules
  */
 

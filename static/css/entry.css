@@ -68,16 +68,6 @@ a.entry {
 	display: none;
 }
 
-@keyframes spin {
-	0% {
-		transform: translate(-50%, -50%) rotate(0deg);
-	}
-
-	100% {
-		transform: translate(-50%, -50%) rotate(360deg);
-	}
-}
-
 .entry-filename {
 	display: inline-block;
 	overflow: hidden;

@@ -5,12 +5,12 @@
 		<div class="preview-content">
 			<div class="preview-carousel">
 				<div class="switch-preview-button prev">
-					<a href="#" class="icon-button" title="Previous" onclick="swipePreview(-1); return false">
+					<a href="#" class="g-icon-button" title="Previous" onclick="swipePreview(-1); return false">
 						{{ embedIcon "chevron-down" }}
 					</a>
 				</div>
 				<div class="switch-preview-button next">
-					<a href="#" class="icon-button" title="Next" onclick="swipePreview(1); return false">
+					<a href="#" class="g-icon-button" title="Next" onclick="swipePreview(1); return false">
 						{{ embedIcon "chevron-down" }}
 					</a>
 				</div>
@@ -36,7 +36,7 @@
 							<span>Preview for <i>"{{ trim .Filename 60 }}"</i> is not available</span>
 						</span>
 
-						<a class="icon-button preview-not-available-download-icon" title="Download" href="{{ .OriginalFileURL }}" download="">
+						<a class="g-icon-button preview-not-available-download-icon" title="Download" href="{{ .OriginalFileURL }}" download="">
 							{{ embedIcon "download" }}
 						</a>
 					</div>
@@ -66,11 +66,11 @@
 				</div>
 				<div>
 					<span class="preview-file-info-key">Size:</span>
-					<span class="preview-file-info-value nowrap" data-type="size"></span>
+					<span class="preview-file-info-value g-nowrap" data-type="size"></span>
 				</div>
 				<div>
 					<span class="preview-file-info-key">Mod Time:</span>
-					<span class="preview-file-info-value nowrap" data-type="mod_time"></span>
+					<span class="preview-file-info-value g-nowrap" data-type="mod_time"></span>
 				</div>
 			</div>
 
@@ -87,20 +87,20 @@
 					</div>
 					<div>
 						<span class="preview-file-info-key">Size:</span>
-						<span class="preview-file-info-value nowrap" data-type="size"></span>
+						<span class="preview-file-info-value g-nowrap" data-type="size"></span>
 					</div>
 					<div>
 						<span class="preview-file-info-key">Mod Time:</span>
-						<span class="preview-file-info-value nowrap" data-type="mod_time"></span>
+						<span class="preview-file-info-value g-nowrap" data-type="mod_time"></span>
 					</div>
 				</div>
 			</div>
 
-			<a class="icon-button preview-close-button" title="Close Preview" onclick="closePreview(); return false">
+			<a class="g-icon-button preview-close-button" title="Close Preview" onclick="closePreview(); return false">
 				{{ embedIcon "x" }}
 			</a>
 
-			<a class="icon-button preview-download-button" title="Download the original file" href="" download="">
+			<a class="g-icon-button preview-download-button" title="Download the original file" href="" download="">
 				{{ embedIcon "download" }}
 			</a>
 		</div>
@@ -213,7 +213,7 @@
 		isPreviewOpened = true;
 		setPreviewInQuery(filename);
 
-		document.body.classList.add("noscroll");
+		document.body.classList.add("g-noscroll");
 		previewWrapper.classList.add("opened");
 	};
 
@@ -377,7 +377,7 @@
 		}
 
 		previewWrapper.classList.remove("opened");
-		document.body.classList.remove("noscroll");
+		document.body.classList.remove("g-noscroll");
 	};
 
 	const setPreviewInQuery = (filename) => {
@@ -446,7 +446,7 @@
 				return;
 			}
 
-			const noScrollClass = "no-scroll";
+			const noScrollClass = "g-noscroll";
 
 			// Default 'scale' can be equal to something like 1.007 or even 0.9999. So, compare it with 1.01.
 			if (ev.target.scale < 1.01) {

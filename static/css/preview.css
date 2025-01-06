@@ -42,6 +42,12 @@
 	width: 100%;
 }
 
+.card {
+	background-color: var(--background-color);
+	border-radius: 3px;
+	box-shadow: var(--preview-card-box-shadow);
+}
+
 .preview-content {
 	position: relative;
 	width: 100%;
@@ -55,10 +61,6 @@
 	scroll-snap-type: x mandatory;
 	scrollbar-width: none;
 	width: 100%;
-}
-
-.preview-carousel.no-scroll {
-	overflow: hidden;
 }
 
 /* Hide scrollbar in Safari and Chrome */
