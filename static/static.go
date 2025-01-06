@@ -18,11 +18,11 @@ func NewTemplatesFS(readFromDisk bool) fs.FS {
 	return newFS(templatesFS, "templates", readFromDisk)
 }
 
-//go:embed styles
+//go:embed css
 var stylesFS embed.FS
 
-func NewStylesFS(readFromDisk bool) fs.FS {
-	return newFS(stylesFS, "styles", readFromDisk)
+func NewCssFS(readFromDisk bool) fs.FS {
+	return newFS(stylesFS, "css", readFromDisk)
 }
 
 //go:embed js

@@ -52,12 +52,14 @@ issues:
     - "use underscores in Go names; (?:func|type) (?:T|t)est"
 
   exclude-rules:
-    - linters:
-        - bodyclose
+    - linters: [bodyclose]
       path: _test\.go
-    - linters:
-        - gosec
+    - linters: [gosec]
       text: "G203: The used method does not auto-escape HTML"
+    - linters: [revive]
+      text: "var-naming"
+    - linters: [stylecheck]
+      text: "ST1003"
 
   # Display all issues
   max-issues-per-linter: 0

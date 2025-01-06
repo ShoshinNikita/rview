@@ -69,10 +69,10 @@ func NewServer(cfg rview.Config, rclone rview.Rclone, thumbnailService rview.Thu
 
 	// Static
 	for pattern, fs := range map[string]fs.FS{
-		"/static/icons/":  s.iconsFS,
-		"/static/styles/": static.NewStylesFS(cfg.ReadStaticFilesFromDisk),
-		"/static/js/":     static.NewScriptsFS(cfg.ReadStaticFilesFromDisk),
-		"/static/pwa/":    static.NewPwaFS(cfg.ReadStaticFilesFromDisk),
+		"/static/icons/": s.iconsFS,
+		"/static/css/":   static.NewCssFS(cfg.ReadStaticFilesFromDisk),
+		"/static/js/":    static.NewScriptsFS(cfg.ReadStaticFilesFromDisk),
+		"/static/pwa/":   static.NewPwaFS(cfg.ReadStaticFilesFromDisk),
 	} {
 		handler := http.FileServer(http.FS(fs))
 		if !cfg.ReadStaticFilesFromDisk {
