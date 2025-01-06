@@ -20,7 +20,7 @@
 
 	<script src="{{ prepareStaticLink `/static/js/theme.js` }}"></script>
 
-	<link rel="stylesheet" href="{{ prepareStaticLink `/static/css/app.css` }}">
+	<link rel="stylesheet" href="{{ prepareStaticLink `/static/css/index.css` }}">
 	<link rel="stylesheet" href="{{ prepareStaticLink `/static/css/entry.css` }}">
 	<link rel="stylesheet" href="{{ prepareStaticLink `/static/css/footer.css` }}">
 	<link rel="stylesheet" href="{{ prepareStaticLink `/static/css/global.css` }}">
@@ -95,7 +95,7 @@
 
 		{{ if .IsNotFound }}
 		<div class="not-found-message">
-			<span>Directory <i>"{{ .Dir }}"</i> not found<br><br>Go back to <a href="/">Home</a>?</span>
+			<span>Directory <i>"{{ .Dir }}"</i> not found<br><br>Go back to <a href="/ui/">Home</a>?</span>
 		</div>
 		{{ else if .Entries }}
 		<div class="files">
@@ -378,7 +378,7 @@
 				a.innerText = decodeURIComponent(text);
 
 				const li = document.createElement("li");
-				li.classList.add("breadcrumb");
+				li.classList.add("breadcrumb", "new-page-breadcrumb");
 				li.append(" ", a, " ");
 
 				newBreadcrumbs.push(li);
@@ -387,8 +387,17 @@
 			document.querySelector("#app").classList.add("loading");
 
 			const breadcrumbs = document.querySelector(".breadcrumbs");
-			breadcrumbs.replaceChildren(...newBreadcrumbs);
-		})
+			breadcrumbs.append(...newBreadcrumbs);
+		});
+
+		window.addEventListener("pageshow", ev => {
+			if (ev.persisted) {
+				// Page was restored from the bfcache - revert breadcrumbs and hide the spinner.
+				// https://web.dev/articles/bfcache#observe-page-restored
+				document.querySelectorAll(".breadcrumbs .new-page-breadcrumb").forEach(v => v.remove());
+				document.querySelector("#app").classList.remove("loading");
+			}
+		});
 	</script>
 </body>
 

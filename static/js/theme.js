@@ -8,7 +8,7 @@ const lightTheme = "light";
 const systemTheme = "system";
 const darkTheme = "dark";
 
-// From /static/css/common.css@3005a0c
+// From /static/css/global.css@65c3a4b
 const themeColors = {
 	[lightTheme]: "#ffffff",
 	[darkTheme]: "#0d1117",
