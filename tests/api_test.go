@@ -541,7 +541,7 @@ func TestAPI_Search(t *testing.T) {
 			dirs = append(dirs, d.Path)
 		}
 		for _, f := range resp.Files {
-			r.True(strings.Contains(f.WebURL, "?preview="))
+			r.Contains(f.WebURL, "?preview=")
 			r.NotEmpty(f.Icon)
 
 			files = append(files, f.Path)
