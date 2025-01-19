@@ -145,7 +145,7 @@ func (r *Rclone) Start() error {
 	}
 	pipes := []io.ReadCloser{stdout, stderr}
 
-	rlog.Infof("start rclone on %q", r.rcloneURL.String())
+	rlog.Infof("start rclone on %q", stripPassword(r.rcloneURL))
 
 	err = r.cmd.Start()
 	if err != nil {
@@ -177,6 +177,15 @@ func (r *Rclone) Start() error {
 	wg.Wait()
 
 	return err
+}
+
+// Copied from het/http/client.go.
+func stripPassword(u *url.URL) string {
+	_, passSet := u.User.Password()
+	if passSet {
+		return strings.Replace(u.String(), u.User.String()+"@", u.User.Username()+":***@", 1)
+	}
+	return u.String()
 }
 
 func (r *Rclone) redirectRcloneLogs(pipe io.Reader) {

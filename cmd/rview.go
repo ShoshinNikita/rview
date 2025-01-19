@@ -38,6 +38,8 @@ func NewRview(cfg rview.Config) *Rview {
 }
 
 func (r *Rview) Prepare() (err error) {
+	rlog.SetLevel(r.cfg.LogLevel)
+
 	// Note: service cache doesn't need any cleanups.
 	serviceCache, err := cache.NewDiskCache(filepath.Join(r.cfg.Dir, "rview"))
 	if err != nil {

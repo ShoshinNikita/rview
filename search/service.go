@@ -92,7 +92,7 @@ func (s *Service) Start() (err error) {
 			return err
 		}
 
-		rlog.Warn(err)
+		rlog.Debug(err)
 
 		// Exponential Backoff: 100ms -> 200ms -> 400ms -> 800ms -> 1.4s (https://exponentialbackoffcalculator.com)
 		time.Sleep(100 * time.Millisecond * time.Duration(math.Pow(1.7, float64(i))))

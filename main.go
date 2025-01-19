@@ -22,10 +22,6 @@ func main() {
 	cfg.BuildInfo.Print()
 	cfg.Print()
 
-	if cfg.DebugLogLevel {
-		rlog.EnableDebug()
-	}
-
 	rview := cmd.NewRview(cfg)
 
 	// Always shutdown service to not keep any external commands running (for example, rclone).
@@ -37,13 +33,14 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		rlog.Info("shutdown")
+		rlog.Info("shutdown components")
 		if err := rview.Shutdown(ctx); err != nil {
 			rlog.Error(err)
 		}
 
 		<-startFinished
 
+		rlog.Info("exit")
 		os.Exit(exitCode)
 	}()
 

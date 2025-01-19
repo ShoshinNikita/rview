@@ -127,7 +127,8 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
 
 --read-static-files-from-disk     Read static files directly from disk
 
---debug-log-level                 Display debug log messages
+--log-level                       Set the minimal log level. One of: debug, info (default),
+                                  warn, error
 
 --version                         Print version and exit
 ```

@@ -11,6 +11,7 @@ run: build
 			--dir=_var \
 			--rclone-target=${RCLONE_TARGET} \
 			--image-preview-mode=${IMAGE_PREVIEW_MODE} \
+			--log-level=${LOG_LEVEL} \
 			--read-static-files-from-disk
 
 build:

@@ -11,6 +11,8 @@ import (
 	"runtime/debug"
 	"slices"
 	"time"
+
+	"github.com/ShoshinNikita/rview/pkg/rlog"
 )
 
 type Config struct {
@@ -29,7 +31,7 @@ type Config struct {
 
 	// Debug options
 
-	DebugLogLevel           bool
+	LogLevel                rlog.Level
 	ReadStaticFilesFromDisk bool
 }
 
@@ -112,8 +114,8 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 			p: &cfg.ThumbnailsWorkersCount, defaultValue: runtime.NumCPU(), desc: "Number of workers for thumbnail generation",
 		},
 		//
-		"debug-log-level": {
-			p: &cfg.DebugLogLevel, defaultValue: false, desc: "Display debug log messages",
+		"log-level": {
+			p: &cfg.LogLevel, defaultValue: rlog.LevelInfo, desc: "Set the minimal log level. One of: debug, info, warn, error",
 		},
 		"read-static-files-from-disk": {
 			p: &cfg.ReadStaticFilesFromDisk, defaultValue: false, desc: "Read static files directly from disk",
@@ -200,7 +202,7 @@ func readBuildInfo() BuildInfo {
 }
 
 func (info BuildInfo) Print() {
-	fmt.Printf(`
+	fmt.Fprintf(os.Stderr, `
      _____          _                 
     |  __ \        (_)                
     | |__) |__   __ _   ___ __      __
@@ -234,9 +236,9 @@ func (cfg Config) Print() {
 	}
 	slices.Sort(names)
 
-	fmt.Print("    Config:\n\n")
+	fmt.Fprint(os.Stderr, "    Config:\n\n")
 	for _, name := range names {
-		fmt.Printf("        --%-*s = %v\n", maxNameLength, name, reflect.ValueOf(flags[name].p).Elem())
+		fmt.Fprintf(os.Stderr, "        --%-*s = %v\n", maxNameLength, name, reflect.ValueOf(flags[name].p).Elem())
 	}
-	fmt.Print("\n")
+	fmt.Fprint(os.Stderr, "\n")
 }
