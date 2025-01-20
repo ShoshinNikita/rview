@@ -302,6 +302,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 				"credits.txt",
 				"horizontal.jpg",
 				"qwerty.webp",
+				"sky.avif",
 				"vertical.jpg",
 				"ytrewq.png",
 				"zebra-g4e368da8d_640.jpg",
@@ -314,7 +315,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 				canPreviewCount++
 			}
 		}
-		r.Equal(9, canPreviewCount)
+		r.Equal(10, canPreviewCount)
 
 		info = getDirInfo(t, "/Images/", "order=desc")
 		r.Equal("", info.Sort)
@@ -324,6 +325,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 				"zebra-g4e368da8d_640.jpg",
 				"ytrewq.png",
 				"vertical.jpg",
+				"sky.avif",
 				"qwerty.webp",
 				"horizontal.jpg",
 				"credits.txt",
@@ -348,6 +350,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 				"vertical.jpg",
 				"asdfgh.heic",
 				"ytrewq.png",
+				"sky.avif",
 				"qwerty.webp",
 				"credits.txt",
 				"Photos",

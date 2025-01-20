@@ -28,6 +28,7 @@ const (
 	gifImageType
 	webpImageType
 	heicImageType
+	avifImageType
 )
 
 var (
@@ -285,8 +286,10 @@ func resizeWithVips(originalFile, cacheFile string, id rview.ThumbnailID) error 
 		output += "[Q=80,optimize_coding,keep=icc]"
 	case webpImageType:
 		output += "[keep=icc]"
+	case avifImageType:
+		output += "[Q=65,speed=8,keep=icc]"
 	default:
-		return fmt.Errorf("unsupported image type: %q", t)
+		return fmt.Errorf("unsupported thumbnail format: %q", t)
 	}
 
 	cmd := exec.Command(
@@ -325,24 +328,37 @@ func getImageType(id rview.FileID) imageType {
 		return webpImageType
 	case ".heic":
 		return heicImageType
+	case ".avif":
+		return avifImageType
 	default:
 		return unsupportedImageType
 	}
 }
 
-func (s *ThumbnailService) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
+// NewThumbnailID converts [rview.FileID] to [rview.ThumbnailID]. The caller should first
+// check [ThumbnailService.CanGenerateThumbnail] - NewThumbnailID panics if the file id
+// can't be transformed to thumbnail id.
+func (*ThumbnailService) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
 	path := id.GetPath()
 	originalExt := pkgPath.Ext(path)
 	path = strings.TrimSuffix(path, originalExt)
 
-	// Generate .jpeg thumbnails for the following image types:
-	//
-	//  - .png - .jpeg thumbnails are much smaller
-	//  - .heic - most browsers don't support it
-	var newExt string
-	switch id.GetExt() {
-	case ".png", ".heic":
-		newExt = ".jpeg"
+	newExt, ok := map[imageType]string{
+		// .jpeg thumbnails are much smaller.
+		pngImageType: ".jpeg",
+		// .heic - most browsers don't support it.
+		heicImageType: ".jpeg",
+		// Already .jpeg.
+		jpegImageType: "",
+		// We can't generate thumbnail for .gif, but we can save the original file.
+		gifImageType: "",
+		// These formats are already efficient enough and supported by modern browsers.
+		webpImageType: "",
+		avifImageType: "",
+	}[getImageType(id)]
+	if !ok {
+		// Just in case.
+		panic(fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt()))
 	}
 
 	// Add .thumbnail to be able to more easily distinguish thumbnails from original files.

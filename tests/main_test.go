@@ -31,6 +31,7 @@ var TestDataModTimes = map[string]string{
 	"Images/zebra-g4e368da8d_640.jpg": "2023-01-05 16:00:37",
 	"Images/qwerty.webp":              "2023-05-19 18:33:12",
 	"Images/ytrewq.png":               "2023-05-19 18:33:12",
+	"Images/sky.avif":                 "2025-01-21 02:45:12",
 	//
 	"Video/":                  "2022-09-08 11:37:02",
 	"Video/credits.txt":       "2022-09-08 11:37:12",

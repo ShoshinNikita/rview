@@ -31,6 +31,7 @@ func TestThumbnailGeneration(t *testing.T) {
 		{imageType: "png", file: "Images/ytrewq.png", mimeType: "image/jpeg"},
 		{imageType: "webp", file: "Images/qwerty.webp", mimeType: "image/webp"},
 		{imageType: "heic", file: "Images/asdfgh.heic", mimeType: "image/jpeg"}, // we should generate .jpeg thumbnails for .heic images
+		{imageType: "avif", file: "Images/sky.avif", mimeType: "image/avif"},
 	} {
 		tt := tt
 		t.Run(tt.imageType, func(t *testing.T) {

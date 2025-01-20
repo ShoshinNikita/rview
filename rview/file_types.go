@@ -24,6 +24,7 @@ var fileTypesByExtension = map[string]FileType{
 	".jpeg": FileTypeImage,
 	".webp": FileTypeImage,
 	".heic": FileTypeImage,
+	".avif": FileTypeImage,
 
 	// Audio
 	".flac": FileTypeAudio,
