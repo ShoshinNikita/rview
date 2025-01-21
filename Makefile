@@ -19,7 +19,7 @@ build:
 	@ CGO_ENABLED=0 go build -trimpath -ldflags "-s -w" -o ./bin/rview
 
 docker-build:
-	@ echo "Build Docker Image..."
+	@ echo "Build docker image..."
 	@ docker build -t rview .
 
 check: build lint test docker-build
@@ -31,6 +31,10 @@ test:
 		./...
 	@ go tool cover -func=_cover.out
 	@ rm _cover.out
+
+docker-test:
+	@ echo "Run tests in docker..."
+	@ docker build -f test.Dockerfile --progress=plain .
 
 # Use go cache to speed up execution: https://github.com/golangci/golangci-lint/issues/1004
 lint:

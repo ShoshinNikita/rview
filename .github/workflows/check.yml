@@ -19,15 +19,9 @@ jobs:
           version: v1.63.4
           args: "-v"
 
-  # TODO: use an alpine image to mimic the production environment?
   test:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: "1.23.*"
-      - run: sudo apt-get update && sudo apt-get install libvips-tools
-      - run: curl https://rclone.org/install.sh | sudo bash
-      - run: rclone version
-      - run: make test
+      # Run tests in docker to mimic the production environment.
+      - run: make docker-test
