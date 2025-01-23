@@ -337,7 +337,6 @@ func TestNewSearchRequest(t *testing.T) {
 			},
 		},
 	} {
-		tt := tt
 		t.Run("", func(t *testing.T) {
 			got := newSearchRequest(tt.search)
 			got.words = nil // too tiresome to test

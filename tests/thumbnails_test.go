@@ -26,14 +26,15 @@ func TestThumbnailGeneration(t *testing.T) {
 		imageType string
 		file      string
 		mimeType  string
+		sameSize  bool
 	}{
 		{imageType: "jpg", file: "Images/birds-g64b44607c_640.jpg", mimeType: "image/jpeg"},
 		{imageType: "png", file: "Images/ytrewq.png", mimeType: "image/jpeg"},
 		{imageType: "webp", file: "Images/qwerty.webp", mimeType: "image/webp"},
 		{imageType: "heic", file: "Images/asdfgh.heic", mimeType: "image/jpeg"}, // we should generate .jpeg thumbnails for .heic images
 		{imageType: "avif", file: "Images/sky.avif", mimeType: "image/avif"},
+		{imageType: "gif", file: "test.gif", mimeType: "image/gif", sameSize: true}, // we save the original file
 	} {
-		tt := tt
 		t.Run(tt.imageType, func(t *testing.T) {
 			r := require.New(t)
 
@@ -59,7 +60,11 @@ func TestThumbnailGeneration(t *testing.T) {
 
 			thumbnail, err := io.ReadAll(rc)
 			r.NoError(err)
-			r.NotEqual(len(thumbnail), len(originalImage), "size of thumbnail and original file should differ")
+			if tt.sameSize {
+				r.Equal(len(thumbnail), len(originalImage), "size of thumbnail and original file should be equal")
+			} else {
+				r.NotEqual(len(thumbnail), len(originalImage), "size of thumbnail and original file should differ")
+			}
 
 			mimeType := mime.TypeByExtension(thumbnailID.GetExt())
 			r.Equal(tt.mimeType, mimeType)

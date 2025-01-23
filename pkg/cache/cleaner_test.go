@@ -133,7 +133,6 @@ func TestCleaner_getFilesToRemove(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		tt := tt
 		t.Run("", func(t *testing.T) {
 			if tt.maxFileAge == 0 {
 				t.Fatalf("zero max file age")
