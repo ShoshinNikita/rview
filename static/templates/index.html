@@ -223,25 +223,29 @@
 			search();
 		});
 
-		// Hide search results on blur or click.
-		function hideSearchResults() {
-			isSearchResultsVisible = false;
-			searchResultWrapper.style["display"] = "";
-		};
-		searchInput.addEventListener("blur", ev => { hideSearchResults(); });
-		window.addEventListener("mousedown", ev => {
+		// Hide search results on click outside of the input or the search results modal window.
+		window.addEventListener("click", ev => {
 			if (!isSearchResultsVisible) {
 				return;
 			}
 
+			let hide = true;
 			let target = ev.target;
 			while (target) {
+				if (target.tagName === "A" && target.href) {
+					// Link was clicked - hide search results.
+					break;
+				}
 				if (target === searchResultWrapper || target == searchInput) {
-					return;
+					hide = false;
+					break;
 				}
 				target = target.parentElement;
 			}
-			hideSearchResults();
+			if (hide) {
+				isSearchResultsVisible = false;
+				searchResultWrapper.style["display"] = "";
+			}
 		});
 
 		// Search on input.
@@ -384,10 +388,17 @@
 				newBreadcrumbs.push(li);
 			});
 
+			// Show spinner.
 			document.querySelector("#app").classList.add("loading");
 
+			// Update breadcrumbs.
 			const breadcrumbs = document.querySelector(".breadcrumbs");
 			breadcrumbs.append(...newBreadcrumbs);
+
+			// Reset and disable search input.
+			searchInput.value = "";
+			searchInput.style.pointerEvents = "none";
+			searchInput.blur();
 		});
 
 		window.addEventListener("pageshow", ev => {

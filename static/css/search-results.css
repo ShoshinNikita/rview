@@ -1,5 +1,6 @@
 .search-results {
 	margin: 20px 0;
+	min-width: 100%;
 }
 
 .search-hits {
@@ -11,8 +12,9 @@
 	align-items: center;
 	column-gap: 4px;
 	display: flex;
-	margin: 0 20px;
 	margin-bottom: 8px;
+	padding: 0 20px;
+	width: 100%;
 }
 
 .search-hit:last-child {
@@ -28,7 +30,6 @@
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;
-	width: 100%;
 }
 
 .search-hit-score {
