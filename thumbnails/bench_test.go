@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -18,7 +19,7 @@ import (
 //
 // One-liner:
 //
-//	go test -run="^\$" -bench="^BenchmarkVipsthumbnail\$" -v -count=10 -timeout=10m > _bench.txt && benchstat -row /file -col /params _bench.txt
+//	go test -run="^\$" -bench="^BenchmarkVipsthumbnail\$" -v -count=10 -timeout=10m > _bench.txt && benchstat -row /file -col /format,/params _bench.txt
 func BenchmarkVipsthumbnail(b *testing.B) {
 	const prepare = false
 
@@ -58,18 +59,25 @@ func BenchmarkVipsthumbnail(b *testing.B) {
 		b.Fatalf("couldn't get absolute path of ./_data: %s", err)
 	}
 
-	for _, params := range []string{
-		".jpeg[Q=80,optimize_coding,keep=icc]",
-		".avif[Q=65,speed=8,keep=icc]",
+	for _, bb := range []struct {
+		ext    string
+		size   string
+		params string
+	}{
+		{ext: ".jpeg", size: "1024>", params: "[Q=80,optimize_coding,keep=icc]"},
+		{ext: ".avif", size: "1024>", params: "[Q=65,speed=8,keep=icc]"},
 	} {
-		b.Run("params="+params, func(b *testing.B) {
+		format := strings.TrimPrefix(path.Ext(bb.ext), ".")
+		name := fmt.Sprintf("format=%s/params=%s/size=%s", format, bb.params, bb.size)
+
+		b.Run(name, func(b *testing.B) {
 			for _, file := range files {
 				b.Run("file="+file.Name, func(b *testing.B) {
 					for range b.N {
 						b.StopTimer()
 						// Set VIPS_CONCURRENCY to limit the number of threads used by vipsthumbnail.
-						output := filepath.Join("resized", file.Name+params)
-						cmd := exec.Command("vipsthumbnail", file.Name, "--rotate", "--size", "1600>", "-o", output) //nolint:gosec
+						output := filepath.Join("resized", file.Name+bb.ext+bb.params)
+						cmd := exec.Command("vipsthumbnail", file.Name, "--rotate", "--size", bb.size, "-o", output) //nolint:gosec
 						cmd.Dir = dataDir
 						b.StartTimer()
 
@@ -80,8 +88,7 @@ func BenchmarkVipsthumbnail(b *testing.B) {
 
 					b.StopTimer()
 
-					ext, _, _ := strings.Cut(params, "[")
-					resizedFile := filepath.Join("resized", file.Name+ext)
+					resizedFile := filepath.Join("resized", file.Name+bb.ext)
 					stats, err := os.Stat(filepath.Join("_data", resizedFile))
 					if err != nil {
 						b.Fatalf("os.Stat failed: %s", err)

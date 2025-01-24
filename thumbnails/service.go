@@ -287,6 +287,11 @@ func resizeWithVips(originalFile, cacheFile string, id rview.ThumbnailID) error 
 	case webpImageType:
 		output += "[keep=icc]"
 	case avifImageType:
+		// 'Q=65' provides decent image quality (similar to jpeg's 'Q=80') and small
+		// file sizes - ~22% less than the default 'Q=75'.
+		//
+		// 'speed=8' is ~72% faster than the default 'speed=5', and the image quality is good enough.
+		// The file size is consistent across different 'speed' values - ±3%.
 		output += "[Q=65,speed=8,keep=icc]"
 	default:
 		return fmt.Errorf("unsupported thumbnail format: %q", t)
