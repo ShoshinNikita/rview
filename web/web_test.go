@@ -157,7 +157,7 @@ type thumbnailServiceStub struct {
 
 func newThumbnailServiceStub() *thumbnailServiceStub {
 	return &thumbnailServiceStub{
-		s: thumbnails.NewThumbnailService(nil, cache.NewInMemoryCache(), 0, false),
+		s: thumbnails.NewThumbnailService(nil, cache.NewInMemoryCache(), 0, rview.JpegThumbnails, false),
 	}
 }
 

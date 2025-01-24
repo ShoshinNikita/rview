@@ -54,6 +54,7 @@ func startTestRview() {
 			},
 			//
 			ImagePreviewMode:       rview.ImagePreviewModeThumbnails,
+			ThumbnailsFormat:       rview.JpegThumbnails,
 			ThumbnailsWorkersCount: 1,
 			//
 			LogLevel: rlog.LevelDebug,

@@ -23,6 +23,7 @@ type Config struct {
 
 	ImagePreviewMode ImagePreviewMode
 
+	ThumbnailsFormat           ThumbnailsFormat
 	ThumbnailsMaxAgeInDays     int
 	ThumbnailsMaxTotalSizeInMB int
 	ThumbnailsWorkersCount     int
@@ -70,6 +71,30 @@ func (m *ImagePreviewMode) UnmarshalText(text []byte) error {
 	return nil
 }
 
+type ThumbnailsFormat string
+
+const (
+	// JPEG images are relatively large, but thumbnail generation requires little time and resources.
+	JpegThumbnails ThumbnailsFormat = "jpeg"
+	// AVIF images can be significantly smaller than JPEGs and supported by all modern browsers.
+	// However, generation of .avif thumbnails requires more time and resources.
+	AvifThumbnails ThumbnailsFormat = "avif"
+)
+
+func (m ThumbnailsFormat) MarshalText() (text []byte, err error) {
+	return []byte(m), nil
+}
+
+func (m *ThumbnailsFormat) UnmarshalText(text []byte) error {
+	*m = ThumbnailsFormat(text)
+
+	supportedValues := []ThumbnailsFormat{JpegThumbnails, AvifThumbnails}
+	if !slices.Contains(supportedValues, *m) {
+		return fmt.Errorf("supported values: %v", supportedValues)
+	}
+	return nil
+}
+
 type flagParams struct {
 	// p is a pointer to a value.
 	p            any
@@ -104,6 +129,14 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 				"  - none: don't show preview for images\n",
 		},
 		//
+		"thumbnails-format": {
+			p: &cfg.ThumbnailsFormat, defaultValue: JpegThumbnails, desc: "" +
+				"Available thumbnail formats:\n" +
+				"  - jpeg: fast thumbnail generation, large files\n" +
+				"  - avif: AVIF images can be significantly smaller than JPEGs (-43% on average)\n" +
+				"          and supported by all modern browsers. However, generation of .avif\n" +
+				"          thumbnails takes more time (+32% on average) and requires more resources.\n",
+		},
 		"thumbnails-max-age-days": {
 			p: &cfg.ThumbnailsMaxAgeInDays, defaultValue: 365, desc: "Max age of thumbnails, days",
 		},

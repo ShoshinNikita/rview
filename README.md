@@ -119,6 +119,13 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
                                     - original: show original images
                                     - none: don't show preview for images
 
+--thumbnails-format value         Available thumbnail formats:
+                                    - jpeg (default): fast thumbnail generation, large files
+                                    - avif: AVIF images can be significantly smaller than
+                                            JPEGs (-43% on average) and supported by all modern
+                                            browsers. However, generation of .avif thumbnails takes
+                                            more time (+32% on average) and requires more resources.
+
 --thumbnails-max-age-days         Max age of thumbnails, days (default: 365)
 
 --thumbnails-max-total-size-mb    Max total size of thumbnails, MiB (default: 500)

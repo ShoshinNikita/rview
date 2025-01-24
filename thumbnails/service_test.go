@@ -29,7 +29,7 @@ func TestThumbnailService(t *testing.T) {
 		resizeFn func(originalFile, cacheFile string, id rview.ThumbnailID) error,
 	) *ThumbnailService {
 
-		service := NewThumbnailService(nil, cache, 2, false)
+		service := NewThumbnailService(nil, cache, 2, rview.JpegThumbnails, false)
 		service.useOriginalImageThresholdSize = 10
 		service.openFileFn = openFileFn
 		service.resizeFn = resizeFn
@@ -168,7 +168,7 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 
 	now := time.Now().Unix()
 
-	canGenerate := NewThumbnailService(nil, nil, 0, false).CanGenerateThumbnail
+	canGenerate := NewThumbnailService(nil, nil, 0, rview.JpegThumbnails, false).CanGenerateThumbnail
 
 	r.True(canGenerate(rview.NewFileID("/home/users/test.png", now)))
 	r.True(canGenerate(rview.NewFileID("/home/users/test.pNg", now)))
@@ -181,7 +181,7 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 func TestThumbnailService_NewThumbnailID(t *testing.T) {
 	t.Parallel()
 
-	service := NewThumbnailService(nil, nil, 0, false)
+	service := NewThumbnailService(nil, nil, 0, rview.JpegThumbnails, false)
 
 	for path, wantThumbnail := range map[string]string{
 		"/home/cat.jpeg":             "/home/cat.thumbnail.jpeg",

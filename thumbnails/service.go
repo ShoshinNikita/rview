@@ -43,6 +43,7 @@ type ThumbnailService struct {
 	// used without resizing. The main purpose of resizing is to reduce image size, and with small
 	// files it is not always possible - after resizing they become just larger.
 	useOriginalImageThresholdSize int64
+	thumbnailsFormat              rview.ThumbnailsFormat
 
 	workersCount int
 
@@ -75,12 +76,17 @@ func CheckVips() error {
 //
 // For some images we can generate thumbnails of different formats. For example,
 // for .heic images we generate .jpeg thumbnails.
-func NewThumbnailService(openFileFn rview.OpenFileFn, cache rview.Cache, workersCount int, generateThumbnailsForSmallFiles bool) *ThumbnailService {
+func NewThumbnailService(
+	openFileFn rview.OpenFileFn, cache rview.Cache, workersCount int,
+	thumbnailsFormat rview.ThumbnailsFormat, generateThumbnailsForSmallFiles bool,
+) *ThumbnailService {
+
 	r := &ThumbnailService{
 		openFileFn:                    openFileFn,
 		cache:                         cache,
 		resizeFn:                      resizeWithVips,
 		useOriginalImageThresholdSize: 200 << 10, // 200 KiB
+		thumbnailsFormat:              thumbnailsFormat,
 		//
 		workersCount: workersCount,
 		//
@@ -343,28 +349,12 @@ func getImageType(id rview.FileID) imageType {
 // NewThumbnailID converts [rview.FileID] to [rview.ThumbnailID]. The caller should first
 // check [ThumbnailService.CanGenerateThumbnail] - NewThumbnailID panics if the file id
 // can't be transformed to thumbnail id.
-func (*ThumbnailService) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
+func (s *ThumbnailService) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
 	path := id.GetPath()
 	originalExt := pkgPath.Ext(path)
 	path = strings.TrimSuffix(path, originalExt)
 
-	newExt, ok := map[imageType]string{
-		// .jpeg thumbnails are much smaller.
-		pngImageType: ".jpeg",
-		// .heic - most browsers don't support it.
-		heicImageType: ".jpeg",
-		// Already .jpeg.
-		jpegImageType: "",
-		// We can't generate thumbnail for .gif, but we can save the original file.
-		gifImageType: "",
-		// These formats are already efficient enough and supported by modern browsers.
-		webpImageType: "",
-		avifImageType: "",
-	}[getImageType(id)]
-	if !ok {
-		// Just in case.
-		panic(fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt()))
-	}
+	newExt := s.mustGetThumbnailExt(id)
 
 	// Add .thumbnail to be able to more easily distinguish thumbnails from original files.
 	path += ".thumbnail" + originalExt + newExt
@@ -372,6 +362,48 @@ func (*ThumbnailService) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
 	return rview.ThumbnailID{
 		FileID: rview.NewFileID(path, id.GetModTime().Unix()),
 	}
+}
+
+func (s *ThumbnailService) mustGetThumbnailExt(id rview.FileID) string {
+	imageType := getImageType(id)
+
+	switch s.thumbnailsFormat {
+	case rview.JpegThumbnails:
+		switch imageType {
+		case jpegImageType: // already .jpeg
+			return ""
+		case pngImageType:
+			return ".jpeg"
+		case gifImageType: // we can't generate thumbnail for .gif, but we can save the original file
+			return ""
+		case webpImageType: // already efficient enough and supported by modern browsers
+			return ""
+		case heicImageType: // most browsers don't support .heic
+			return ".jpeg"
+		case avifImageType: // already efficient enough and supported by modern browsers
+			return ""
+		}
+
+	case rview.AvifThumbnails:
+		switch imageType {
+		case jpegImageType:
+			return ".avif"
+		case pngImageType:
+			return ".avif"
+		case gifImageType: // we can't generate thumbnail for .gif, but we can save the original file
+			return ""
+		case webpImageType: // already efficient enough and supported by modern browsers
+			return ""
+		case heicImageType: // most browsers don't support .heic
+			return ".avif"
+		case avifImageType: // already .avif
+			return ""
+		}
+
+	default:
+		panic(fmt.Errorf("invalid thumbnail format: %q", s.thumbnailsFormat)) // can't happen
+	}
+	panic(fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())) // should't happen
 }
 
 // IsThumbnailReady returns true for files with ready thumbnails.

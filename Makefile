@@ -12,6 +12,7 @@ run: build
 			--rclone-target=${RCLONE_TARGET} \
 			--image-preview-mode=${IMAGE_PREVIEW_MODE} \
 			--log-level=${LOG_LEVEL} \
+			--thumbnails-format=${THUMBNAILS_FORMAT} \
 			--read-static-files-from-disk
 
 build:

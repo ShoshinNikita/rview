@@ -60,25 +60,28 @@ func BenchmarkVipsthumbnail(b *testing.B) {
 	}
 
 	for _, bb := range []struct {
-		ext    string
-		size   string
-		params string
+		ext     string
+		size    string
+		params  string
+		threads int
 	}{
-		{ext: ".jpeg", size: "1024>", params: "[Q=80,optimize_coding,keep=icc]"},
-		{ext: ".avif", size: "1024>", params: "[Q=65,speed=8,keep=icc]"},
+		{ext: ".jpeg", size: "1024>", params: "[Q=80,optimize_coding,keep=icc]", threads: 0},
+		{ext: ".avif", size: "1024>", params: "[Q=65,speed=8,keep=icc]", threads: 0},
 	} {
 		format := strings.TrimPrefix(path.Ext(bb.ext), ".")
-		name := fmt.Sprintf("format=%s/params=%s/size=%s", format, bb.params, bb.size)
+		name := fmt.Sprintf("format=%s/params=%s/size=%s/threads=%d", format, bb.params, bb.size, bb.threads)
 
 		b.Run(name, func(b *testing.B) {
 			for _, file := range files {
 				b.Run("file="+file.Name, func(b *testing.B) {
 					for range b.N {
 						b.StopTimer()
-						// Set VIPS_CONCURRENCY to limit the number of threads used by vipsthumbnail.
 						output := filepath.Join("resized", file.Name+bb.ext+bb.params)
 						cmd := exec.Command("vipsthumbnail", file.Name, "--rotate", "--size", bb.size, "-o", output) //nolint:gosec
 						cmd.Dir = dataDir
+						if bb.threads > 0 {
+							cmd.Env = append(cmd.Env, fmt.Sprintf("VIPS_CONCURRENCY=%d", bb.threads))
+						}
 						b.StartTimer()
 
 						if err := cmd.Run(); err != nil {

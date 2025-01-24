@@ -387,6 +387,8 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 
 			case rview.FileTypeImage:
 				switch s.cfg.ImagePreviewMode {
+				case rview.ImagePreviewModeNone:
+					thumbnailURL = ""
 				case rview.ImagePreviewModeOriginal:
 					thumbnailURL = originalFileURL
 				case rview.ImagePreviewModeThumbnails:
