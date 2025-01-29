@@ -56,8 +56,9 @@ type ThumbnailService struct {
 }
 
 type generateThumbnailTask struct {
-	fileID      rview.FileID
-	thumbnailID rview.ThumbnailID
+	fileID       rview.FileID
+	thumbnailID  rview.ThumbnailID
+	saveOriginal bool
 }
 
 func CheckVips() error {
@@ -69,16 +70,13 @@ func CheckVips() error {
 }
 
 // NewThumbnailService prepares a new service for thumbnail generation.
-//
-// By default we generate thumbnails only for large files and use
-// the small ones as-is. It is possible to change this behavior by passing
-// generateThumbnailsForSmallFiles = true.
+// It generates thumbnails only for large files and uses the small ones as-is.
 //
 // For some images we can generate thumbnails of different formats. For example,
 // for .heic images we generate .jpeg thumbnails.
 func NewThumbnailService(
 	openFileFn rview.OpenFileFn, cache rview.Cache, workersCount int,
-	thumbnailsFormat rview.ThumbnailsFormat, generateThumbnailsForSmallFiles bool,
+	thumbnailsFormat rview.ThumbnailsFormat,
 ) *ThumbnailService {
 
 	r := &ThumbnailService{
@@ -96,13 +94,14 @@ func NewThumbnailService(
 		stopped:       new(atomic.Bool),
 		workersDoneCh: make(chan struct{}),
 	}
-	if generateThumbnailsForSmallFiles {
-		r.useOriginalImageThresholdSize = 0
-	}
 
 	go r.startWorkers()
 
 	return r
+}
+
+func (s *ThumbnailService) GenerateThumbnailsForSmallFiles() {
+	s.useOriginalImageThresholdSize = 0
 }
 
 func (s *ThumbnailService) startWorkers() {
@@ -207,18 +206,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		return stats{}, fmt.Errorf("couldn't get path of a cache file: %w", err)
 	}
 
-	imageType := getImageType(task.fileID)
-
-	var saveOriginal bool
-	// It doesn't make much sense to resize small files.
-	saveOriginal = saveOriginal || originalSize < s.useOriginalImageThresholdSize
-	// Save the original file because vipsthumbnail can't resize gifs:
-	// https://github.com/libvips/libvips/issues/61#issuecomment-168169916
-	saveOriginal = saveOriginal || imageType == gifImageType
-	// We have to always generate thumbnails for .heic because most browsers don't support it.
-	saveOriginal = saveOriginal && imageType != heicImageType
-
-	if saveOriginal {
+	if task.saveOriginal {
 		err := createCacheFileFromTempFile(tempFile, cacheFilepath, originalSize)
 		if err != nil {
 			return stats{}, err
@@ -446,14 +434,34 @@ func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.Thumbnail
 // is not supported. Filepath is passed to getImageFn, so it must be absolute.
 //
 // StartThumbnailGeneration ignores duplicate/in-progress tasks and tasks for already existing thumbnails.
-func (s *ThumbnailService) StartThumbnailGeneration(id rview.FileID) (rview.ThumbnailID, error) {
+func (s *ThumbnailService) StartThumbnailGeneration(id rview.FileID, size int64) (rview.ThumbnailID, error) {
 	if s.stopped.Load() {
 		return rview.ThumbnailID{}, errors.New("can't send tasks after Shutdown call")
 	}
 
+	imageType := getImageType(id)
 	thumbnailID, err := s.newThumbnailID(id)
 	if err != nil {
 		return rview.ThumbnailID{}, fmt.Errorf("couldn't convert file id to thumbnail id: %w", err)
+	}
+
+	var saveOriginal bool
+	if size < s.useOriginalImageThresholdSize {
+		// It doesn't make much sense to resize already small files.
+		saveOriginal = true
+	}
+	if imageType == gifImageType {
+		// Save the original file because vipsthumbnail can't resize gifs:
+		// https://github.com/libvips/libvips/issues/61#issuecomment-168169916
+		saveOriginal = true
+	}
+	if imageType == heicImageType {
+		// We have to always generate thumbnails for .heic because most browsers don't support it.
+		saveOriginal = false
+	}
+
+	if saveOriginal {
+		thumbnailID = rview.ThumbnailID{FileID: id}
 	}
 
 	if s.cache.Check(thumbnailID.FileID) == nil {
@@ -477,8 +485,9 @@ func (s *ThumbnailService) StartThumbnailGeneration(id rview.FileID) (rview.Thum
 	}
 
 	s.tasksCh <- generateThumbnailTask{
-		fileID:      id,
-		thumbnailID: thumbnailID,
+		fileID:       id,
+		thumbnailID:  thumbnailID,
+		saveOriginal: saveOriginal,
 	}
 	return thumbnailID, nil
 }

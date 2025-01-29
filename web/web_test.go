@@ -157,11 +157,11 @@ type thumbnailServiceStub struct {
 
 func newThumbnailServiceStub() *thumbnailServiceStub {
 	return &thumbnailServiceStub{
-		s: thumbnails.NewThumbnailService(nil, cache.NewInMemoryCache(), 0, rview.JpegThumbnails, false),
+		s: thumbnails.NewThumbnailService(nil, cache.NewInMemoryCache(), 0, rview.JpegThumbnails),
 	}
 }
 
-func (s *thumbnailServiceStub) StartThumbnailGeneration(id rview.FileID) (rview.ThumbnailID, error) {
+func (s *thumbnailServiceStub) StartThumbnailGeneration(id rview.FileID, _ int64) (rview.ThumbnailID, error) {
 	s.taskCount++
 
 	if id.GetName() == "error.jpg" {

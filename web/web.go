@@ -393,7 +393,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 					thumbnailURL = originalFileURL
 				case rview.ImagePreviewModeThumbnails:
 					if s.thumbnailService.CanGenerateThumbnail(id) {
-						thumbnailURL = s.startThumbnailGeneration(id, info.dirURL)
+						thumbnailURL = s.startThumbnailGeneration(id, entry.Size, info.dirURL)
 					}
 				}
 				if thumbnailURL != "" {
@@ -437,8 +437,8 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 	return info, nil
 }
 
-func (s *Server) startThumbnailGeneration(id rview.FileID, dirURL *url.URL) (thumbnailURL string) {
-	thumbnailID, err := s.thumbnailService.StartThumbnailGeneration(id)
+func (s *Server) startThumbnailGeneration(id rview.FileID, size int64, dirURL *url.URL) (thumbnailURL string) {
+	thumbnailID, err := s.thumbnailService.StartThumbnailGeneration(id, size)
 	if err != nil {
 		rlog.Errorf("couldn't send task to generate thumbnail for file %q: %s", id, err)
 		return ""

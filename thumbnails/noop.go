@@ -20,7 +20,7 @@ func (NoopThumbnailService) CanGenerateThumbnail(rview.FileID) bool {
 	return false
 }
 
-func (NoopThumbnailService) StartThumbnailGeneration(rview.FileID) (rview.ThumbnailID, error) {
+func (NoopThumbnailService) StartThumbnailGeneration(rview.FileID, int64) (rview.ThumbnailID, error) {
 	return rview.ThumbnailID{}, ErrNoopThumbnailService
 }
 

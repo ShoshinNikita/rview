@@ -207,7 +207,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 						FileType:             rview.FileTypeImage,
 						CanPreview:           true,
 						OriginalFileURL:      "/api/file/test.gif?mod_time=1672585200",
-						ThumbnailURL:         "/api/thumbnail/test.thumbnail.gif?mod_time=1672585200",
+						ThumbnailURL:         "/api/thumbnail/test.gif?mod_time=1672585200",
 						IconName:             "image",
 					},
 				},
@@ -452,7 +452,7 @@ func TestAPI_Thumbnails(t *testing.T) {
 	generatedFileModTime := generateImage(generatedFile, 500, time.March)
 
 	testFileTime := mustParseTime(t, TestDataModTimes[testFile])
-	testFileThumbnailURL := "/api/thumbnail/Other/test-thumbnails/cloudy-g1a943401b_640.thumbnail.png.jpeg?mod_time=" + strconv.Itoa(int(testFileTime.Unix()))
+	testFileThumbnailURL := "/api/thumbnail/Other/test-thumbnails/cloudy-g1a943401b_640.png?mod_time=" + strconv.Itoa(int(testFileTime.Unix()))
 
 	generatedFileThumbnailURL := "/api/thumbnail/Other/test-thumbnails/generated.thumbnail.jpeg?mod_time=" + strconv.Itoa(int(generatedFileModTime.Unix()))
 

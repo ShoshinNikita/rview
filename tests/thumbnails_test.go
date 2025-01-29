@@ -39,11 +39,12 @@ func TestThumbnailGeneration(t *testing.T) {
 				openFileFn := func(context.Context, rview.FileID) (io.ReadCloser, error) {
 					return io.NopCloser(bytes.NewReader(originalImage)), nil
 				}
-				thumbnailService := thumbnails.NewThumbnailService(openFileFn, cache, 1, format, true)
+				thumbnailService := thumbnails.NewThumbnailService(openFileFn, cache, 1, format)
+				thumbnailService.GenerateThumbnailsForSmallFiles()
 
 				fileID := rview.NewFileID(tt.file, 0)
 
-				thumbnailID, err := thumbnailService.StartThumbnailGeneration(fileID)
+				thumbnailID, err := thumbnailService.StartThumbnailGeneration(fileID, 0)
 				r.NoError(err)
 
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
