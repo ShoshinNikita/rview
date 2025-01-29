@@ -18,6 +18,7 @@ func main() {
 		rlog.Errorf("invalid config: %s", err)
 		os.Exit(1)
 	}
+	rlog.SetLevel(cfg.LogLevel)
 
 	cfg.BuildInfo.Print()
 	cfg.Print()

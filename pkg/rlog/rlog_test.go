@@ -11,27 +11,34 @@ import (
 func TestSetLevel(t *testing.T) {
 	r := require.New(t)
 
-	SetLevel(LevelError)
-	r.Equal(io.Discard, debug.Writer())
-	r.Equal(io.Discard, info.Writer())
-	r.Equal(io.Discard, warn.Writer())
-	r.Equal(os.Stderr, err.Writer())
+	log := newLogger()
 
-	SetLevel(LevelWarn)
-	r.Equal(io.Discard, debug.Writer())
-	r.Equal(io.Discard, info.Writer())
-	r.Equal(os.Stderr, warn.Writer())
-	r.Equal(os.Stderr, err.Writer())
+	r.Equal(os.Stderr, log.debug.Writer())
+	r.Equal(os.Stderr, log.info.Writer())
+	r.Equal(os.Stderr, log.warn.Writer())
+	r.Equal(os.Stderr, log.err.Writer())
 
-	SetLevel(LevelDebug)
-	r.Equal(os.Stderr, debug.Writer())
-	r.Equal(os.Stderr, info.Writer())
-	r.Equal(os.Stderr, warn.Writer())
-	r.Equal(os.Stderr, err.Writer())
+	log.SetLevel(LevelError)
+	r.Equal(io.Discard, log.debug.Writer())
+	r.Equal(io.Discard, log.info.Writer())
+	r.Equal(io.Discard, log.warn.Writer())
+	r.Equal(os.Stderr, log.err.Writer())
 
-	SetLevel(LevelInfo)
-	r.Equal(io.Discard, debug.Writer()) // should set io.Discard
-	r.Equal(os.Stderr, info.Writer())
-	r.Equal(os.Stderr, warn.Writer())
-	r.Equal(os.Stderr, err.Writer())
+	log.SetLevel(LevelWarn)
+	r.Equal(io.Discard, log.debug.Writer())
+	r.Equal(io.Discard, log.info.Writer())
+	r.Equal(os.Stderr, log.warn.Writer())
+	r.Equal(os.Stderr, log.err.Writer())
+
+	log.SetLevel(LevelDebug)
+	r.Equal(os.Stderr, log.debug.Writer())
+	r.Equal(os.Stderr, log.info.Writer())
+	r.Equal(os.Stderr, log.warn.Writer())
+	r.Equal(os.Stderr, log.err.Writer())
+
+	log.SetLevel(LevelInfo)
+	r.Equal(io.Discard, log.debug.Writer()) // should set io.Discard
+	r.Equal(os.Stderr, log.info.Writer())
+	r.Equal(os.Stderr, log.warn.Writer())
+	r.Equal(os.Stderr, log.err.Writer())
 }

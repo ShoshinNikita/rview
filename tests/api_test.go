@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/cmd"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/web"
 	"github.com/stretchr/testify/require"
@@ -56,8 +55,6 @@ func startTestRview() {
 			ImagePreviewMode:       rview.ImagePreviewModeThumbnails,
 			ThumbnailsFormat:       rview.JpegThumbnails,
 			ThumbnailsWorkersCount: 1,
-			//
-			LogLevel: rlog.LevelDebug,
 		}
 		rviewAPIAddr = fmt.Sprintf("http://localhost:%d", cfg.ServerPort)
 		rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.Rclone.Port)

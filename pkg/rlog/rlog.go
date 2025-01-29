@@ -17,22 +17,31 @@ const (
 	LevelError Level = slog.LevelError
 )
 
-const flags = log.Ldate | log.Ltime | log.Lmsgprefix
+type logger struct {
+	debug *log.Logger
+	info  *log.Logger
+	warn  *log.Logger
+	err   *log.Logger
+}
 
-var (
-	debug = log.New(io.Discard, "[DBG] ", flags)
-	info  = log.New(io.Discard, "[INF] ", flags)
-	warn  = log.New(io.Discard, "[WRN] ", flags)
-	err   = log.New(io.Discard, "[ERR] ", flags)
-)
+func newLogger() *logger {
+	const flags = log.Ldate | log.Ltime | log.Lmsgprefix
+
+	return &logger{
+		debug: log.New(os.Stderr, "[DBG] ", flags),
+		info:  log.New(os.Stderr, "[INF] ", flags),
+		warn:  log.New(os.Stderr, "[WRN] ", flags),
+		err:   log.New(os.Stderr, "[ERR] ", flags),
+	}
+}
 
 // SetLevel changes the minimal log level.
-func SetLevel(newLevel Level) {
+func (l *logger) SetLevel(newLevel Level) {
 	for lvl, l := range map[Level]*log.Logger{
-		LevelDebug: debug,
-		LevelInfo:  info,
-		LevelWarn:  warn,
-		LevelError: err,
+		LevelDebug: l.debug,
+		LevelInfo:  l.info,
+		LevelWarn:  l.warn,
+		LevelError: l.err,
 	} {
 		if lvl >= newLevel {
 			l.SetOutput(os.Stderr)
@@ -42,14 +51,20 @@ func SetLevel(newLevel Level) {
 	}
 }
 
-func Debug(v ...any)                 { debug.Println(v...) }
-func Debugf(format string, v ...any) { debug.Printf(format, v...) }
+var std = newLogger()
 
-func Info(v ...any)                 { info.Println(v...) }
-func Infof(format string, v ...any) { info.Printf(format, v...) }
+func SetLevel(newLevel Level) {
+	std.SetLevel(newLevel)
+}
 
-func Warn(v ...any)                 { warn.Println(v...) }
-func Warnf(format string, v ...any) { warn.Printf(format, v...) }
+func Debug(v ...any)                 { std.debug.Println(v...) }
+func Debugf(format string, v ...any) { std.debug.Printf(format, v...) }
 
-func Error(v ...any)                 { err.Println(v...) }
-func Errorf(format string, v ...any) { err.Printf(format, v...) }
+func Info(v ...any)                 { std.info.Println(v...) }
+func Infof(format string, v ...any) { std.info.Printf(format, v...) }
+
+func Warn(v ...any)                 { std.warn.Println(v...) }
+func Warnf(format string, v ...any) { std.warn.Printf(format, v...) }
+
+func Error(v ...any)                 { std.err.Println(v...) }
+func Errorf(format string, v ...any) { std.err.Printf(format, v...) }
