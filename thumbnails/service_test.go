@@ -18,10 +18,10 @@ import (
 func TestThumbnailService(t *testing.T) {
 	t.Parallel()
 
-	r := require.New(t)
+	ctx := context.Background()
 
 	cache, err := cache.NewDiskCache(t.TempDir())
-	r.NoError(err)
+	require.NoError(t, err)
 
 	newService := func(
 		t *testing.T,
@@ -35,7 +35,7 @@ func TestThumbnailService(t *testing.T) {
 		service.resizeFn = resizeFn
 
 		t.Cleanup(func() {
-			err = service.Shutdown(context.Background())
+			err = service.Shutdown(ctx)
 			require.NoError(t, err)
 		})
 
@@ -43,6 +43,8 @@ func TestThumbnailService(t *testing.T) {
 	}
 
 	t.Run("resize", func(t *testing.T) {
+		r := require.New(t)
+
 		var openFileFnCount, resizedCount int
 		service := newService(
 			t,
@@ -58,44 +60,59 @@ func TestThumbnailService(t *testing.T) {
 		)
 
 		fileID := rview.NewFileID("1.jpg", time.Now().Unix())
-		thumbnailID := service.NewThumbnailID(fileID)
 
-		r.False(service.IsThumbnailReady(thumbnailID))
+		{
+			resizeStart := time.Now()
 
-		resizeStart := time.Now()
-
-		err = service.SendTask(fileID)
-		r.NoError(err)
-
-		// Must take into account in-progress tasks.
-		r.True(service.IsThumbnailReady(thumbnailID))
-
-		// Must ignore duplicate tasks.
-		for range 3 {
-			err = service.SendTask(fileID)
+			thumbnailID, err := service.StartThumbnailGeneration(fileID)
 			r.NoError(err)
+
+			// Must ignore in-progress tasks.
+			for range 3 {
+				_, err = service.StartThumbnailGeneration(fileID)
+				r.NoError(err)
+			}
+
+			// Should wait for thumbnail to be ready.
+			rc, err := service.OpenThumbnail(ctx, thumbnailID)
+			r.NoError(err)
+
+			data, err := io.ReadAll(rc)
+			r.NoError(err)
+			r.Equal("resized-content-1.thumbnail.jpg", string(data))
+
+			dur := time.Since(resizeStart)
+			if dur < 200*time.Millisecond {
+				t.Fatalf("image must be opened in >=200ms, got: %s", dur)
+			}
+
+			r.Equal(1, openFileFnCount)
+			r.Equal(1, resizedCount)
 		}
 
-		rc, err := service.OpenThumbnail(context.Background(), thumbnailID)
-		r.NoError(err)
+		// Same task - should ignore because thumbnail already exists.
+		{
+			_, err = service.StartThumbnailGeneration(fileID)
+			r.NoError(err)
+			service.inProgressTasksMu.Lock()
+			taskCount := len(service.inProgressTasks)
+			service.inProgressTasksMu.Unlock()
 
-		data, err := io.ReadAll(rc)
-		r.NoError(err)
-		r.Equal("resized-content-1.thumbnail.jpg", string(data))
-
-		dur := time.Since(resizeStart)
-		if dur < 200*time.Millisecond {
-			t.Fatalf("image must be opened in >=200ms, got: %s", dur)
+			r.Zero(taskCount)
 		}
-
-		r.Equal(1, openFileFnCount)
-		r.Equal(1, resizedCount)
-		r.True(service.IsThumbnailReady(thumbnailID))
 
 		// Same path, but different mod time.
-		newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix()+5)
-		newThumbnailID := service.NewThumbnailID(newFileID)
-		r.False(service.IsThumbnailReady(newThumbnailID))
+		{
+			newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix()+5)
+			newThumbnailID, err := service.StartThumbnailGeneration(newFileID)
+			r.NoError(err)
+
+			rc, err := service.OpenThumbnail(ctx, newThumbnailID)
+			r.NoError(err)
+			rc.Close()
+			r.Equal(2, openFileFnCount)
+			r.Equal(2, resizedCount)
+		}
 	})
 
 	t.Run("remove resized file after error", func(t *testing.T) {
@@ -119,12 +136,11 @@ func TestThumbnailService(t *testing.T) {
 		)
 
 		fileID := rview.NewFileID("2.jpg", time.Now().Unix())
-		thumbnailID := service.NewThumbnailID(fileID)
 
-		err = service.SendTask(fileID)
+		thumbnailID, err := service.StartThumbnailGeneration(fileID)
 		r.NoError(err)
 
-		_, err = service.OpenThumbnail(context.Background(), thumbnailID)
+		_, err = service.OpenThumbnail(ctx, thumbnailID)
 		r.ErrorIs(err, rview.ErrCacheMiss)
 
 		// Cache file must be removed.
@@ -147,12 +163,11 @@ func TestThumbnailService(t *testing.T) {
 		)
 
 		fileID := rview.NewFileID("3.jpg", time.Now().Unix())
-		thumbnailID := service.NewThumbnailID(fileID)
 
-		err = service.SendTask(fileID)
+		thumbnailID, err := service.StartThumbnailGeneration(fileID)
 		r.NoError(err)
 
-		rc, err := service.OpenThumbnail(context.Background(), thumbnailID)
+		rc, err := service.OpenThumbnail(ctx, thumbnailID)
 		r.NoError(err)
 		data, err := io.ReadAll(rc)
 		r.NoError(err)
@@ -190,7 +205,8 @@ func TestThumbnailService_NewThumbnailID(t *testing.T) {
 		"/x/y/z/screenshot.PNG":      "/x/y/z/screenshot.thumbnail.PNG.jpeg",
 	} {
 		id := rview.NewFileID(path, 33)
-		thumbnail := service.NewThumbnailID(id)
+		thumbnail, err := service.newThumbnailID(id)
+		require.NoError(t, err)
 		assert.Equal(t, wantThumbnail, thumbnail.GetPath())
 		assert.Equal(t, int64(33), thumbnail.GetModTime().Unix())
 	}

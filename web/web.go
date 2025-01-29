@@ -392,7 +392,9 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 				case rview.ImagePreviewModeOriginal:
 					thumbnailURL = originalFileURL
 				case rview.ImagePreviewModeThumbnails:
-					thumbnailURL = s.sendGenerateImageThumbnailTask(id, info.dirURL)
+					if s.thumbnailService.CanGenerateThumbnail(id) {
+						thumbnailURL = s.startThumbnailGeneration(id, info.dirURL)
+					}
 				}
 				if thumbnailURL != "" {
 					canPreview = true
@@ -435,25 +437,16 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 	return info, nil
 }
 
-func (s *Server) sendGenerateImageThumbnailTask(id rview.FileID, dirURL *url.URL) (thumbnailURL string) {
-	if !s.thumbnailService.CanGenerateThumbnail(id) {
-		return ""
-	}
-
-	thumbnailID := s.thumbnailService.NewThumbnailID(id)
-	thumbnailURL = fileIDToURL("/api/thumbnail", dirURL, thumbnailID.FileID)
-
-	if s.thumbnailService.IsThumbnailReady(thumbnailID) {
-		return thumbnailURL
-	}
-
-	err := s.thumbnailService.SendTask(id)
+func (s *Server) startThumbnailGeneration(id rview.FileID, dirURL *url.URL) (thumbnailURL string) {
+	thumbnailID, err := s.thumbnailService.StartThumbnailGeneration(id)
 	if err != nil {
-		rlog.Errorf("couldn't start resizing for file %q: %s", id, err)
+		rlog.Errorf("couldn't send task to generate thumbnail for file %q: %s", id, err)
 		return ""
 	}
 
-	return thumbnailURL
+	// Use thumbnail id instead of file id because thumbnails can have different
+	// image type (for example, JPEG instead of HEIC).
+	return fileIDToURL("/api/thumbnail", dirURL, thumbnailID.FileID)
 }
 
 // handleFile proxies the request to Rclone that knows how to handle 'Range' headers and other nuances.

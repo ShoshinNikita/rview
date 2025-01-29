@@ -16,20 +16,12 @@ func NewNoopThumbnailService() *NoopThumbnailService {
 	return &NoopThumbnailService{}
 }
 
-func (NoopThumbnailService) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
-	return rview.ThumbnailID{FileID: id}
-}
-
 func (NoopThumbnailService) CanGenerateThumbnail(rview.FileID) bool {
 	return false
 }
 
-func (NoopThumbnailService) IsThumbnailReady(rview.ThumbnailID) bool {
-	return false
-}
-
-func (NoopThumbnailService) SendTask(rview.FileID) error {
-	return ErrNoopThumbnailService
+func (NoopThumbnailService) StartThumbnailGeneration(rview.FileID) (rview.ThumbnailID, error) {
+	return rview.ThumbnailID{}, ErrNoopThumbnailService
 }
 
 func (NoopThumbnailService) Shutdown(context.Context) error {

@@ -114,11 +114,9 @@ type ThumbnailID struct {
 }
 
 type ThumbnailService interface {
-	NewThumbnailID(FileID) ThumbnailID
 	CanGenerateThumbnail(FileID) bool
-	IsThumbnailReady(ThumbnailID) bool
 	OpenThumbnail(context.Context, ThumbnailID) (io.ReadCloser, error)
-	SendTask(id FileID) error
+	StartThumbnailGeneration(id FileID) (ThumbnailID, error)
 	Shutdown(context.Context) error
 }
 

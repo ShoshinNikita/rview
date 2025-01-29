@@ -346,76 +346,70 @@ func getImageType(id rview.FileID) imageType {
 	}
 }
 
-// NewThumbnailID converts [rview.FileID] to [rview.ThumbnailID]. The caller should first
-// check [ThumbnailService.CanGenerateThumbnail] - NewThumbnailID panics if the file id
-// can't be transformed to thumbnail id.
-func (s *ThumbnailService) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
+// newThumbnailID converts [rview.FileID] to [rview.ThumbnailID].
+func (s *ThumbnailService) newThumbnailID(id rview.FileID) (rview.ThumbnailID, error) {
 	path := id.GetPath()
 	originalExt := pkgPath.Ext(path)
 	path = strings.TrimSuffix(path, originalExt)
 
-	newExt := s.mustGetThumbnailExt(id)
+	newExt, err := s.getThumbnailExt(id)
+	if err != nil {
+		return rview.ThumbnailID{}, err
+	}
 
 	// Add .thumbnail to be able to more easily distinguish thumbnails from original files.
 	path += ".thumbnail" + originalExt + newExt
 
 	return rview.ThumbnailID{
 		FileID: rview.NewFileID(path, id.GetModTime().Unix()),
-	}
+	}, nil
 }
 
-func (s *ThumbnailService) mustGetThumbnailExt(id rview.FileID) string {
+func (s *ThumbnailService) getThumbnailExt(id rview.FileID) (string, error) {
 	imageType := getImageType(id)
 
+	var newExt string
 	switch s.thumbnailsFormat {
 	case rview.JpegThumbnails:
 		switch imageType {
 		case jpegImageType: // already .jpeg
-			return ""
+			newExt = ""
 		case pngImageType:
-			return ".jpeg"
+			newExt = ".jpeg"
 		case gifImageType: // we can't generate thumbnail for .gif, but we can save the original file
-			return ""
+			newExt = ""
 		case webpImageType: // already efficient enough and supported by modern browsers
-			return ""
+			newExt = ""
 		case heicImageType: // most browsers don't support .heic
-			return ".jpeg"
+			newExt = ".jpeg"
 		case avifImageType: // already efficient enough and supported by modern browsers
-			return ""
+			newExt = ""
+		default:
+			return "", fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())
 		}
 
 	case rview.AvifThumbnails:
 		switch imageType {
 		case jpegImageType:
-			return ".avif"
+			newExt = ".avif"
 		case pngImageType:
-			return ".avif"
+			newExt = ".avif"
 		case gifImageType: // we can't generate thumbnail for .gif, but we can save the original file
-			return ""
+			newExt = ""
 		case webpImageType: // already efficient enough and supported by modern browsers
-			return ""
+			newExt = ""
 		case heicImageType: // most browsers don't support .heic
-			return ".avif"
+			newExt = ".avif"
 		case avifImageType: // already .avif
-			return ""
+			newExt = ""
+		default:
+			return "", fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())
 		}
 
 	default:
-		panic(fmt.Errorf("invalid thumbnail format: %q", s.thumbnailsFormat)) // can't happen
+		return "", fmt.Errorf("invalid thumbnails format: %q", s.thumbnailsFormat)
 	}
-	panic(fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())) // should't happen
-}
-
-// IsThumbnailReady returns true for files with ready thumbnails.
-func (s *ThumbnailService) IsThumbnailReady(id rview.ThumbnailID) bool {
-	s.inProgressTasksMu.RLock()
-	_, inProgress := s.inProgressTasks[id]
-	s.inProgressTasksMu.RUnlock()
-	if inProgress {
-		return true
-	}
-
-	return s.cache.Check(id.FileID) == nil
+	return newExt, nil
 }
 
 // OpenThumbnail returns io.ReadCloser for the image thumbnail. It waits for the files in queue, but no longer
@@ -448,41 +442,45 @@ func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.Thumbnail
 	return s.cache.Open(id.FileID)
 }
 
-// SendTask sends a task to the queue. It returns an error if the image format
-// is not supported (it is detected by filepath). Filepath is passed to getImageFn, so it
-// must be absolute.
+// StartThumbnailGeneration sends a task to the queue. It returns an error if the image format
+// is not supported. Filepath is passed to getImageFn, so it must be absolute.
 //
-// SendTask ignores duplicate tasks. However, it doesn't check files on disk.
-func (s *ThumbnailService) SendTask(id rview.FileID) error {
+// StartThumbnailGeneration ignores duplicate/in-progress tasks and tasks for already existing thumbnails.
+func (s *ThumbnailService) StartThumbnailGeneration(id rview.FileID) (rview.ThumbnailID, error) {
 	if s.stopped.Load() {
-		return errors.New("can't send tasks after Shutdown call")
-	}
-	if !s.CanGenerateThumbnail(id) {
-		return ErrUnsupportedImageFormat
+		return rview.ThumbnailID{}, errors.New("can't send tasks after Shutdown call")
 	}
 
-	thumbnailID := s.NewThumbnailID(id)
+	thumbnailID, err := s.newThumbnailID(id)
+	if err != nil {
+		return rview.ThumbnailID{}, fmt.Errorf("couldn't convert file id to thumbnail id: %w", err)
+	}
 
-	var ignore bool
+	if s.cache.Check(thumbnailID.FileID) == nil {
+		// Thumbnail already exists.
+		return thumbnailID, nil
+	}
+
+	var inProgress bool
 	func() {
 		s.inProgressTasksMu.Lock()
 		defer s.inProgressTasksMu.Unlock()
 
 		if _, ok := s.inProgressTasks[thumbnailID]; ok {
-			ignore = true
+			inProgress = true
 			return
 		}
 		s.inProgressTasks[thumbnailID] = struct{}{}
 	}()
-	if ignore {
-		return nil
+	if inProgress {
+		return thumbnailID, nil
 	}
 
 	s.tasksCh <- generateThumbnailTask{
 		fileID:      id,
 		thumbnailID: thumbnailID,
 	}
-	return nil
+	return thumbnailID, nil
 }
 
 // Shutdown drops all tasks in the queue and waits for ones that are in progress

@@ -42,9 +42,8 @@ func TestThumbnailGeneration(t *testing.T) {
 				thumbnailService := thumbnails.NewThumbnailService(openFileFn, cache, 1, format, true)
 
 				fileID := rview.NewFileID(tt.file, 0)
-				thumbnailID := thumbnailService.NewThumbnailID(fileID)
 
-				err = thumbnailService.SendTask(fileID)
+				thumbnailID, err := thumbnailService.StartThumbnailGeneration(fileID)
 				r.NoError(err)
 
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)

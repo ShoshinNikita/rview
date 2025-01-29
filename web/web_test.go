@@ -48,7 +48,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 
 		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")
 		r.NoError(err)
-		r.Equal(3, stub.taskCount)
+		r.Equal(4, stub.taskCount)
 		resetUnnecessaryFields(&gotInfo)
 		r.Equal(
 			[]DirEntry{
@@ -58,11 +58,11 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				},
 				{
 					Filename: "b.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/thumbnail/b.thumbnail.jpg?mod_time=0", CanPreview: true,
+					ThumbnailURL: "/api/thumbnail/b.jpg-stub?mod_time=0", CanPreview: true,
 				},
 				{
 					Filename: "c.png", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/thumbnail/c.thumbnail.png.jpeg?mod_time=0", CanPreview: true,
+					ThumbnailURL: "/api/thumbnail/c.png-stub?mod_time=0", CanPreview: true,
 				},
 				{
 					Filename: "c.bmp", FileType: rview.FileTypeImage,
@@ -78,7 +78,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				},
 				{
 					Filename: "resized.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/thumbnail/resized.thumbnail.jpg?mod_time=0", CanPreview: true,
+					ThumbnailURL: "/api/thumbnail/resized.jpg-stub?mod_time=0", CanPreview: true,
 				},
 			},
 			gotInfo.Entries,
@@ -161,21 +161,17 @@ func newThumbnailServiceStub() *thumbnailServiceStub {
 	}
 }
 
-func (s *thumbnailServiceStub) NewThumbnailID(id rview.FileID) rview.ThumbnailID {
-	return s.s.NewThumbnailID(id)
-}
-
-func (s *thumbnailServiceStub) IsThumbnailReady(id rview.ThumbnailID) bool {
-	return id.GetName() == "resized.thumbnail.jpg"
-}
-
-func (s *thumbnailServiceStub) SendTask(id rview.FileID) error {
+func (s *thumbnailServiceStub) StartThumbnailGeneration(id rview.FileID) (rview.ThumbnailID, error) {
 	s.taskCount++
 
 	if id.GetName() == "error.jpg" {
-		return errors.New("error")
+		return rview.ThumbnailID{}, errors.New("error")
 	}
-	return nil
+
+	thumbnailID := rview.ThumbnailID{
+		FileID: rview.NewFileID(id.GetPath()+"-stub", id.GetModTime().Unix()),
+	}
+	return thumbnailID, nil
 }
 
 func (s *thumbnailServiceStub) CanGenerateThumbnail(id rview.FileID) bool {
