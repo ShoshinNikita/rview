@@ -31,11 +31,19 @@ var (
 
 // Rclone
 var (
-	RcloneResponseTime = promauto.NewHistogram(
+	RcloneGetDirInfoDuration = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "rclone",
-			Name:      "response_time_seconds",
+			Name:      "get_dir_info_duration_seconds",
+			Buckets:   []float64{0.05, 0.1, 0.2, 0.5, 1, 2, 5},
+		},
+	)
+	RcloneGetFileHeadersDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: "rclone",
+			Name:      "get_file_headers_duration_seconds",
 			Buckets:   []float64{0.05, 0.1, 0.2, 0.5, 1, 2, 5},
 		},
 	)

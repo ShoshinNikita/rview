@@ -220,10 +220,12 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
 	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
 
+	now := time.Now()
 	body, headers, err := r.makeRequest(ctx, "GET", rcloneURL)
 	if err != nil {
 		return nil, err
 	}
+	metrics.RcloneGetFileHeadersDuration.Observe(time.Since(now).Seconds())
 
 	if err := checkLastModified(id, headers); err != nil {
 		body.Close()
@@ -234,6 +236,8 @@ func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, e
 }
 
 func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *http.Request) {
+	now := time.Now()
+
 	proxy := httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			u := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
@@ -254,10 +258,13 @@ func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *h
 			pr.Out.URL = u
 		},
 		ModifyResponse: func(r *http.Response) error {
-			if r.StatusCode == http.StatusOK {
-				return checkLastModified(id, r.Header)
+			if r.StatusCode != http.StatusOK {
+				return nil
 			}
-			return nil
+
+			metrics.RcloneGetFileHeadersDuration.Observe(time.Since(now).Seconds())
+
+			return checkLastModified(id, r.Header)
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
 			http.Error(w, fmt.Sprintf("couldn't proxy file request: %s", err), http.StatusInternalServerError)
@@ -279,12 +286,6 @@ func checkLastModified(id rview.FileID, fileHeaders http.Header) error {
 
 func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string) (*rview.RcloneDirInfo, error) {
 	now := time.Now()
-	defer func() {
-		dur := time.Since(now)
-
-		metrics.RcloneResponseTime.Observe(dur.Seconds())
-		rlog.Debugf("rclone info for %q was loaded in %s", path, dur)
-	}()
 
 	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", path)
 	rcloneURL.RawQuery = url.Values{
@@ -302,6 +303,10 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 	if err != nil {
 		return nil, fmt.Errorf("couldn't decode rclone response: %w", err)
 	}
+
+	dur := time.Since(now)
+	metrics.RcloneGetDirInfoDuration.Observe(dur.Seconds())
+	rlog.Debugf("rclone info for %q was loaded in %s", path, dur)
 
 	// We have to unescape response. It is safe because we will either use it for rendering
 	// with Go templates or return it as JSON.
