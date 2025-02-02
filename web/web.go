@@ -444,8 +444,8 @@ func (s *Server) startThumbnailGeneration(id rview.FileID, size int64, dirURL *u
 		return ""
 	}
 
-	// Use thumbnail id instead of file id because thumbnails can have different
-	// image type (for example, JPEG instead of HEIC).
+	// Use the thumbnail id instead of the file id because we can use different image format
+	// for thumbnails. For we example, generate a JPEG thumbnail for a HEIC image.
 	return fileIDToURL("/api/thumbnail", dirURL, thumbnailID.FileID)
 }
 

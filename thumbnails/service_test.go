@@ -217,12 +217,9 @@ func TestThumbnailService_NewThumbnailID(t *testing.T) {
 	}
 }
 
-// TestThumbnailService_ImageType checks that thumbnail extension matches the actual image type.
+// TestThumbnailService_ImageType checks that a thumbnail extension matches the actual image type.
 func TestThumbnailService_ImageType(t *testing.T) {
 	t.Parallel()
-
-	cache, err := cache.NewDiskCache(t.TempDir())
-	require.NoError(t, err)
 
 	encodeJPEG := func(w, h int) []byte {
 		buf := bytes.NewBuffer(nil)
@@ -285,6 +282,9 @@ func TestThumbnailService_ImageType(t *testing.T) {
 			},
 		},
 	} {
+		cache, err := cache.NewDiskCache(t.TempDir())
+		require.NoError(t, err)
+
 		thumbnailsFormat := tt.thumbnailsFormat
 		t.Run(string(tt.thumbnailsFormat), func(t *testing.T) {
 			for _, tt := range tt.tests {

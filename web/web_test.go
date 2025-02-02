@@ -25,7 +25,6 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				{URL: "c.bmp"},
 				{URL: "d.zip"},
 				{URL: "error.jpg"},
-				{URL: "resized.jpg"},
 			},
 		}
 	}
@@ -48,7 +47,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 
 		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")
 		r.NoError(err)
-		r.Equal(4, stub.taskCount)
+		r.Equal(3, stub.taskCount)
 		resetUnnecessaryFields(&gotInfo)
 		r.Equal(
 			[]DirEntry{
@@ -75,10 +74,6 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				{
 					Filename: "error.jpg", FileType: rview.FileTypeImage,
 					ThumbnailURL: "", // no thumbnail: got error
-				},
-				{
-					Filename: "resized.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/thumbnail/resized.jpg-stub?mod_time=0", CanPreview: true,
 				},
 			},
 			gotInfo.Entries,
@@ -117,10 +112,6 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 					Filename: "error.jpg", FileType: rview.FileTypeImage,
 					ThumbnailURL: "/api/file/error.jpg?mod_time=0", CanPreview: true,
 				},
-				{
-					Filename: "resized.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/file/resized.jpg?mod_time=0", CanPreview: true,
-				},
 			},
 			gotInfo.Entries,
 		)
@@ -142,7 +133,6 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				{Filename: "c.bmp", FileType: rview.FileTypeImage},
 				{Filename: "d.zip", FileType: rview.FileTypeUnknown},
 				{Filename: "error.jpg", FileType: rview.FileTypeImage},
-				{Filename: "resized.jpg", FileType: rview.FileTypeImage},
 			},
 			gotInfo.Entries,
 		)
