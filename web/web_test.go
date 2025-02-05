@@ -57,11 +57,11 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				},
 				{
 					Filename: "b.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/thumbnail/b.jpg-stub?mod_time=0", CanPreview: true,
+					ThumbnailURL: "/api/thumbnail/b.jpg-stub?mod_time=0&size=0", CanPreview: true,
 				},
 				{
 					Filename: "c.png", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/thumbnail/c.png-stub?mod_time=0", CanPreview: true,
+					ThumbnailURL: "/api/thumbnail/c.png-stub?mod_time=0&size=0", CanPreview: true,
 				},
 				{
 					Filename: "c.bmp", FileType: rview.FileTypeImage,
@@ -95,22 +95,22 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				},
 				{
 					Filename: "b.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/file/b.jpg?mod_time=0", CanPreview: true,
+					ThumbnailURL: "/api/file/b.jpg?mod_time=0&size=0", CanPreview: true,
 				},
 				{
 					Filename: "c.png", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/file/c.png?mod_time=0", CanPreview: true,
+					ThumbnailURL: "/api/file/c.png?mod_time=0&size=0", CanPreview: true,
 				},
 				{
 					Filename: "c.bmp", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/file/c.bmp?mod_time=0", CanPreview: true,
+					ThumbnailURL: "/api/file/c.bmp?mod_time=0&size=0", CanPreview: true,
 				},
 				{
 					Filename: "d.zip", FileType: rview.FileTypeUnknown,
 				},
 				{
 					Filename: "error.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/file/error.jpg?mod_time=0", CanPreview: true,
+					ThumbnailURL: "/api/file/error.jpg?mod_time=0&size=0", CanPreview: true,
 				},
 			},
 			gotInfo.Entries,
@@ -159,7 +159,7 @@ func (s *thumbnailServiceStub) StartThumbnailGeneration(id rview.FileID, _ int64
 	}
 
 	thumbnailID := rview.ThumbnailID{
-		FileID: rview.NewFileID(id.GetPath()+"-stub", id.GetModTime().Unix()),
+		FileID: rview.NewFileID(id.GetPath()+"-stub", id.GetModTime().Unix(), id.GetSize()),
 	}
 	return thumbnailID, nil
 }

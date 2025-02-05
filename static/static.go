@@ -97,15 +97,15 @@ func GetFileIcon(filename string, isDir bool) string {
 		return defaultFolderIcon
 	}
 
-	fileID := rview.NewFileID(filename, 0)
+	ext := rview.GetFileExt(filename)
 
 	// Icons by extensions have higher priority.
-	icon, ok := fileIconsByExtension[fileID.GetExt()]
+	icon, ok := fileIconsByExtension[ext]
 	if ok {
 		return icon
 	}
 
-	icon, ok = fileIconsByFileType[rview.GetFileType(fileID)]
+	icon, ok = fileIconsByFileType[rview.GetFileType(ext)]
 	if ok {
 		return icon
 	}

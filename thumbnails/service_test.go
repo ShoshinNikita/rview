@@ -64,7 +64,7 @@ func TestThumbnailService(t *testing.T) {
 			},
 		)
 
-		fileID := rview.NewFileID("1.jpg", time.Now().Unix())
+		fileID := rview.NewFileID("1.jpg", time.Now().Unix(), 0)
 
 		{
 			resizeStart := time.Now()
@@ -108,7 +108,7 @@ func TestThumbnailService(t *testing.T) {
 
 		// Same path, but different mod time.
 		{
-			newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix()+5)
+			newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix()+5, 0)
 			newThumbnailID, err := service.StartThumbnailGeneration(newFileID, useOriginalImageThresholdSize+1)
 			r.NoError(err)
 
@@ -117,6 +117,19 @@ func TestThumbnailService(t *testing.T) {
 			rc.Close()
 			r.Equal(2, openFileFnCount)
 			r.Equal(2, resizedCount)
+		}
+
+		// Same path, but different size.
+		{
+			newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix(), 15)
+			newThumbnailID, err := service.StartThumbnailGeneration(newFileID, useOriginalImageThresholdSize+1)
+			r.NoError(err)
+
+			rc, err := service.OpenThumbnail(ctx, newThumbnailID)
+			r.NoError(err)
+			rc.Close()
+			r.Equal(3, openFileFnCount)
+			r.Equal(3, resizedCount)
 		}
 	})
 
@@ -140,7 +153,7 @@ func TestThumbnailService(t *testing.T) {
 			},
 		)
 
-		fileID := rview.NewFileID("2.jpg", time.Now().Unix())
+		fileID := rview.NewFileID("2.jpg", time.Now().Unix(), 0)
 
 		thumbnailID, err := service.StartThumbnailGeneration(fileID, useOriginalImageThresholdSize+1)
 		r.NoError(err)
@@ -167,7 +180,7 @@ func TestThumbnailService(t *testing.T) {
 			},
 		)
 
-		fileID := rview.NewFileID("3.jpg", time.Now().Unix())
+		fileID := rview.NewFileID("3.jpg", time.Now().Unix(), 0)
 
 		thumbnailID, err := service.StartThumbnailGeneration(fileID, 1)
 		r.NoError(err)
@@ -190,12 +203,12 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 
 	canGenerate := NewThumbnailService(nil, nil, 0, rview.JpegThumbnails).CanGenerateThumbnail
 
-	r.True(canGenerate(rview.NewFileID("/home/users/test.png", now)))
-	r.True(canGenerate(rview.NewFileID("/home/users/test.pNg", now)))
-	r.True(canGenerate(rview.NewFileID("/home/users/test.JPG", now)))
-	r.True(canGenerate(rview.NewFileID("/home/users/test with space.jpeg", now)))
-	r.True(canGenerate(rview.NewFileID("/test.gif", now)))
-	r.False(canGenerate(rview.NewFileID("/home/users/x.txt", now)))
+	r.True(canGenerate(rview.NewFileID("/home/users/test.png", now, 0)))
+	r.True(canGenerate(rview.NewFileID("/home/users/test.pNg", now, 0)))
+	r.True(canGenerate(rview.NewFileID("/home/users/test.JPG", now, 0)))
+	r.True(canGenerate(rview.NewFileID("/home/users/test with space.jpeg", now, 0)))
+	r.True(canGenerate(rview.NewFileID("/test.gif", now, 0)))
+	r.False(canGenerate(rview.NewFileID("/home/users/x.txt", now, 0)))
 }
 
 func TestThumbnailService_NewThumbnailID(t *testing.T) {
@@ -209,11 +222,12 @@ func TestThumbnailService_NewThumbnailID(t *testing.T) {
 		"/x/mouse.JPG":               "/x/mouse.thumbnail.JPG",
 		"/x/y/z/screenshot.PNG":      "/x/y/z/screenshot.thumbnail.PNG.jpeg",
 	} {
-		id := rview.NewFileID(path, 33)
+		id := rview.NewFileID(path, 33, 15)
 		thumbnail, err := service.newThumbnailID(id)
 		require.NoError(t, err)
 		assert.Equal(t, wantThumbnail, thumbnail.GetPath())
 		assert.Equal(t, int64(33), thumbnail.GetModTime().Unix())
+		assert.Equal(t, int64(15), thumbnail.GetSize())
 	}
 }
 
@@ -302,7 +316,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 					}
 
 					service := NewThumbnailService(openFileFn, cache, 1, thumbnailsFormat)
-					thumbnailID, err := service.StartThumbnailGeneration(rview.NewFileID(tt.file, 0), img.size)
+					thumbnailID, err := service.StartThumbnailGeneration(rview.NewFileID(tt.file, 0, 0), img.size)
 					r.NoError(err)
 					r.Equal(tt.wantThumbnailPath, thumbnailID.GetPath())
 

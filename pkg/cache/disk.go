@@ -111,7 +111,7 @@ func (c *DiskCache) Remove(id rview.FileID) error {
 	return os.Remove(c.generateFilepath(id))
 }
 
-// generateFilepath generates a filepath of pattern '<dir>/<YYYY-MM>/<modTime>_<normalized filepath>'.
+// generateFilepath generates a filepath of pattern '<dir>/<YYYY-MM>/t<mod time>_s<size>_<normalized filepath>'.
 func (c *DiskCache) generateFilepath(id rview.FileID) string {
 	modTime := id.GetModTime()
 	subdir := modTime.Format("2006-01")
@@ -130,7 +130,7 @@ func (c *DiskCache) generateFilepath(id rview.FileID) string {
 		path = append(path, r)
 	}
 
-	filename := fmt.Sprintf("%d_%s", modTime.Unix(), string(path))
+	filename := fmt.Sprintf("t%d_s%d_%s", modTime.Unix(), id.GetSize(), string(path))
 
 	return filepath.Join(c.absDir, subdir, filename)
 }

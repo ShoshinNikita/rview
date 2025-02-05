@@ -170,7 +170,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2022-04-07 05:23:55 UTC",
 						FileType:             rview.FileTypeUnknown,
 						CanPreview:           false,
-						OriginalFileURL:      "/api/file/archive.7z?mod_time=1649309035",
+						OriginalFileURL:      "/api/file/archive.7z?mod_time=1649309035&size=0",
 						IconName:             "zip",
 					},
 					{
@@ -181,7 +181,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2023-02-27 15:00:00 UTC",
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
-						OriginalFileURL:      "/api/file/Lorem%20ipsum.txt?mod_time=1677510000",
+						OriginalFileURL:      "/api/file/Lorem%20ipsum.txt?mod_time=1677510000&size=943",
 						IconName:             "document",
 					},
 					{
@@ -192,7 +192,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2022-04-07 18:23:55 UTC",
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
-						OriginalFileURL:      "/api/file/main.go?mod_time=1649355835",
+						OriginalFileURL:      "/api/file/main.go?mod_time=1649355835&size=73",
 						IconName:             "document",
 					},
 					{
@@ -203,8 +203,8 @@ func TestAPI_GetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2023-01-01 15:00:00 UTC",
 						FileType:             rview.FileTypeImage,
 						CanPreview:           true,
-						OriginalFileURL:      "/api/file/test.gif?mod_time=1672585200",
-						ThumbnailURL:         "/api/thumbnail/test.gif?mod_time=1672585200",
+						OriginalFileURL:      "/api/file/test.gif?mod_time=1672585200&size=1833",
+						ThumbnailURL:         "/api/thumbnail/test.gif?mod_time=1672585200&size=1833",
 						IconName:             "image",
 					},
 				},
@@ -231,7 +231,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2023-06-06 00:00:13 UTC",
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
-						OriginalFileURL:      "/api/file/Other/a%20&%20b/x/x%20&%20y.txt?mod_time=1686009613",
+						OriginalFileURL:      "/api/file/Other/a%20&%20b/x/x%20&%20y.txt?mod_time=1686009613&size=4",
 						IconName:             "document",
 					},
 				},
@@ -258,7 +258,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
-						OriginalFileURL:      "/api/file/Other/spe%27sial%20%21%20cha%3Cracters/x/y/a%20+%20b.txt?mod_time=1662637022",
+						OriginalFileURL:      "/api/file/Other/spe%27sial%20%21%20cha%3Cracters/x/y/a%20+%20b.txt?mod_time=1662637022&size=0",
 						IconName:             "document",
 					},
 					{
@@ -269,7 +269,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 						HumanReadableModTime: "2022-09-08 11:37:02 UTC",
 						FileType:             rview.FileTypeText,
 						CanPreview:           true,
-						OriginalFileURL:      "/api/file/Other/spe%27sial%20%21%20cha%3Cracters/x/y/f%3Eile.txt?mod_time=1662637022",
+						OriginalFileURL:      "/api/file/Other/spe%27sial%20%21%20cha%3Cracters/x/y/f%3Eile.txt?mod_time=1662637022&size=0",
 						IconName:             "document",
 					},
 				},
@@ -375,30 +375,42 @@ func TestAPI_GetFile(t *testing.T) {
 	r := require.New(t)
 
 	// No file.
-	status, _, _ := makeRequest(t, "/api/file/Video/credits.txt1?mod_time=1662637030")
+	status, _, _ := makeRequest(t, "/api/file/Video/credits.txt1?mod_time=1662637030&size=0")
 	r.Equal(404, status)
 
-	// No mod_tim.
-	status, _, _ = makeRequest(t, "/api/file/Video/credits.txt")
+	// No mod_time.
+	status, body, _ := makeRequest(t, "/api/file/Video/credits.txt")
 	r.Equal(400, status)
+	r.Contains(string(body), "invalid mod_time")
+
+	// No size.
+	status, body, _ = makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637030")
+	r.Equal(400, status)
+	r.Contains(string(body), "invalid size")
 
 	// Wrong mod_time.
-	status, _, _ = makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637030")
+	status, body, _ = makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637030&size=162")
 	r.Equal(500, status)
+	r.Contains(string(body), "different mod time")
+
+	// Wrong size.
+	status, body, _ = makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637032&size=123")
+	r.Equal(500, status)
+	r.Contains(string(body), "different size")
 
 	// Check Content-Type and body of a text file.
-	status, body, headers := makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637032")
+	status, body, headers := makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637032&size=162")
 	r.Equal(200, status)
 	r.Contains(string(body), ".mp4")
 	r.Equal("text/plain; charset=utf-8", headers.Get("Content-Type"))
 
 	// Check Content-Type of a video.
-	status, _, headers = makeRequest(t, "/api/file/Video/traffic-53902.mp4?mod_time=1662637022")
+	status, _, headers = makeRequest(t, "/api/file/Video/traffic-53902.mp4?mod_time=1662637022&size=299776")
 	r.Equal(200, status)
 	r.Equal("video/mp4", headers.Get("Content-Type"))
 
 	// Check Content-Type of an audio.
-	status, _, headers = makeRequest(t, "/api/file/Audio/click-button-140881.mp3?mod_time=1660004130")
+	status, _, headers = makeRequest(t, "/api/file/Audio/click-button-140881.mp3?mod_time=1660004130&size=15882")
 	r.Equal(200, status)
 	r.Equal("audio/mpeg", headers.Get("Content-Type"))
 }
@@ -441,17 +453,26 @@ func TestAPI_Thumbnails(t *testing.T) {
 	}
 
 	const (
-		testFile      = "Other/test-thumbnails/cloudy-g1a943401b_640.png"
-		generatedFile = "Other/test-thumbnails/generated.jpeg"
+		testFile     = "Other/test-thumbnails/cloudy-g1a943401b_640.png"
+		testFileSize = 11502
+
+		generatedFile     = "Other/test-thumbnails/generated.jpeg"
+		generatedFileSize = 228314
 	)
 
 	// Generate large image.
 	generatedFileModTime := generateImage(generatedFile, 500, time.March)
 
 	testFileTime := mustParseTime(t, TestDataModTimes[testFile])
-	testFileThumbnailURL := "/api/thumbnail/Other/test-thumbnails/cloudy-g1a943401b_640.png?mod_time=" + strconv.Itoa(int(testFileTime.Unix()))
+	testFileThumbnailURL := fmt.Sprintf(
+		"/api/thumbnail/Other/test-thumbnails/cloudy-g1a943401b_640.png?mod_time=%d&size=%d",
+		testFileTime.Unix(), testFileSize,
+	)
 
-	generatedFileThumbnailURL := "/api/thumbnail/Other/test-thumbnails/generated.thumbnail.jpeg?mod_time=" + strconv.Itoa(int(generatedFileModTime.Unix()))
+	generatedFileThumbnailURL := fmt.Sprintf(
+		"/api/thumbnail/Other/test-thumbnails/generated.thumbnail.jpeg?mod_time=%d&size=%d",
+		generatedFileModTime.Unix(), generatedFileSize,
+	)
 
 	// Thumbnails were not generated yet.
 	for _, url := range []string{
@@ -481,11 +502,11 @@ func TestAPI_Thumbnails(t *testing.T) {
 	// Thumbnails must be ready.
 	var generatedFileThumbnailSize int
 	for _, largeFile := range []bool{false, true} {
-		fileURL, thumbnailURL, modTime := testFile, testFileThumbnailURL, testFileTime
+		fileURL, thumbnailURL, modTime, size := testFile, testFileThumbnailURL, testFileTime, testFileSize
 		if largeFile {
-			fileURL, thumbnailURL, modTime = generatedFile, generatedFileThumbnailURL, generatedFileModTime
+			fileURL, thumbnailURL, modTime, size = generatedFile, generatedFileThumbnailURL, generatedFileModTime, generatedFileSize
 		}
-		fileURL = "/api/file/" + fileURL + "?mod_time=" + strconv.Itoa(int(modTime.Unix()))
+		fileURL = fmt.Sprintf("/api/file/%s?mod_time=%d&size=%d", fileURL, modTime.Unix(), size)
 
 		status, thumbnailBody, _ := makeRequest(t, thumbnailURL)
 		r.Equal(200, status)

@@ -42,7 +42,7 @@ func TestThumbnailGeneration(t *testing.T) {
 				thumbnailService := thumbnails.NewThumbnailService(openFileFn, cache, 1, format)
 				thumbnailService.GenerateThumbnailsForSmallFiles()
 
-				fileID := rview.NewFileID(tt.file, 0)
+				fileID := rview.NewFileID(tt.file, 0, 0)
 
 				thumbnailID, err := thumbnailService.StartThumbnailGeneration(fileID, 0)
 				r.NoError(err)

@@ -10,8 +10,8 @@ const (
 	FileTypeText    FileType = "text"
 )
 
-func GetFileType(id FileID) FileType {
-	return fileTypesByExtension[id.GetExt()]
+func GetFileType(ext string) FileType {
+	return fileTypesByExtension[ext]
 }
 
 var fileTypesByExtension = map[string]FileType{

@@ -18,13 +18,13 @@ func TestDiskCache(t *testing.T) {
 	tempDir := t.TempDir()
 
 	modTime := time.Date(2022, time.April, 15, 13, 5, 1, 0, time.UTC).Unix()
-	fileID := rview.NewFileID("/home/Users/Персик/1.txt", modTime)
+	fileID := rview.NewFileID("/home/Users/Персик/1.txt", modTime, 0)
 
 	cache, err := NewDiskCache(tempDir)
 	r.NoError(err)
 
 	path := cache.generateFilepath(fileID)
-	r.Equal(tempDir+"/2022-04/1650027901__home_users_персик_1.txt", path)
+	r.Equal(tempDir+"/2022-04/t1650027901_s0__home_users_персик_1.txt", path)
 
 	t.Run("check", func(t *testing.T) {
 		r := require.New(t)
@@ -75,8 +75,8 @@ func TestDiskCache_FilesWithSameName(t *testing.T) {
 	r := require.New(t)
 
 	modTime := time.Date(2023, time.April, 14, 0, 0, 0, 0, time.UTC).Unix()
-	file1 := rview.NewFileID("/qwerty/1.txt", modTime)
-	file2 := rview.NewFileID("/abcdef/1.txt", modTime)
+	file1 := rview.NewFileID("/qwerty/1.txt", modTime, 0)
+	file2 := rview.NewFileID("/abcdef/1.txt", modTime, 0)
 
 	cache, err := NewDiskCache(t.TempDir())
 	r.NoError(err)

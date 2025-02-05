@@ -55,7 +55,7 @@ func NewService(rclone Rclone, cache rview.Cache) *Service {
 		stopCh:    make(chan struct{}),
 		stoppedCh: make(chan struct{}),
 		//
-		indexesFileID: rview.NewFileID("_prefix_search_indexes.json", 0),
+		indexesFileID: rview.NewFileID("_prefix_search_indexes.json", 0, 0),
 		//
 		minPrefixLen: minPrefixLen,
 		maxPrefixLen: maxPrefixLen,

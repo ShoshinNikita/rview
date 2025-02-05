@@ -375,11 +375,11 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 			webDirURL = mustParseURL("/ui").JoinPath(info.dirURL.String(), escapedFilename, "/").String()
 
 		} else {
-			id := rview.NewFileID(filepath, entry.ModTime)
+			id := rview.NewFileID(filepath, entry.ModTime, entry.Size)
 
 			originalFileURL = fileIDToURL("/api/file", info.dirURL, id)
 			humanReadableSize = FormatFileSize(entry.Size)
-			fileType = rview.GetFileType(id)
+			fileType = rview.GetFileType(id.GetExt())
 
 			switch fileType {
 			case rview.FileTypeText:
@@ -586,6 +586,7 @@ func fileIDToURL(prefix string, dirURL *url.URL, id rview.FileID) string {
 
 	query := fileURL.Query()
 	query.Set("mod_time", strconv.FormatInt(id.GetModTime().Unix(), 10))
+	query.Set("size", strconv.FormatInt(id.GetSize(), 10))
 	fileURL.RawQuery = query.Encode()
 
 	return fileURL.String()
@@ -596,13 +597,20 @@ func fileIDFromRequest(r *http.Request, endpointPrefix string) (rview.FileID, er
 	if path == "" {
 		return rview.FileID{}, errors.New("filepath can't be empty")
 	}
+
 	rawModTime := r.FormValue("mod_time")
 	modTime, err := strconv.ParseInt(rawModTime, 10, 64)
 	if err != nil {
 		return rview.FileID{}, fmt.Errorf("invalid mod_time: %w", err)
 	}
 
-	return rview.NewFileID(path, modTime), nil
+	rawSize := r.FormValue("size")
+	size, err := strconv.ParseInt(rawSize, 10, 64)
+	if err != nil {
+		return rview.FileID{}, fmt.Errorf("invalid size: %w", err)
+	}
+
+	return rview.NewFileID(path, modTime, size), nil
 }
 
 func writeBadRequestError(w http.ResponseWriter, format string, a ...any) {

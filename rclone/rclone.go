@@ -227,7 +227,7 @@ func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, e
 	}
 	metrics.RcloneGetFileHeadersDuration.Observe(time.Since(now).Seconds())
 
-	if err := checkLastModified(id, headers); err != nil {
+	if err := checkFileHeaders(id, headers); err != nil {
 		body.Close()
 		return nil, err
 	}
@@ -264,7 +264,7 @@ func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *h
 
 			metrics.RcloneGetFileHeadersDuration.Observe(time.Since(now).Seconds())
 
-			return checkLastModified(id, r.Header)
+			return checkFileHeaders(id, r.Header)
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
 			http.Error(w, fmt.Sprintf("couldn't proxy file request: %s", err), http.StatusInternalServerError)
@@ -273,7 +273,7 @@ func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *h
 	proxy.ServeHTTP(w, req)
 }
 
-func checkLastModified(id rview.FileID, fileHeaders http.Header) error {
+func checkFileHeaders(id rview.FileID, fileHeaders http.Header) error {
 	fileModTime, err := time.Parse(http.TimeFormat, fileHeaders.Get("Last-Modified"))
 	if err != nil {
 		return fmt.Errorf("rclone response has invalid Last-Modified header: %w", err)
@@ -281,6 +281,15 @@ func checkLastModified(id rview.FileID, fileHeaders http.Header) error {
 	if !fileModTime.Equal(id.GetModTime()) {
 		return fmt.Errorf("rclone response has different mod time: %q, expected: %q", fileModTime, id.GetModTime())
 	}
+
+	size, err := strconv.Atoi(fileHeaders.Get("Content-Length"))
+	if err != nil {
+		return fmt.Errorf("rclone response has invalid Content-Length header: %w", err)
+	}
+	if int64(size) != id.GetSize() {
+		return fmt.Errorf("rclone response has different size: %d, expected: %d", size, id.GetSize())
+	}
+
 	return nil
 }
 
