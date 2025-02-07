@@ -1,13 +1,14 @@
 package cache
 
 import (
+	"crypto/md5" //nolint:gosec
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
-	"unicode"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/rview"
@@ -111,26 +112,14 @@ func (c *DiskCache) Remove(id rview.FileID) error {
 	return os.Remove(c.generateFilepath(id))
 }
 
-// generateFilepath generates a filepath of pattern '<dir>/<YYYY-MM>/t<mod time>_s<size>_<normalized filepath>'.
+// generateFilepath generates a filepath of pattern '<dir>/<YYYY-MM>/t<mod time>_s<size>_<hashed filepath>.<ext>'.
 func (c *DiskCache) generateFilepath(id rview.FileID) string {
 	modTime := id.GetModTime()
 	subdir := modTime.Format("2006-01")
 
-	var path []rune
-	for _, r := range id.GetPath() {
-		switch {
-		case unicode.IsLetter(r):
-			r = unicode.ToLower(r)
-		case unicode.IsDigit(r) || r == '.':
-			// Ok
-		default:
-			r = '_'
-		}
-
-		path = append(path, r)
-	}
-
-	filename := fmt.Sprintf("t%d_s%d_%s", modTime.Unix(), id.GetSize(), string(path))
+	hash := md5.Sum([]byte(id.GetPath())) //nolint:gosec
+	name := hex.EncodeToString(hash[:])
+	filename := fmt.Sprintf("t%d_s%d_%s", modTime.Unix(), id.GetSize(), name+id.GetExt())
 
 	return filepath.Join(c.absDir, subdir, filename)
 }

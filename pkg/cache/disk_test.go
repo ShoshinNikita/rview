@@ -24,7 +24,7 @@ func TestDiskCache(t *testing.T) {
 	r.NoError(err)
 
 	path := cache.generateFilepath(fileID)
-	r.Equal(tempDir+"/2022-04/t1650027901_s0__home_users_персик_1.txt", path)
+	r.Equal(tempDir+"/2022-04/t1650027901_s0_4532f251c9f83c0ec83cc421f0a9a2b3.txt", path)
 
 	t.Run("check", func(t *testing.T) {
 		r := require.New(t)
