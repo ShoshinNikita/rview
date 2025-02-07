@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"os"
 	"os/exec"
 	pkgPath "path"
@@ -38,7 +39,7 @@ var (
 type ThumbnailService struct {
 	cache      rview.Cache
 	openFileFn rview.OpenFileFn
-	resizeFn   func(originalFile, cacheFile string, id rview.ThumbnailID) error
+	resizeFn   func(originalFile, cacheFile string, id ThumbnailID) error
 	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
 	// used without resizing. The main purpose of resizing is to reduce image size, and with small
 	// files it is not always possible - after resizing they become just larger.
@@ -48,17 +49,21 @@ type ThumbnailService struct {
 	workersCount int
 
 	tasksCh           chan generateThumbnailTask
-	inProgressTasks   map[rview.ThumbnailID]struct{}
-	inProgressTasksMu sync.RWMutex
+	inProgressTasks   map[ThumbnailID]struct{}
+	inProgressTasksMu sync.Mutex
 
 	stopped       *atomic.Bool
 	workersDoneCh chan struct{}
 }
 
+type ThumbnailID struct {
+	rview.FileID
+}
+
 type generateThumbnailTask struct {
-	fileID       rview.FileID
-	thumbnailID  rview.ThumbnailID
-	saveOriginal bool
+	fileID      rview.FileID
+	thumbnailID ThumbnailID
+	useOriginal bool
 }
 
 func CheckVips() error {
@@ -89,7 +94,7 @@ func NewThumbnailService(
 		workersCount: workersCount,
 		//
 		tasksCh:         make(chan generateThumbnailTask, 10_000),
-		inProgressTasks: make(map[rview.ThumbnailID]struct{}),
+		inProgressTasks: make(map[ThumbnailID]struct{}),
 		//
 		stopped:       new(atomic.Bool),
 		workersDoneCh: make(chan struct{}),
@@ -206,7 +211,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		return stats{}, fmt.Errorf("couldn't get path of a cache file: %w", err)
 	}
 
-	if task.saveOriginal {
+	if task.useOriginal {
 		err := createCacheFileFromTempFile(tempFile, cacheFilepath, originalSize)
 		if err != nil {
 			return stats{}, err
@@ -272,7 +277,7 @@ func createCacheFileFromTempFile(tempFile *os.File, cacheFilepath string, origin
 // than the original ones.
 //
 // See https://www.libvips.org/API/current/Using-vipsthumbnail.html for "vipsthumbnail" docs.
-func resizeWithVips(originalFile, cacheFile string, id rview.ThumbnailID) error {
+func resizeWithVips(originalFile, cacheFile string, id ThumbnailID) error {
 	output := cacheFile
 	switch t := getImageType(id.FileID); t {
 	// Ignore .heic, .png and etc. because thumbnail id must already have the correct extension.
@@ -334,21 +339,100 @@ func getImageType(id rview.FileID) imageType {
 	}
 }
 
-// newThumbnailID converts [rview.FileID] to [rview.ThumbnailID].
-func (s *ThumbnailService) newThumbnailID(id rview.FileID) (rview.ThumbnailID, error) {
+// OpenThumbnail returns [io.ReadCloser] for the image thumbnail. It generates a new thumbnail if needed.
+// Only the first call to OpenThumbnail generates a thumbnail.
+func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.FileID) (_ io.ReadCloser, contentType string, err error) {
+	if getImageType(id) == unsupportedImageType {
+		return nil, "", fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())
+	}
+
+	thumbnailID := ThumbnailID{FileID: id}
+
+	useOriginal := s.shouldUseOriginalImage(id)
+	if !useOriginal {
+		thumbnailID, err = s.newThumbnailID(id)
+		if err != nil {
+			return nil, "", fmt.Errorf("couldn't get thumbnail id: %w", err)
+		}
+	}
+
+	contentType = mime.TypeByExtension(thumbnailID.GetExt())
+
+	if s.cache.Check(thumbnailID.FileID) == nil {
+		// Thumbnail already exists.
+		rc, err := s.cache.Open(thumbnailID.FileID)
+		return rc, contentType, err
+	}
+
+	isInProgress := func(addTask bool) bool {
+		s.inProgressTasksMu.Lock()
+		defer s.inProgressTasksMu.Unlock()
+
+		if _, ok := s.inProgressTasks[thumbnailID]; ok {
+			return true
+		}
+		if addTask {
+			s.inProgressTasks[thumbnailID] = struct{}{}
+		}
+		return false
+	}
+	if !isInProgress(true) {
+		s.tasksCh <- generateThumbnailTask{
+			fileID:      id,
+			thumbnailID: thumbnailID,
+			useOriginal: useOriginal,
+		}
+	}
+
+	ticker := time.NewTicker(50 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		// Check immediately
+		if !isInProgress(false) {
+			break
+		}
+
+		select {
+		case <-ticker.C:
+			continue
+		case <-ctx.Done():
+			return nil, "", ctx.Err()
+		}
+	}
+
+	rc, err := s.cache.Open(thumbnailID.FileID)
+	return rc, contentType, err
+}
+
+func (s *ThumbnailService) shouldUseOriginalImage(id rview.FileID) bool {
+	switch getImageType(id) {
+	case gifImageType:
+		// vipsthumbnail can't resize gifs: https://github.com/libvips/libvips/issues/61#issuecomment-168169916
+		return true
+
+	case heicImageType:
+		// Always generate thumbnails for .heic because most browsers don't support it.
+		return false
+	}
+
+	return id.GetSize() < s.useOriginalImageThresholdSize
+}
+
+// newThumbnailID converts [rview.FileID] to [ThumbnailID].
+func (s *ThumbnailService) newThumbnailID(id rview.FileID) (ThumbnailID, error) {
 	path := id.GetPath()
 	originalExt := pkgPath.Ext(path)
 	path = strings.TrimSuffix(path, originalExt)
 
 	newExt, err := s.getThumbnailExt(id)
 	if err != nil {
-		return rview.ThumbnailID{}, err
+		return ThumbnailID{}, err
 	}
 
 	// Add .thumbnail to be able to more easily distinguish thumbnails from original files.
 	path += ".thumbnail" + originalExt + newExt
 
-	return rview.ThumbnailID{
+	return ThumbnailID{
 		FileID: rview.NewFileID(path, id.GetModTime().Unix(), id.GetSize()),
 	}, nil
 }
@@ -398,98 +482,6 @@ func (s *ThumbnailService) getThumbnailExt(id rview.FileID) (string, error) {
 		return "", fmt.Errorf("invalid thumbnails format: %q", s.thumbnailsFormat)
 	}
 	return newExt, nil
-}
-
-// OpenThumbnail returns io.ReadCloser for the image thumbnail. It waits for the files in queue, but no longer
-// than context timeout.
-func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.ThumbnailID) (io.ReadCloser, error) {
-	isInProgress := func() (inProgress bool) {
-		s.inProgressTasksMu.RLock()
-		defer s.inProgressTasksMu.RUnlock()
-
-		_, inProgress = s.inProgressTasks[id]
-		return inProgress
-	}
-
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		// Check immediately
-		if !isInProgress() {
-			break
-		}
-
-		select {
-		case <-ticker.C:
-			continue
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		}
-	}
-
-	return s.cache.Open(id.FileID)
-}
-
-// StartThumbnailGeneration sends a task to the queue. It returns an error if the image format
-// is not supported. Filepath is passed to getImageFn, so it must be absolute.
-//
-// StartThumbnailGeneration ignores duplicate/in-progress tasks and tasks for already existing thumbnails.
-func (s *ThumbnailService) StartThumbnailGeneration(id rview.FileID, size int64) (rview.ThumbnailID, error) {
-	if s.stopped.Load() {
-		return rview.ThumbnailID{}, errors.New("can't send tasks after Shutdown call")
-	}
-
-	imageType := getImageType(id)
-	thumbnailID, err := s.newThumbnailID(id)
-	if err != nil {
-		return rview.ThumbnailID{}, fmt.Errorf("couldn't convert file id to thumbnail id: %w", err)
-	}
-
-	var saveOriginal bool
-	if size < s.useOriginalImageThresholdSize {
-		// It doesn't make much sense to resize already small files.
-		saveOriginal = true
-	}
-	if imageType == gifImageType {
-		// Save the original file because vipsthumbnail can't resize gifs:
-		// https://github.com/libvips/libvips/issues/61#issuecomment-168169916
-		saveOriginal = true
-	}
-	if imageType == heicImageType {
-		// We have to always generate thumbnails for .heic because most browsers don't support it.
-		saveOriginal = false
-	}
-
-	if saveOriginal {
-		thumbnailID = rview.ThumbnailID{FileID: id}
-	}
-
-	if s.cache.Check(thumbnailID.FileID) == nil {
-		// Thumbnail already exists.
-		return thumbnailID, nil
-	}
-
-	var inProgress bool
-	func() {
-		s.inProgressTasksMu.Lock()
-		defer s.inProgressTasksMu.Unlock()
-
-		if _, ok := s.inProgressTasks[thumbnailID]; ok {
-			inProgress = true
-			return
-		}
-		s.inProgressTasks[thumbnailID] = struct{}{}
-	}()
-	if inProgress {
-		return thumbnailID, nil
-	}
-
-	s.tasksCh <- generateThumbnailTask{
-		fileID:       id,
-		thumbnailID:  thumbnailID,
-		saveOriginal: saveOriginal,
-	}
-	return thumbnailID, nil
 }
 
 // Shutdown drops all tasks in the queue and waits for ones that are in progress

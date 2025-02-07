@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"io"
 	"os"
+	"sync"
 	"testing"
 	"time"
 
@@ -31,7 +32,7 @@ func TestThumbnailService(t *testing.T) {
 	newService := func(
 		t *testing.T,
 		openFileFn rview.OpenFileFn,
-		resizeFn func(originalFile, cacheFile string, id rview.ThumbnailID) error,
+		resizeFn func(originalFile, cacheFile string, id ThumbnailID) error,
 	) *ThumbnailService {
 
 		service := NewThumbnailService(nil, cache, 2, rview.JpegThumbnails)
@@ -55,64 +56,79 @@ func TestThumbnailService(t *testing.T) {
 			t,
 			func(_ context.Context, id rview.FileID) (io.ReadCloser, error) {
 				openFileFnCount++
-				time.Sleep(110 * time.Millisecond)
+				time.Sleep(100 * time.Millisecond)
 				return io.NopCloser(bytes.NewReader([]byte("original-content-" + id.String()))), nil
 			},
-			func(_, cacheFile string, id rview.ThumbnailID) error {
+			func(_, cacheFile string, id ThumbnailID) error {
 				resizedCount++
 				return os.WriteFile(cacheFile, []byte("resized-content-"+id.GetName()), 0o600)
 			},
 		)
 
-		fileID := rview.NewFileID("1.jpg", time.Now().Unix(), 0)
+		fileID := rview.NewFileID("1.jpg", time.Now().Unix(), useOriginalImageThresholdSize+1)
 
 		{
 			resizeStart := time.Now()
 
-			thumbnailID, err := service.StartThumbnailGeneration(fileID, useOriginalImageThresholdSize+1)
-			r.NoError(err)
+			const callCount = 5
 
-			// Must ignore in-progress tasks.
-			for range 3 {
-				_, err = service.StartThumbnailGeneration(fileID, useOriginalImageThresholdSize+1)
+			// Must ignore duplicate and in-progress tasks.
+			type Res struct {
+				rc  io.ReadCloser
+				err error
+			}
+			var (
+				resCh = make(chan Res, callCount)
+				wg    sync.WaitGroup
+			)
+			for range callCount {
+				wg.Add(1)
+				go func() {
+					defer wg.Done()
+					rc, _, err := service.OpenThumbnail(ctx, fileID)
+					resCh <- Res{
+						rc:  rc,
+						err: err,
+					}
+				}()
+			}
+			wg.Wait()
+			close(resCh)
+
+			for res := range resCh {
+				r.NoError(res.err)
+				data, err := io.ReadAll(res.rc)
 				r.NoError(err)
+				r.Equal("resized-content-1.thumbnail.jpg", string(data))
 			}
 
-			// Should wait for thumbnail to be ready.
-			rc, err := service.OpenThumbnail(ctx, thumbnailID)
-			r.NoError(err)
-
-			data, err := io.ReadAll(rc)
-			r.NoError(err)
-			r.Equal("resized-content-1.thumbnail.jpg", string(data))
-
 			dur := time.Since(resizeStart)
-			if dur < 200*time.Millisecond {
-				t.Fatalf("image must be opened in >=200ms, got: %s", dur)
+			if dur < 100*time.Millisecond {
+				t.Fatalf("image must be opened in >=100ms, got: %s", dur)
 			}
 
 			r.Equal(1, openFileFnCount)
 			r.Equal(1, resizedCount)
 		}
 
-		// Same task - should ignore because thumbnail already exists.
+		// Same task - thumbnail must already exist.
 		{
-			_, err = service.StartThumbnailGeneration(fileID, useOriginalImageThresholdSize+1)
+			now := time.Now()
+			rc, _, err := service.OpenThumbnail(ctx, fileID)
 			r.NoError(err)
-			service.inProgressTasksMu.Lock()
-			taskCount := len(service.inProgressTasks)
-			service.inProgressTasksMu.Unlock()
+			rc.Close()
 
-			r.Zero(taskCount)
+			dur := time.Since(now)
+			if dur > 10*time.Millisecond {
+				t.Fatalf("OpenThumbnail must finish immediately, took: %s", dur)
+			}
 		}
 
 		// Same path, but different mod time.
 		{
-			newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix()+5, 0)
-			newThumbnailID, err := service.StartThumbnailGeneration(newFileID, useOriginalImageThresholdSize+1)
-			r.NoError(err)
+			newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix()+5, useOriginalImageThresholdSize+1)
 
-			rc, err := service.OpenThumbnail(ctx, newThumbnailID)
+			rc, _, err := service.OpenThumbnail(ctx, newFileID)
 			r.NoError(err)
 			rc.Close()
 			r.Equal(2, openFileFnCount)
@@ -121,11 +137,9 @@ func TestThumbnailService(t *testing.T) {
 
 		// Same path, but different size.
 		{
-			newFileID := rview.NewFileID(fileID.GetPath(), time.Now().Unix(), 15)
-			newThumbnailID, err := service.StartThumbnailGeneration(newFileID, useOriginalImageThresholdSize+1)
-			r.NoError(err)
+			newFileID := rview.NewFileID(fileID.GetPath(), fileID.GetModTime().Unix(), useOriginalImageThresholdSize+2)
 
-			rc, err := service.OpenThumbnail(ctx, newThumbnailID)
+			rc, _, err := service.OpenThumbnail(ctx, newFileID)
 			r.NoError(err)
 			rc.Close()
 			r.Equal(3, openFileFnCount)
@@ -141,7 +155,7 @@ func TestThumbnailService(t *testing.T) {
 			func(context.Context, rview.FileID) (io.ReadCloser, error) {
 				return io.NopCloser(bytes.NewReader([]byte("long phrase to exceed threshold"))), nil
 			},
-			func(_, cacheFile string, thumbnailID rview.ThumbnailID) error {
+			func(_, cacheFile string, thumbnailID ThumbnailID) error {
 				// File must be created by vips, emulate it.
 				f, err := os.Create(cacheFile)
 				r.NoError(err)
@@ -153,12 +167,9 @@ func TestThumbnailService(t *testing.T) {
 			},
 		)
 
-		fileID := rview.NewFileID("2.jpg", time.Now().Unix(), 0)
+		fileID := rview.NewFileID("2.jpg", time.Now().Unix(), useOriginalImageThresholdSize+1)
 
-		thumbnailID, err := service.StartThumbnailGeneration(fileID, useOriginalImageThresholdSize+1)
-		r.NoError(err)
-
-		_, err = service.OpenThumbnail(ctx, thumbnailID)
+		_, _, err = service.OpenThumbnail(ctx, fileID)
 		r.ErrorIs(err, rview.ErrCacheMiss)
 
 		// Cache file must be removed.
@@ -174,7 +185,7 @@ func TestThumbnailService(t *testing.T) {
 			func(context.Context, rview.FileID) (io.ReadCloser, error) {
 				return io.NopCloser(bytes.NewReader([]byte("x"))), nil
 			},
-			func(_, _ string, _ rview.ThumbnailID) error {
+			func(_, _ string, _ ThumbnailID) error {
 				resizeCalled = true
 				return errors.New("should not be called")
 			},
@@ -182,10 +193,7 @@ func TestThumbnailService(t *testing.T) {
 
 		fileID := rview.NewFileID("3.jpg", time.Now().Unix(), 0)
 
-		thumbnailID, err := service.StartThumbnailGeneration(fileID, 1)
-		r.NoError(err)
-
-		rc, err := service.OpenThumbnail(ctx, thumbnailID)
+		rc, _, err := service.OpenThumbnail(ctx, fileID)
 		r.NoError(err)
 		data, err := io.ReadAll(rc)
 		r.NoError(err)
@@ -231,7 +239,7 @@ func TestThumbnailService_NewThumbnailID(t *testing.T) {
 	}
 }
 
-// TestThumbnailService_ImageType checks that a thumbnail extension matches the actual image type.
+// TestThumbnailService_ImageType checks that content type matches the actual image type.
 func TestThumbnailService_ImageType(t *testing.T) {
 	t.Parallel()
 
@@ -269,9 +277,9 @@ func TestThumbnailService_ImageType(t *testing.T) {
 		require.True(t, bytes.Contains(data, []byte("ftypavif")), "no avif signature")
 	}
 	type Test struct {
-		file              string
-		wantThumbnailPath string
-		checkImageType    func(*testing.T, []byte)
+		file            string
+		wantContentType string
+		checkImageType  func(*testing.T, []byte)
 	}
 	for _, tt := range []struct {
 		thumbnailsFormat rview.ThumbnailsFormat
@@ -280,19 +288,19 @@ func TestThumbnailService_ImageType(t *testing.T) {
 		{
 			thumbnailsFormat: rview.JpegThumbnails,
 			tests: []Test{
-				{file: "small.jpeg", wantThumbnailPath: "small.jpeg", checkImageType: checkJPEG},
-				{file: "large.jpg", wantThumbnailPath: "large.thumbnail.jpg", checkImageType: checkJPEG},
-				{file: "small.png", wantThumbnailPath: "small.png", checkImageType: checkPNG},
-				{file: "large.png", wantThumbnailPath: "large.thumbnail.png.jpeg", checkImageType: checkJPEG},
+				{file: "small.jpeg", wantContentType: "image/jpeg", checkImageType: checkJPEG},
+				{file: "large.jpg", wantContentType: "image/jpeg", checkImageType: checkJPEG},
+				{file: "small.png", wantContentType: "image/png", checkImageType: checkPNG},
+				{file: "large.png", wantContentType: "image/jpeg", checkImageType: checkJPEG},
 			},
 		},
 		{
 			thumbnailsFormat: rview.AvifThumbnails,
 			tests: []Test{
-				{file: "small.jpeg", wantThumbnailPath: "small.jpeg", checkImageType: checkJPEG},
-				{file: "large.jpg", wantThumbnailPath: "large.thumbnail.jpg.avif", checkImageType: checkAVIF},
-				{file: "small.png", wantThumbnailPath: "small.png", checkImageType: checkPNG},
-				{file: "large.png", wantThumbnailPath: "large.thumbnail.png.avif", checkImageType: checkAVIF},
+				{file: "small.jpeg", wantContentType: "image/jpeg", checkImageType: checkJPEG},
+				{file: "large.jpg", wantContentType: "image/avif", checkImageType: checkAVIF},
+				{file: "small.png", wantContentType: "image/png", checkImageType: checkPNG},
+				{file: "large.png", wantContentType: "image/avif", checkImageType: checkAVIF},
 			},
 		},
 	} {
@@ -314,18 +322,16 @@ func TestThumbnailService_ImageType(t *testing.T) {
 					openFileFn := func(context.Context, rview.FileID) (io.ReadCloser, error) {
 						return io.NopCloser(bytes.NewReader(img.rawImage)), nil
 					}
-
 					service := NewThumbnailService(openFileFn, cache, 1, thumbnailsFormat)
-					thumbnailID, err := service.StartThumbnailGeneration(rview.NewFileID(tt.file, 0, 0), img.size)
-					r.NoError(err)
-					r.Equal(tt.wantThumbnailPath, thumbnailID.GetPath())
 
-					rc, err := service.OpenThumbnail(context.Background(), thumbnailID)
+					fileID := rview.NewFileID(tt.file, 0, img.size)
+					rc, contentType, err := service.OpenThumbnail(context.Background(), fileID)
 					r.NoError(err)
 					defer rc.Close()
 					rawThumbnail, err := io.ReadAll(rc)
 					r.NoError(err)
 					tt.checkImageType(t, rawThumbnail)
+					r.Equal(tt.wantContentType, contentType)
 				})
 			}
 		})

@@ -13,6 +13,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -420,8 +421,16 @@ func TestAPI_Thumbnails(t *testing.T) {
 
 	r := require.New(t)
 
-	generateImage := func(name string, size int, modTimeMonth time.Month) (modTime time.Time) {
-		filepath := path.Join("testdata", name)
+	dir := filepath.Join("./testdata", "generated")
+	err := os.MkdirAll(dir, 0700)
+	r.NoError(err)
+	t.Cleanup(func() {
+		err := os.Remove(dir)
+		r.NoError(err)
+	})
+
+	generateImage := func(name string, size int) {
+		filepath := path.Join(dir, name)
 
 		// Generate an image with a pattern to make the final file bigger.
 		img := image.NewRGBA(image.Rect(0, 0, size, size))
@@ -442,106 +451,30 @@ func TestAPI_Thumbnails(t *testing.T) {
 
 		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 95})
 		r.NoError(err)
-
 		r.NoError(f.Close())
-
-		modTime = time.Date(2023, modTimeMonth, 11, 0, 0, 0, 0, time.UTC)
-		err = os.Chtimes(filepath, modTime, modTime)
-		r.NoError(err)
-
-		return modTime
 	}
 
-	const (
-		testFile     = "Other/test-thumbnails/cloudy-g1a943401b_640.png"
-		testFileSize = 11502
+	generateImage("small.jpeg", 50)
+	generateImage("large.jpeg", 500)
 
-		generatedFile     = "Other/test-thumbnails/generated.jpeg"
-		generatedFileSize = 228314
-	)
-
-	// Generate large image.
-	generatedFileModTime := generateImage(generatedFile, 500, time.March)
-
-	testFileTime := mustParseTime(t, TestDataModTimes[testFile])
-	testFileThumbnailURL := fmt.Sprintf(
-		"/api/thumbnail/Other/test-thumbnails/cloudy-g1a943401b_640.png?mod_time=%d&size=%d",
-		testFileTime.Unix(), testFileSize,
-	)
-
-	generatedFileThumbnailURL := fmt.Sprintf(
-		"/api/thumbnail/Other/test-thumbnails/generated.thumbnail.jpeg?mod_time=%d&size=%d",
-		generatedFileModTime.Unix(), generatedFileSize,
-	)
-
-	// Thumbnails were not generated yet.
-	for _, url := range []string{
-		testFileThumbnailURL,
-		generatedFileThumbnailURL,
-	} {
-		status, _, _ := makeRequest(t, url)
-		r.Equal(404, status)
-	}
-
-	// Requesting dir info must send tasks to generate thumbnails.
-	info := getDirInfo(t, path.Dir(testFile), "")
-	r.NotEmpty(info.Entries)
+	info := getDirInfo(t, "generated", "")
+	r.Len(info.Entries, 2)
 	for _, entry := range info.Entries {
+		r.NotEmpty(entry.ThumbnailURL)
+
+		status, thumbnailBody, header := makeRequest(t, entry.ThumbnailURL)
+		r.Equal(200, status)
+		r.Equal("image/jpeg", header.Get("Content-Type"))
+
 		switch entry.Filename {
-		case path.Base(testFile):
-			r.Equal(testFileThumbnailURL, entry.ThumbnailURL)
-		case path.Base(generatedFile):
-			r.Equal(generatedFileThumbnailURL, entry.ThumbnailURL)
-		case "credits.txt":
-			// Ok
+		case "small.jpeg":
+			r.Equal(len(thumbnailBody), int(entry.Size)) // the original image was small enough
+		case "large.jpeg":
+			r.Less(len(thumbnailBody), int(entry.Size)) // image should be resized
 		default:
 			t.Fatalf("unexpected file %q", entry.Filename)
 		}
 	}
-
-	// Thumbnails must be ready.
-	var generatedFileThumbnailSize int
-	for _, largeFile := range []bool{false, true} {
-		fileURL, thumbnailURL, modTime, size := testFile, testFileThumbnailURL, testFileTime, testFileSize
-		if largeFile {
-			fileURL, thumbnailURL, modTime, size = generatedFile, generatedFileThumbnailURL, generatedFileModTime, generatedFileSize
-		}
-		fileURL = fmt.Sprintf("/api/file/%s?mod_time=%d&size=%d", fileURL, modTime.Unix(), size)
-
-		status, thumbnailBody, _ := makeRequest(t, thumbnailURL)
-		r.Equal(200, status)
-
-		status, fileBody, _ := makeRequest(t, fileURL)
-		r.Equal(200, status)
-
-		if !largeFile {
-			r.Equal(len(thumbnailBody), len(fileBody))
-		} else {
-			r.Less(len(thumbnailBody), len(fileBody))
-		}
-
-		if thumbnailURL == generatedFileThumbnailURL {
-			generatedFileThumbnailSize = len(thumbnailBody)
-		}
-	}
-
-	// We should return different thumbnail url for edited file.
-
-	generateImage(generatedFile, 499, time.April)
-
-	var newGeneratedFileThumbnailURL string
-	info = getDirInfo(t, path.Dir(testFile), "")
-	for _, entry := range info.Entries {
-		if entry.Filename == path.Base(generatedFile) {
-			newGeneratedFileThumbnailURL = entry.ThumbnailURL
-		}
-	}
-	r.NotEmpty(newGeneratedFileThumbnailURL)
-	r.NotEqual(newGeneratedFileThumbnailURL, generatedFileThumbnailURL)
-
-	status, newThumbnailBody, _ := makeRequest(t, newGeneratedFileThumbnailURL)
-	r.Equal(200, status)
-	r.NotEqual(len(newThumbnailBody), generatedFileThumbnailSize)
 }
 
 func TestAPI_Search(t *testing.T) {

@@ -120,14 +120,9 @@ type CacheCleaner interface {
 	Shutdown(ctx context.Context) error
 }
 
-type ThumbnailID struct {
-	FileID
-}
-
 type ThumbnailService interface {
 	CanGenerateThumbnail(FileID) bool
-	OpenThumbnail(context.Context, ThumbnailID) (io.ReadCloser, error)
-	StartThumbnailGeneration(id FileID, size int64) (ThumbnailID, error)
+	OpenThumbnail(context.Context, FileID) (rc io.ReadCloser, contentType string, err error)
 	Shutdown(context.Context) error
 }
 

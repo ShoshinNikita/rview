@@ -1,13 +1,9 @@
 package web
 
 import (
-	"context"
-	"errors"
-	"io"
 	"testing"
 	"time"
 
-	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/thumbnails"
 	"github.com/stretchr/testify/require"
@@ -24,7 +20,6 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				{URL: "c.png"},
 				{URL: "c.bmp"},
 				{URL: "d.zip"},
-				{URL: "error.jpg"},
 			},
 		}
 	}
@@ -42,12 +37,11 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 	t.Run("thumbnails mode", func(t *testing.T) {
 		r := require.New(t)
 
-		stub := newThumbnailServiceStub()
-		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeThumbnails}, nil, stub, nil)
+		thumbnailService := thumbnails.NewThumbnailService(nil, nil, 0, rview.JpegThumbnails)
+		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeThumbnails}, nil, thumbnailService, nil)
 
 		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")
 		r.NoError(err)
-		r.Equal(3, stub.taskCount)
 		resetUnnecessaryFields(&gotInfo)
 		r.Equal(
 			[]DirEntry{
@@ -57,11 +51,11 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				},
 				{
 					Filename: "b.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/thumbnail/b.jpg-stub?mod_time=0&size=0", CanPreview: true,
+					ThumbnailURL: "/api/thumbnail/b.jpg?mod_time=0&size=0", CanPreview: true,
 				},
 				{
 					Filename: "c.png", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/thumbnail/c.png-stub?mod_time=0&size=0", CanPreview: true,
+					ThumbnailURL: "/api/thumbnail/c.png?mod_time=0&size=0", CanPreview: true,
 				},
 				{
 					Filename: "c.bmp", FileType: rview.FileTypeImage,
@@ -70,10 +64,6 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				{
 					Filename: "d.zip", FileType: rview.FileTypeUnknown,
 					ThumbnailURL: "", // no thumbnail: archive
-				},
-				{
-					Filename: "error.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "", // no thumbnail: got error
 				},
 			},
 			gotInfo.Entries,
@@ -108,10 +98,6 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				{
 					Filename: "d.zip", FileType: rview.FileTypeUnknown,
 				},
-				{
-					Filename: "error.jpg", FileType: rview.FileTypeImage,
-					ThumbnailURL: "/api/file/error.jpg?mod_time=0&size=0", CanPreview: true,
-				},
 			},
 			gotInfo.Entries,
 		)
@@ -132,46 +118,8 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 				{Filename: "c.png", FileType: rview.FileTypeImage},
 				{Filename: "c.bmp", FileType: rview.FileTypeImage},
 				{Filename: "d.zip", FileType: rview.FileTypeUnknown},
-				{Filename: "error.jpg", FileType: rview.FileTypeImage},
 			},
 			gotInfo.Entries,
 		)
 	})
-}
-
-type thumbnailServiceStub struct {
-	s rview.ThumbnailService
-
-	taskCount int
-}
-
-func newThumbnailServiceStub() *thumbnailServiceStub {
-	return &thumbnailServiceStub{
-		s: thumbnails.NewThumbnailService(nil, cache.NewInMemoryCache(), 0, rview.JpegThumbnails),
-	}
-}
-
-func (s *thumbnailServiceStub) StartThumbnailGeneration(id rview.FileID, _ int64) (rview.ThumbnailID, error) {
-	s.taskCount++
-
-	if id.GetName() == "error.jpg" {
-		return rview.ThumbnailID{}, errors.New("error")
-	}
-
-	thumbnailID := rview.ThumbnailID{
-		FileID: rview.NewFileID(id.GetPath()+"-stub", id.GetModTime().Unix(), id.GetSize()),
-	}
-	return thumbnailID, nil
-}
-
-func (s *thumbnailServiceStub) CanGenerateThumbnail(id rview.FileID) bool {
-	return s.s.CanGenerateThumbnail(id)
-}
-
-func (s *thumbnailServiceStub) OpenThumbnail(ctx context.Context, id rview.ThumbnailID) (io.ReadCloser, error) {
-	return s.s.OpenThumbnail(ctx, id)
-}
-
-func (s *thumbnailServiceStub) Shutdown(ctx context.Context) error {
-	return s.s.Shutdown(ctx)
 }

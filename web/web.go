@@ -11,7 +11,6 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
-	"mime"
 	"net/http"
 	"net/http/pprof"
 	"net/url"
@@ -393,7 +392,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 					thumbnailURL = originalFileURL
 				case rview.ImagePreviewModeThumbnails:
 					if s.thumbnailService.CanGenerateThumbnail(id) {
-						thumbnailURL = s.startThumbnailGeneration(id, entry.Size, info.dirURL)
+						thumbnailURL = fileIDToURL("/api/thumbnail", info.dirURL, id)
 					}
 				}
 				if thumbnailURL != "" {
@@ -437,18 +436,6 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 	return info, nil
 }
 
-func (s *Server) startThumbnailGeneration(id rview.FileID, size int64, dirURL *url.URL) (thumbnailURL string) {
-	thumbnailID, err := s.thumbnailService.StartThumbnailGeneration(id, size)
-	if err != nil {
-		rlog.Errorf("couldn't send task to generate thumbnail for file %q: %s", id, err)
-		return ""
-	}
-
-	// Use the thumbnail id instead of the file id because we can use different image format
-	// for thumbnails. For we example, generate a JPEG thumbnail for a HEIC image.
-	return fileIDToURL("/api/thumbnail", dirURL, thumbnailID.FileID)
-}
-
 // handleFile proxies the request to Rclone that knows how to handle 'Range' headers and other nuances.
 func (s *Server) handleFile(w http.ResponseWriter, r *http.Request) {
 	fileID, err := fileIDFromRequest(r, "/api/file")
@@ -468,12 +455,10 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	thumbnailID := rview.ThumbnailID{FileID: id}
-
-	rc, err := s.thumbnailService.OpenThumbnail(r.Context(), thumbnailID)
+	rc, contentType, err := s.thumbnailService.OpenThumbnail(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, rview.ErrCacheMiss) {
-			writeError(w, http.StatusNotFound, "no thumbnail %q", id.GetPath())
+			writeError(w, http.StatusNotFound, "no thumbnail for %q, size %d, mod time %q", id.GetPath(), id.GetSize(), id.GetModTime())
 			return
 		}
 		writeBadRequestError(w, "couldn't open thumbnail: %s", err)
@@ -481,7 +466,6 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	}
 	defer rc.Close()
 
-	contentType := mime.TypeByExtension(thumbnailID.GetExt())
 	if contentType != "" {
 		w.Header().Set("Content-Type", contentType)
 	}

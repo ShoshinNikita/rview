@@ -20,14 +20,10 @@ func (NoopThumbnailService) CanGenerateThumbnail(rview.FileID) bool {
 	return false
 }
 
-func (NoopThumbnailService) StartThumbnailGeneration(rview.FileID, int64) (rview.ThumbnailID, error) {
-	return rview.ThumbnailID{}, ErrNoopThumbnailService
-}
-
 func (NoopThumbnailService) Shutdown(context.Context) error {
 	return nil
 }
 
-func (NoopThumbnailService) OpenThumbnail(context.Context, rview.ThumbnailID) (io.ReadCloser, error) {
-	return nil, ErrNoopThumbnailService
+func (NoopThumbnailService) OpenThumbnail(context.Context, rview.FileID) (io.ReadCloser, string, error) {
+	return nil, "", ErrNoopThumbnailService
 }
