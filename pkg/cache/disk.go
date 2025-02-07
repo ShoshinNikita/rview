@@ -1,7 +1,7 @@
 package cache
 
 import (
-	"crypto/md5" //nolint:gosec
+	"crypto/md5"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -117,7 +117,7 @@ func (c *DiskCache) generateFilepath(id rview.FileID) string {
 	modTime := id.GetModTime()
 	subdir := modTime.Format("2006-01")
 
-	hash := md5.Sum([]byte(id.GetPath())) //nolint:gosec
+	hash := md5.Sum([]byte(id.GetPath()))
 	name := hex.EncodeToString(hash[:])
 	filename := fmt.Sprintf("t%d_s%d_%s", modTime.Unix(), id.GetSize(), name+id.GetExt())
 

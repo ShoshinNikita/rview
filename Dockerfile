@@ -1,5 +1,5 @@
 # Build rview.
-FROM golang:1.23-alpine AS builder
+FROM golang:1.23-alpine3.21 AS builder
 
 WORKDIR /rview
 
@@ -17,7 +17,7 @@ FROM rclone/rclone:1.69 AS rclone-src
 RUN rclone --version
 
 
-# Build the final image.
+# Build the final image. The version should match one in test.Dockerfile.
 FROM alpine:3.21
 
 LABEL org.opencontainers.image.title="Rview"

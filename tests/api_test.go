@@ -76,6 +76,9 @@ func startTestRview() {
 			}
 
 			resp, err := http.DefaultClient.Get(rcloneAddr) //nolint:noctx
+			if resp != nil {
+				resp.Body.Close()
+			}
 			if err == nil && resp.StatusCode == 200 {
 				break
 			}
@@ -88,6 +91,9 @@ func startTestRview() {
 			}
 
 			resp, err := http.DefaultClient.Get(rviewAPIAddr + "/api/search?search=test") //nolint:noctx
+			if resp != nil {
+				resp.Body.Close()
+			}
 			if err == nil && resp.StatusCode == 200 {
 				break
 			}

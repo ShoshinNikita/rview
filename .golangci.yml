@@ -17,6 +17,8 @@ linters:
     - govet
     - ineffassign
     - intrange
+    - intrange
+    - mirror
     - misspell
     - nilerr
     - nilnil
@@ -27,12 +29,13 @@ linters:
     - staticcheck
     - stylecheck
     - tagliatelle
-    - typecheck
     - testifylint
+    - typecheck
     - unconvert
     - unparam
-    - wastedassign
     - unused
+    - usetesting
+    - wastedassign
 
 linters-settings:
   errcheck:
@@ -45,22 +48,13 @@ linters-settings:
       use-field-name: true
       rules:
         json: snake
+  gosec:
+    excludes:
+      - G203 # Use of unescaped data in HTML templates
+      - G401 # Detect the usage of MD5 or SHA1
+      - G501 # Import blocklist: crypto/md5
 
 issues:
-  exclude:
-    # Ignore underscores in test functions
-    - "use underscores in Go names; (?:func|type) (?:T|t)est"
-
-  exclude-rules:
-    - linters: [bodyclose]
-      path: _test\.go
-    - linters: [gosec]
-      text: "G203: The used method does not auto-escape HTML"
-    - linters: [revive]
-      text: "var-naming"
-    - linters: [stylecheck]
-      text: "ST1003"
-
   # Display all issues
   max-issues-per-linter: 0
   max-same-issues: 0

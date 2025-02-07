@@ -21,6 +21,7 @@ func NewTemplatesFS(readFromDisk bool) fs.FS {
 //go:embed css
 var stylesFS embed.FS
 
+//nolint:stylecheck,revive
 func NewCssFS(readFromDisk bool) fs.FS {
 	return newFS(stylesFS, "css", readFromDisk)
 }
