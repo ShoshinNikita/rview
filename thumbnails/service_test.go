@@ -9,6 +9,7 @@ import (
 	"image/png"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -31,13 +32,13 @@ func TestThumbnailService(t *testing.T) {
 
 	newService := func(
 		t *testing.T,
-		openFileFn rview.OpenFileFn,
+		openFileFn func(ctx context.Context, id rview.FileID) (io.ReadCloser, error),
 		resizeFn func(originalFile, cacheFile string, id ThumbnailID, size rview.ThumbnailSize) error,
 	) *ThumbnailService {
 
 		service := NewThumbnailService(nil, cache, 2, rview.JpegThumbnails)
 		service.useOriginalImageThresholdSize = useOriginalImageThresholdSize
-		service.openFileFn = openFileFn
+		service.rclone = rcloneMock{openFileFn: openFileFn}
 		service.resizeFn = resizeFn
 
 		t.Cleanup(func() {
@@ -319,10 +320,12 @@ func TestThumbnailService_ImageType(t *testing.T) {
 					r.True(ok)
 					r.Equal(int(img.size), len(img.rawImage), "wrong image size") //nolint:testifylint
 
-					openFileFn := func(context.Context, rview.FileID) (io.ReadCloser, error) {
-						return io.NopCloser(bytes.NewReader(img.rawImage)), nil
+					rclone := rcloneMock{
+						openFileFn: func(context.Context, rview.FileID) (io.ReadCloser, error) {
+							return io.NopCloser(bytes.NewReader(img.rawImage)), nil
+						},
 					}
-					service := NewThumbnailService(openFileFn, cache, 1, thumbnailsFormat)
+					service := NewThumbnailService(rclone, cache, 1, thumbnailsFormat)
 
 					fileID := rview.NewFileID(tt.file, 0, img.size)
 					rc, contentType, err := service.OpenThumbnail(context.Background(), fileID, "")
@@ -336,4 +339,84 @@ func TestThumbnailService_ImageType(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestThumbnailService_AllImageTypes checks that we can successfully generate
+// thumbnails for all supported image types.
+func TestThumbnailService_AllImageTypes(t *testing.T) {
+	cache, err := cache.NewDiskCache(t.TempDir())
+	require.NoError(t, err)
+
+	type Test struct {
+		imageType       string
+		file            string
+		wantContentType string
+		sameSize        bool
+	}
+	runTests := func(t *testing.T, format rview.ThumbnailsFormat, tests []Test) {
+		for _, tt := range tests {
+			t.Run(tt.imageType, func(t *testing.T) {
+				r := require.New(t)
+
+				originalImage, err := os.ReadFile(filepath.Join("../tests/testdata", tt.file))
+				r.NoError(err)
+
+				mock := rcloneMock{
+					openFileFn: func(context.Context, rview.FileID) (io.ReadCloser, error) {
+						return io.NopCloser(bytes.NewReader(originalImage)), nil
+					},
+				}
+				thumbnailService := NewThumbnailService(mock, cache, 1, format)
+				thumbnailService.GenerateThumbnailsForSmallFiles()
+
+				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				defer cancel()
+
+				fileID := rview.NewFileID(tt.file, 0, 0)
+				rc, contentType, err := thumbnailService.OpenThumbnail(ctx, fileID, "")
+				r.NoError(err)
+				defer rc.Close()
+
+				thumbnail, err := io.ReadAll(rc)
+				r.NoError(err)
+				if tt.sameSize {
+					r.Equal(len(thumbnail), len(originalImage), "size of thumbnail and original file should be equal")
+				} else {
+					r.NotEqual(len(thumbnail), len(originalImage), "size of thumbnail and original file should differ")
+				}
+
+				r.Equal(tt.wantContentType, contentType)
+			})
+		}
+	}
+
+	t.Run("jpeg", func(t *testing.T) {
+		runTests(t, rview.JpegThumbnails, []Test{
+			{imageType: "jpg", file: "Images/birds-g64b44607c_640.jpg", wantContentType: "image/jpeg"},
+			{imageType: "png", file: "Images/ytrewq.png", wantContentType: "image/jpeg"},
+			{imageType: "webp", file: "Images/qwerty.webp", wantContentType: "image/webp"},
+			{imageType: "heic", file: "Images/asdfgh.heic", wantContentType: "image/jpeg"}, // we should generate .jpeg thumbnails for .heic images
+			{imageType: "avif", file: "Images/sky.avif", wantContentType: "image/avif"},
+			{imageType: "gif", file: "test.gif", wantContentType: "image/gif", sameSize: true}, // we save the original file
+		})
+	})
+
+	t.Run("avif", func(t *testing.T) {
+		runTests(t, rview.AvifThumbnails, []Test{
+			{imageType: "jpg", file: "Images/birds-g64b44607c_640.jpg", wantContentType: "image/avif"},
+			{imageType: "png", file: "Images/ytrewq.png", wantContentType: "image/avif"},
+			{imageType: "webp", file: "Images/qwerty.webp", wantContentType: "image/webp"},
+			{imageType: "heic", file: "Images/asdfgh.heic", wantContentType: "image/avif"}, // we should generate .avif thumbnails for .heic images
+			{imageType: "avif", file: "Images/sky.avif", wantContentType: "image/avif"},
+			{imageType: "gif", file: "test.gif", wantContentType: "image/gif", sameSize: true}, // we save the original file
+		})
+	})
+}
+
+type rcloneMock struct {
+	openFileFn func(context.Context, rview.FileID) (io.ReadCloser, error)
+}
+
+func (x rcloneMock) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+	return x.openFileFn(ctx, id)
 }

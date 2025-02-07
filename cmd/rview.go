@@ -68,7 +68,7 @@ func (r *Rview) Prepare() (err error) {
 
 		r.thumbnailCleaner = cache.NewCleaner(thumbnailsCacheDir, maxFileAge, maxTotalFileSize)
 		r.thumbnailService = thumbnails.NewThumbnailService(
-			r.rcloneInstance.GetFile, thumbnailsCache, r.cfg.ThumbnailsWorkersCount, r.cfg.ThumbnailsFormat,
+			r.rcloneInstance, thumbnailsCache, r.cfg.ThumbnailsWorkersCount, r.cfg.ThumbnailsFormat,
 		)
 
 	} else {

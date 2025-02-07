@@ -37,9 +37,9 @@ var (
 )
 
 type ThumbnailService struct {
-	cache      rview.Cache
-	openFileFn rview.OpenFileFn
-	resizeFn   func(originalFile, cacheFile string, id ThumbnailID, size rview.ThumbnailSize) error
+	cache    rview.Cache
+	rclone   Rclone
+	resizeFn func(originalFile, cacheFile string, id ThumbnailID, size rview.ThumbnailSize) error
 	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
 	// used without resizing. The main purpose of resizing is to reduce image size, and with small
 	// files it is not always possible - after resizing they become just larger.
@@ -54,6 +54,10 @@ type ThumbnailService struct {
 
 	stopped       *atomic.Bool
 	workersDoneCh chan struct{}
+}
+
+type Rclone interface {
+	OpenFile(context.Context, rview.FileID) (io.ReadCloser, error)
 }
 
 type ThumbnailID struct {
@@ -81,12 +85,11 @@ func CheckVips() error {
 // For some images we can generate thumbnails of different formats. For example,
 // for .heic images we generate .jpeg thumbnails.
 func NewThumbnailService(
-	openFileFn rview.OpenFileFn, cache rview.Cache, workersCount int,
-	thumbnailsFormat rview.ThumbnailsFormat,
+	rclone Rclone, cache rview.Cache, workersCount int, thumbnailsFormat rview.ThumbnailsFormat,
 ) *ThumbnailService {
 
 	r := &ThumbnailService{
-		openFileFn:                    openFileFn,
+		rclone:                        rclone,
 		cache:                         cache,
 		resizeFn:                      resizeWithVips,
 		useOriginalImageThresholdSize: 200 << 10, // 200 KiB
@@ -179,7 +182,7 @@ type stats struct {
 }
 
 func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbnailTask) (finalStats stats, err error) {
-	rc, err := s.openFileFn(ctx, task.fileID)
+	rc, err := s.rclone.OpenFile(ctx, task.fileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get image reader: %w", err)
 	}

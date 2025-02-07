@@ -80,7 +80,7 @@ func IsRcloneNotFoundError(err error) bool {
 }
 
 type Rclone interface {
-	GetFile(ctx context.Context, id FileID) (io.ReadCloser, error)
+	OpenFile(ctx context.Context, id FileID) (io.ReadCloser, error)
 	GetDirInfo(ctx context.Context, path string, sort, order string) (*RcloneDirInfo, error)
 	ProxyFileRequest(id FileID, w http.ResponseWriter, req *http.Request)
 }
@@ -132,8 +132,6 @@ type ThumbnailService interface {
 	OpenThumbnail(context.Context, FileID, ThumbnailSize) (rc io.ReadCloser, contentType string, err error)
 	Shutdown(context.Context) error
 }
-
-type OpenFileFn func(ctx context.Context, id FileID) (io.ReadCloser, error)
 
 type SearchService interface {
 	GetMinSearchLength() int

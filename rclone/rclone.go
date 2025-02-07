@@ -217,7 +217,7 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 	}
 }
 
-func (r *Rclone) GetFile(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+func (r *Rclone) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
 	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
 
 	now := time.Now()
