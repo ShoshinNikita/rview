@@ -39,7 +39,7 @@ var (
 type ThumbnailService struct {
 	cache      rview.Cache
 	openFileFn rview.OpenFileFn
-	resizeFn   func(originalFile, cacheFile string, id ThumbnailID) error
+	resizeFn   func(originalFile, cacheFile string, id ThumbnailID, size rview.ThumbnailSize) error
 	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
 	// used without resizing. The main purpose of resizing is to reduce image size, and with small
 	// files it is not always possible - after resizing they become just larger.
@@ -64,6 +64,7 @@ type generateThumbnailTask struct {
 	fileID      rview.FileID
 	thumbnailID ThumbnailID
 	useOriginal bool
+	size        rview.ThumbnailSize
 }
 
 func CheckVips() error {
@@ -224,7 +225,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		}, nil
 	}
 
-	err = s.resizeFn(tempFile.Name(), cacheFilepath, task.thumbnailID)
+	err = s.resizeFn(tempFile.Name(), cacheFilepath, task.thumbnailID, task.size)
 	if err != nil {
 		if err := s.cache.Remove(task.thumbnailID.FileID); err != nil {
 			rlog.Errorf("couldn't remove thumbnail for %s after resize error: %s", task.fileID, err)
@@ -277,7 +278,7 @@ func createCacheFileFromTempFile(tempFile *os.File, cacheFilepath string, origin
 // than the original ones.
 //
 // See https://www.libvips.org/API/current/Using-vipsthumbnail.html for "vipsthumbnail" docs.
-func resizeWithVips(originalFile, cacheFile string, id ThumbnailID) error {
+func resizeWithVips(originalFile, cacheFile string, id ThumbnailID, thumbnailSize rview.ThumbnailSize) error {
 	output := cacheFile
 	switch t := getImageType(id.FileID); t {
 	// Ignore .heic, .png and etc. because thumbnail id must already have the correct extension.
@@ -296,11 +297,16 @@ func resizeWithVips(originalFile, cacheFile string, id ThumbnailID) error {
 		return fmt.Errorf("unsupported thumbnail format: %q", t)
 	}
 
+	size := "1024>"
+	if thumbnailSize == rview.ThumbnailLarge {
+		size = "2048>"
+	}
+
 	cmd := exec.Command(
 		"vipsthumbnail",
 		"--rotate", // auto-rotate
 		originalFile,
-		"--size", "1024>",
+		"--size", size,
 		"-o", output,
 	)
 	stderr := bytes.NewBuffer(nil)
@@ -341,7 +347,10 @@ func getImageType(id rview.FileID) imageType {
 
 // OpenThumbnail returns [io.ReadCloser] for the image thumbnail. It generates a new thumbnail if needed.
 // Only the first call to OpenThumbnail generates a thumbnail.
-func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.FileID) (_ io.ReadCloser, contentType string, err error) {
+func (s *ThumbnailService) OpenThumbnail(
+	ctx context.Context, id rview.FileID, size rview.ThumbnailSize,
+) (rc io.ReadCloser, contentType string, err error) {
+
 	if getImageType(id) == unsupportedImageType {
 		return nil, "", fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())
 	}
@@ -350,7 +359,7 @@ func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.FileID) (
 
 	useOriginal := s.shouldUseOriginalImage(id)
 	if !useOriginal {
-		thumbnailID, err = s.newThumbnailID(id)
+		thumbnailID, err = s.newThumbnailID(id, size)
 		if err != nil {
 			return nil, "", fmt.Errorf("couldn't get thumbnail id: %w", err)
 		}
@@ -381,6 +390,7 @@ func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.FileID) (
 			fileID:      id,
 			thumbnailID: thumbnailID,
 			useOriginal: useOriginal,
+			size:        size,
 		}
 	}
 
@@ -400,7 +410,7 @@ func (s *ThumbnailService) OpenThumbnail(ctx context.Context, id rview.FileID) (
 		}
 	}
 
-	rc, err := s.cache.Open(thumbnailID.FileID)
+	rc, err = s.cache.Open(thumbnailID.FileID)
 	return rc, contentType, err
 }
 
@@ -419,18 +429,26 @@ func (s *ThumbnailService) shouldUseOriginalImage(id rview.FileID) bool {
 }
 
 // newThumbnailID converts [rview.FileID] to [ThumbnailID].
-func (s *ThumbnailService) newThumbnailID(id rview.FileID) (ThumbnailID, error) {
+func (s *ThumbnailService) newThumbnailID(id rview.FileID, size rview.ThumbnailSize) (ThumbnailID, error) {
 	path := id.GetPath()
-	originalExt := pkgPath.Ext(path)
-	path = strings.TrimSuffix(path, originalExt)
 
 	newExt, err := s.getThumbnailExt(id)
 	if err != nil {
 		return ThumbnailID{}, err
 	}
 
-	// Add .thumbnail to be able to more easily distinguish thumbnails from original files.
-	path += ".thumbnail" + originalExt + newExt
+	suffix := ".thumbnail"
+	if size == rview.ThumbnailLarge {
+		suffix += "-large"
+	}
+	if newExt == "" {
+		originalExt := pkgPath.Ext(path)
+		path = strings.TrimSuffix(path, originalExt)
+		path = path + suffix + originalExt
+	} else {
+		path = path + suffix + newExt
+
+	}
 
 	return ThumbnailID{
 		FileID: rview.NewFileID(path, id.GetModTime().Unix(), id.GetSize()),

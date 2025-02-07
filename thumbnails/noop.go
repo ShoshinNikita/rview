@@ -24,6 +24,6 @@ func (NoopThumbnailService) Shutdown(context.Context) error {
 	return nil
 }
 
-func (NoopThumbnailService) OpenThumbnail(context.Context, rview.FileID) (io.ReadCloser, string, error) {
+func (NoopThumbnailService) OpenThumbnail(context.Context, rview.FileID, rview.ThumbnailSize) (io.ReadCloser, string, error) {
 	return nil, "", ErrNoopThumbnailService
 }

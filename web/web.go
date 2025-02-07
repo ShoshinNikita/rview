@@ -455,7 +455,12 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	rc, contentType, err := s.thumbnailService.OpenThumbnail(r.Context(), id)
+	size := rview.ThumbnailSmall
+	if r.FormValue("thumbnail_size") == "large" {
+		size = rview.ThumbnailLarge
+	}
+
+	rc, contentType, err := s.thumbnailService.OpenThumbnail(r.Context(), id, size)
 	if err != nil {
 		if errors.Is(err, rview.ErrCacheMiss) {
 			writeError(w, http.StatusNotFound, "no thumbnail for %q, size %d, mod time %q", id.GetPath(), id.GetSize(), id.GetModTime())

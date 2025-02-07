@@ -45,7 +45,7 @@ func TestThumbnailGeneration(t *testing.T) {
 
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 				defer cancel()
-				rc, contentType, err := thumbnailService.OpenThumbnail(ctx, fileID)
+				rc, contentType, err := thumbnailService.OpenThumbnail(ctx, fileID, "")
 				r.NoError(err)
 				defer rc.Close()
 

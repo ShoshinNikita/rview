@@ -120,9 +120,16 @@ type CacheCleaner interface {
 	Shutdown(ctx context.Context) error
 }
 
+type ThumbnailSize string
+
+const (
+	ThumbnailSmall ThumbnailSize = ""
+	ThumbnailLarge ThumbnailSize = "large"
+)
+
 type ThumbnailService interface {
 	CanGenerateThumbnail(FileID) bool
-	OpenThumbnail(context.Context, FileID) (rc io.ReadCloser, contentType string, err error)
+	OpenThumbnail(context.Context, FileID, ThumbnailSize) (rc io.ReadCloser, contentType string, err error)
 	Shutdown(context.Context) error
 }
 

@@ -475,8 +475,7 @@
 				console.warn(`no <img> for ${currentEntry.filename}`);
 				return;
 			}
-			// 'img.src' contains the absolute url. So, we have to check the suffix.
-			if (img.src.endsWith(currentEntry.original_file_url)) {
+			if (img.src.includes("&thumbnail_size=")) {
 				return;
 			}
 
@@ -484,7 +483,7 @@
 			img.addEventListener("load", () => { img.style.filter = ""; });
 			img.style.filter = "blur(1px)";
 
-			img.src = currentEntry.original_file_url;
+			img.src = currentEntry.thumbnail_url + "&thumbnail_size=large";
 		});
 	}
 </script>

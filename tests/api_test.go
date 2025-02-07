@@ -449,28 +449,37 @@ func TestAPI_Thumbnails(t *testing.T) {
 			}
 		})
 
-		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 95})
+		err = jpeg.Encode(f, img, &jpeg.Options{Quality: 100})
 		r.NoError(err)
 		r.NoError(f.Close())
 	}
 
 	generateImage("small.jpeg", 50)
-	generateImage("large.jpeg", 500)
+	generateImage("medium.jpeg", 500)
+	generateImage("large.jpeg", 1500)
 
 	info := getDirInfo(t, "generated", "")
-	r.Len(info.Entries, 2)
+	r.Len(info.Entries, 3)
 	for _, entry := range info.Entries {
 		r.NotEmpty(entry.ThumbnailURL)
 
-		status, thumbnailBody, header := makeRequest(t, entry.ThumbnailURL)
+		status, smallRawThumbnail, header := makeRequest(t, entry.ThumbnailURL)
+		r.Equal(200, status)
+		r.Equal("image/jpeg", header.Get("Content-Type"))
+
+		status, largeRawThumbnail, header := makeRequest(t, entry.ThumbnailURL+"&thumbnail_size=large")
 		r.Equal(200, status)
 		r.Equal("image/jpeg", header.Get("Content-Type"))
 
 		switch entry.Filename {
 		case "small.jpeg":
-			r.Equal(len(thumbnailBody), int(entry.Size)) // the original image was small enough
+			r.Equal(len(smallRawThumbnail), int(entry.Size)) // the original image was small enough
+		case "medium.jpeg":
+			r.Less(len(smallRawThumbnail), int(entry.Size))         // image should be resized
+			r.Equal(len(smallRawThumbnail), len(largeRawThumbnail)) // image resolution is small, no difference
 		case "large.jpeg":
-			r.Less(len(thumbnailBody), int(entry.Size)) // image should be resized
+			r.Less(len(smallRawThumbnail), int(entry.Size))            // image should be resized
+			r.NotEqual(len(smallRawThumbnail), len(largeRawThumbnail)) // enough image resolution to see the difference
 		default:
 			t.Fatalf("unexpected file %q", entry.Filename)
 		}
