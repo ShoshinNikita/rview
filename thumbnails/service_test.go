@@ -10,6 +10,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -58,7 +59,7 @@ func TestThumbnailService(t *testing.T) {
 			func(_ context.Context, id rview.FileID) (io.ReadCloser, error) {
 				openFileFnCount++
 				time.Sleep(100 * time.Millisecond)
-				return io.NopCloser(bytes.NewReader([]byte("original-content-" + id.String()))), nil
+				return io.NopCloser(strings.NewReader(strings.Repeat("x", int(id.GetSize())))), nil
 			},
 			func(_, cacheFile string, id ThumbnailID, _ rview.ThumbnailSize) error {
 				resizedCount++
@@ -192,7 +193,7 @@ func TestThumbnailService(t *testing.T) {
 			},
 		)
 
-		fileID := rview.NewFileID("3.jpg", time.Now().Unix(), 0)
+		fileID := rview.NewFileID("3.jpg", time.Now().Unix(), 1)
 
 		rc, _, err := service.OpenThumbnail(ctx, fileID, "")
 		r.NoError(err)
@@ -372,7 +373,7 @@ func TestThumbnailService_AllImageTypes(t *testing.T) {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 				defer cancel()
 
-				fileID := rview.NewFileID(tt.file, 0, 0)
+				fileID := rview.NewFileID(tt.file, 0, int64(len(originalImage)))
 				rc, contentType, err := thumbnailService.OpenThumbnail(ctx, fileID, "")
 				r.NoError(err)
 				defer rc.Close()

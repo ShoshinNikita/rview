@@ -18,6 +18,7 @@ import (
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
+	"github.com/prometheus/client_golang/prometheus"
 )
 
 type imageType int
@@ -182,6 +183,7 @@ type stats struct {
 }
 
 func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbnailTask) (finalStats stats, err error) {
+	downloadImageTimer := prometheus.NewTimer(metrics.ThumbnailsDownloadImageDuration)
 	rc, err := s.rclone.OpenFile(ctx, task.fileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get image reader: %w", err)
@@ -207,6 +209,10 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't load image: %w", err)
 	}
+	if originalSize != task.fileID.GetSize() {
+		return stats{}, fmt.Errorf("temp file has wrong size, expected: %d, got: %d", task.fileID.GetSize(), originalSize)
+	}
+	downloadImageTimer.ObserveDuration()
 
 	// Don't close temp file right after the copy operation because we still may use it.
 
@@ -228,6 +234,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		}, nil
 	}
 
+	resizeTimer := prometheus.NewTimer(metrics.ThumbnailsResizeDuration)
 	err = s.resizeFn(tempFile.Name(), cacheFilepath, task.thumbnailID, task.size)
 	if err != nil {
 		if err := s.cache.Remove(task.thumbnailID.FileID); err != nil {
@@ -236,6 +243,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 
 		return stats{}, err
 	}
+	resizeTimer.ObserveDuration()
 
 	info, err := os.Stat(cacheFilepath)
 	if err != nil {

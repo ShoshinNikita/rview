@@ -84,6 +84,22 @@ var (
 			},
 		},
 	)
+	ThumbnailsDownloadImageDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: "thumbnails",
+			Name:      "download_image_duration_seconds",
+			Buckets:   []float64{0.1, 0.2, 0.35, 0.5, 1, 2, 3.5, 5},
+		},
+	)
+	ThumbnailsResizeDuration = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Namespace: namespace,
+			Subsystem: "thumbnails",
+			Name:      "resize_duration_seconds",
+			Buckets:   []float64{0.1, 0.2, 0.35, 0.5, 1, 2, 3.5, 5},
+		},
+	)
 	ThumbnailsProcessTaskDuration = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Namespace: namespace,
