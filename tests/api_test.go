@@ -132,6 +132,9 @@ func TestAPI_GetDirInfo(t *testing.T) {
 				Breadcrumbs: []web.DirBreadcrumb{
 					{Link: "/ui/", Text: "Home"},
 				},
+				DirCount:      4,
+				FileCount:     4,
+				TotalFileSize: 2849,
 				Entries: []web.DirEntry{
 					{
 						Filename:             "Audio",
@@ -229,6 +232,8 @@ func TestAPI_GetDirInfo(t *testing.T) {
 					{Link: "/ui/Other/a%20&%20b/", Text: "a & b"},
 					{Link: "/ui/Other/a%20&%20b/x/", Text: "x"},
 				},
+				FileCount:     1,
+				TotalFileSize: 4,
 				Entries: []web.DirEntry{
 					{
 						Filename:             "x & y.txt",
@@ -256,6 +261,8 @@ func TestAPI_GetDirInfo(t *testing.T) {
 					{Link: "/ui/Other/spe%27sial%20%21%20cha%3Cracters/x/", Text: "x"},
 					{Link: "/ui/Other/spe%27sial%20%21%20cha%3Cracters/x/y/", Text: "y"},
 				},
+				FileCount:     2,
+				TotalFileSize: 0,
 				Entries: []web.DirEntry{
 					{
 						Filename:             "a + b.txt",

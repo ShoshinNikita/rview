@@ -59,39 +59,39 @@
 		</div>
 
 		<div class="preview-side-panel">
-			<div class="preview-file-info">
+			<div class="g-property-list preview-file-info">
 				<div>
-					<span class="preview-file-info-key">Filename:</span>
-					<span class="preview-file-info-value" data-type="filename"></span>
+					<span class="g-property-name">Filename:</span>
+					<span class="g-property-value" data-type="filename"></span>
 				</div>
 				<div>
-					<span class="preview-file-info-key">Size:</span>
-					<span class="preview-file-info-value g-nowrap" data-type="size"></span>
+					<span class="g-property-name">Size:</span>
+					<span class="g-property-value g-nowrap" data-type="size"></span>
 				</div>
 				<div>
-					<span class="preview-file-info-key">Mod Time:</span>
-					<span class="preview-file-info-value g-nowrap" data-type="mod_time"></span>
+					<span class="g-property-name">Mod Time:</span>
+					<span class="g-property-value g-nowrap" data-type="mod_time"></span>
 				</div>
 			</div>
 
-			<div class="preview-file-info-mobile">
-				<div class="filename" title="Show more info">
-					<span class="preview-file-info-value" data-type="filename"></span>
+			<div class="g-tooltip-wrapper preview-file-info-mobile">
+				<div class="g-property-list filename" title="Show more info">
+					<span class="g-property-value" data-type="filename"></span>
 					<span class="more-info-icon"> {{ embedIcon "info" }} </span>
 				</div>
 
-				<div class="tooltip">
+				<div class="g-property-list g-tooltip">
 					<div>
-						<span class="preview-file-info-key">Filename:</span>
-						<span class="preview-file-info-value" data-type="filename"></span>
+						<span class="g-property-name">Filename:</span>
+						<span class="g-property-value" data-type="filename"></span>
 					</div>
 					<div>
-						<span class="preview-file-info-key">Size:</span>
-						<span class="preview-file-info-value g-nowrap" data-type="size"></span>
+						<span class="g-property-name">Size:</span>
+						<span class="g-property-value g-nowrap" data-type="size"></span>
 					</div>
 					<div>
-						<span class="preview-file-info-key">Mod Time:</span>
-						<span class="preview-file-info-value g-nowrap" data-type="mod_time"></span>
+						<span class="g-property-name">Mod Time:</span>
+						<span class="g-property-value g-nowrap" data-type="mod_time"></span>
 					</div>
 				</div>
 			</div>
@@ -133,7 +133,7 @@
 	const previewWrapper = document.getElementsByClassName("preview-wrapper")[0];
 	const previewContent = document.getElementsByClassName("preview-content")[0];
 	const previewCarousel = document.getElementsByClassName("preview-carousel")[0];
-	const fileInfos = document.getElementsByClassName("preview-file-info-value");
+	const fileInfos = document.querySelectorAll(".preview-side-panel .g-property-value");
 	const previousPreviewButton = document.querySelector(".switch-preview-button.prev");
 	const nextPreviewButton = document.querySelector(".switch-preview-button.next");
 

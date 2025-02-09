@@ -159,6 +159,42 @@ div.g-loader {
 	}
 }
 
+/* Tooltip */
+
+.g-tooltip {
+	background-color: var(--background-color);
+	border-radius: 3px;
+	border: 1px solid var(--border-color);
+	margin-top: 4px;
+	padding: 8px 12px;
+	position: absolute;
+	top: 100%;
+	visibility: hidden;
+	white-space: wrap;
+}
+
+.g-tooltip-wrapper:hover .g-tooltip {
+	visibility: visible;
+}
+
+/* File and dir properties */
+
+.g-property-list {
+	font-size: 18px;
+
+	&>*:not(:last-child) {
+		margin-bottom: 4px;
+	}
+
+	.g-property-name {
+		opacity: 0.6;
+	}
+
+	.g-property-value {
+		font-style: italic;
+	}
+}
+
 /* Scrollbar */
 
 * {

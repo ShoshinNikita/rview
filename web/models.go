@@ -20,6 +20,10 @@ type DirInfo struct {
 	// Entries contains info about files or directories in the current directory.
 	Entries []DirEntry `json:"entries"`
 
+	DirCount      int   `json:"dir_count"`
+	FileCount     int   `json:"file_count"`
+	TotalFileSize int64 `json:"total_file_size"`
+
 	// IsNotFound indicates whether the requested directory wasn't found.
 	IsNotFound bool `json:"is_not_found"`
 

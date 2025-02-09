@@ -35,9 +35,37 @@
 
 		<div class="header blurred">
 			<ul class="breadcrumbs">
-				{{ range .Breadcrumbs }}
+				{{ range $index, $breadcrumb := .Breadcrumbs }}
 				<li class="breadcrumb">
-					<a href="{{ .Link }}" class="breadcrumb-link">{{ .Text }}</a>
+					<a href="{{ $breadcrumb.Link }}" class="breadcrumb-link">{{ $breadcrumb.Text }}</a>
+
+					{{ if eq (len $.Breadcrumbs) (add $index 1) }}
+					<div class="dir-info g-tooltip-wrapper" onmouseover="updateDirInfoTooltipPosition()">
+						<div class="icon"> {{ embedIcon "info" }} </div>
+
+						<div class="g-tooltip g-property-list">
+							{{ if $.DirCount }}
+							<div>
+								<span class="g-property-name">Dirs:</span>
+								<span class="g-property-value g-nowrap">{{ $.DirCount }}</span>
+							</div>
+							{{ end }}
+							{{ if $.FileCount }}
+							<div>
+								<span class="g-property-name">Files:</span>
+								<span class="g-property-value g-nowrap">{{ $.FileCount }}</span>
+							</div>
+							<div>
+								<span class="g-property-name">Size:</span>
+								<span class="g-property-value g-nowrap">{{ formatSize $.TotalFileSize }}</span>
+							</div>
+							{{ end }}
+							{{ if and (not $.DirCount) (not $.FileCount) }}
+							<span class="g-property-name">Empty directory</span>
+							{{ end }}
+						</div>
+					</div>
+					{{ end }}
 				</li>
 				{{ end }}
 			</ul>
@@ -131,6 +159,25 @@
 
 		{{ template "preview.html" . }}
 	</div>
+
+	<!-- Dir Info tooltip -->
+	<script>
+		const updateDirInfoTooltipPosition = () => {
+			const header = document.getElementsByClassName("header")[0];
+			const icon = document.querySelector(".dir-info .icon");
+			const tooltip = document.querySelector(".dir-info .g-tooltip");
+
+			const iconBox = icon.getBoundingClientRect();
+			const headerBox = header.getBoundingClientRect();
+			const tooltipBox = tooltip.getBoundingClientRect();
+
+			tooltip.style.top = `${iconBox.bottom}px`;
+
+			let diff = iconBox.left + tooltipBox.width - headerBox.right;
+			if (diff < 0) { diff = 0; }
+			tooltip.style.left = `${iconBox.left - diff}px`;
+		};
+	</script>
 
 	<!-- Search -->
 	<script>
@@ -383,22 +430,25 @@
 
 				const li = document.createElement("li");
 				li.classList.add("breadcrumb", "new-page-breadcrumb");
-				li.append(" ", a, " ");
+				li.append(a, " ");
 
 				newBreadcrumbs.push(li);
 			});
+			newBreadcrumbs[newBreadcrumbs.length - 1].append(document.querySelector(".dir-info").cloneNode(true));
 
 			// Show spinner.
 			document.querySelector("#app").classList.add("loading");
 
-			// Update breadcrumbs.
+			// Add fake breadcrumbs, keep the existing ones to be able to restore them (see 'pageshow' event listener).
 			const breadcrumbs = document.querySelector(".breadcrumbs");
 			breadcrumbs.append(...newBreadcrumbs);
 
-			// Reset and disable search input.
+			// Reset search input.
 			searchInput.value = "";
-			searchInput.style.pointerEvents = "none";
 			searchInput.blur();
+
+			// Disable all pointer events to conceal the fact that we are using fake breadcrumbs and the old dir info.
+			document.querySelector(".header").style.pointerEvents = "none";
 		});
 
 		window.addEventListener("pageshow", ev => {
@@ -407,6 +457,7 @@
 				// https://web.dev/articles/bfcache#observe-page-restored
 				document.querySelectorAll(".breadcrumbs .new-page-breadcrumb").forEach(v => v.remove());
 				document.querySelector("#app").classList.remove("loading");
+				document.querySelector(".header").style.pointerEvents = "";
 			}
 		});
 	</script>

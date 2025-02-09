@@ -49,19 +49,23 @@
 }
 
 .breadcrumbs {
-	font-size: 20px;
+	/* Hide whitespaces. */
+	font-size: 0;
 	margin: 0;
 	padding: 0;
 
 	.breadcrumb {
 		display: inline;
+		font-size: 20px;
+		margin-right: 4px;
 
 		&:after {
 			content: "/";
-			padding: 2px;
 		}
 
 		&:last-of-type {
+			margin-right: 0;
+
 			&:after {
 				display: none;
 			}
@@ -69,6 +73,31 @@
 			.breadcrumb-link {
 				color: var(--font-color);
 				pointer-events: none;
+			}
+		}
+	}
+
+	.dir-info {
+		display: inline-block;
+		vertical-align: sub;
+
+		.g-tooltip {
+			position: fixed;
+		}
+
+		.g-property-list {
+			width: max-content;
+			z-index: 1;
+		}
+
+		.icon {
+			color: var(--border-color);
+			cursor: help;
+			height: 20px;
+			width: 20px;
+
+			&:hover {
+				color: var(--interactive-color);
 			}
 		}
 	}

@@ -146,7 +146,7 @@
 	column-gap: 16px;
 	display: flex;
 	font-size: 24px;
-	word-break: break-word;
+	overflow-wrap: break-word;
 }
 
 .preview-not-available-info-icon {
@@ -233,52 +233,29 @@
 
 .preview-file-info {
 	grid-area: file-info;
-	font-size: 18px;
-	word-break: break-all;
+	overflow-wrap: break-word;
 }
 
 .preview-file-info>* {
 	margin-bottom: 8px;
 }
 
-.preview-file-info-key {
-	opacity: 0.6;
-}
-
-.preview-file-info-value {
-	font-style: italic;
-}
-
 .preview-file-info-mobile {
 	align-items: center;
 	cursor: help;
 	display: none;
-	font-size: 18px;
 	grid-area: file-info-mobile;
 	margin-right: 12px;
 	white-space: nowrap;
 	width: fit-content;
 
-	.preview-file-info-value {
+	.g-property-value {
 		overflow: hidden;
 		text-overflow: ellipsis;
 	}
 
-	.tooltip {
-		background-color: var(--background-color);
-		border-radius: 3px;
-		border: 1px solid var(--border-color);
-		margin-top: 4px;
+	.g-tooltip {
 		max-width: 80%;
-		padding: 8px 12px;
-		position: absolute;
-		top: 100%;
-		visibility: hidden;
-		white-space: wrap;
-	}
-
-	&:hover .tooltip {
-		visibility: visible;
 	}
 
 	.filename {

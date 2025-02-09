@@ -229,6 +229,8 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 				}
 				return res, nil
 			},
+			"formatSize":    FormatFileSize,
+			"formatModTime": FormatModTime,
 		}).
 		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html", "search-results.html", "entry.html")
 	if err != nil {
@@ -432,6 +434,12 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 			ThumbnailURL:    thumbnailURL,
 			IconName:        static.GetFileIcon(filename, entry.IsDir),
 		})
+		if entry.IsDir {
+			info.DirCount++
+		} else {
+			info.FileCount++
+			info.TotalFileSize += entry.Size
+		}
 	}
 	return info, nil
 }
