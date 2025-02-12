@@ -11,7 +11,7 @@ import (
 
 func TestService_RefreshIndexes(t *testing.T) {
 	r := require.New(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	rclone := &rcloneStub{
 		GetAllFilesFn: func(context.Context) (dirs, files []string, err error) {
@@ -26,7 +26,7 @@ func TestService_RefreshIndexes(t *testing.T) {
 	err := s.Start()
 	r.NoError(err)
 	t.Cleanup(func() {
-		err := s.Shutdown(ctx)
+		err := s.Shutdown(context.Background()) //nolint:usetesting
 		r.NoError(err)
 	})
 
@@ -60,10 +60,8 @@ func (s rcloneStub) GetAllFiles(ctx context.Context) (dirs, files []string, err 
 	return s.GetAllFilesFn(ctx)
 }
 
-// ExampleSearch generates an output in Markdown format that is used in documentation for search.
-//
-//nolint:govet
-func ExampleSearch() {
+// Example generates an output in Markdown format that is used in documentation for search.
+func Example() {
 	assertNoError := func(err error) {
 		if err != nil {
 			panic(err)

@@ -74,7 +74,7 @@ func BenchmarkVipsthumbnail(b *testing.B) {
 		b.Run(name, func(b *testing.B) {
 			for _, file := range files {
 				b.Run("file="+file.Name, func(b *testing.B) {
-					for range b.N {
+					for b.Loop() {
 						b.StopTimer()
 						output := filepath.Join("resized", file.Name+bb.ext+bb.params)
 						cmd := exec.Command("vipsthumbnail", file.Name, "--rotate", "--size", bb.size, "-o", output) //nolint:gosec
@@ -88,8 +88,6 @@ func BenchmarkVipsthumbnail(b *testing.B) {
 							b.Fatalf("vipsthumbnail failed: %s", err)
 						}
 					}
-
-					b.StopTimer()
 
 					resizedFile := filepath.Join("resized", file.Name+bb.ext)
 					stats, err := os.Stat(filepath.Join("_data", resizedFile))

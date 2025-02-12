@@ -24,7 +24,7 @@ import (
 func TestThumbnailService(t *testing.T) {
 	t.Parallel()
 
-	ctx := context.Background()
+	ctx := t.Context()
 
 	const useOriginalImageThresholdSize = 10
 
@@ -329,7 +329,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 					service := NewThumbnailService(rclone, cache, 1, thumbnailsFormat)
 
 					fileID := rview.NewFileID(tt.file, 0, img.size)
-					rc, contentType, err := service.OpenThumbnail(context.Background(), fileID, "")
+					rc, contentType, err := service.OpenThumbnail(t.Context(), fileID, "")
 					r.NoError(err)
 					defer rc.Close()
 					rawThumbnail, err := io.ReadAll(rc)
@@ -370,7 +370,7 @@ func TestThumbnailService_AllImageTypes(t *testing.T) {
 				thumbnailService := NewThumbnailService(mock, cache, 1, format)
 				thumbnailService.GenerateThumbnailsForSmallFiles()
 
-				ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+				ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 				defer cancel()
 
 				fileID := rview.NewFileID(tt.file, 0, int64(len(originalImage)))

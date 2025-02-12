@@ -10,7 +10,7 @@ import (
 
 func TestSafeShutdown(t *testing.T) {
 	r := require.New(t)
-	ctx := context.Background()
+	ctx := t.Context()
 
 	err := safeShutdown(ctx, nil)
 	r.NoError(err)

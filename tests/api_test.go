@@ -1,7 +1,6 @@
 package tests
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -566,7 +565,7 @@ func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {
 func makeRequest(t *testing.T, path string) (status int, body []byte, header http.Header) {
 	t.Helper()
 
-	req, err := http.NewRequestWithContext(context.Background(), "GET", rviewAPIAddr+path, nil)
+	req, err := http.NewRequestWithContext(t.Context(), "GET", rviewAPIAddr+path, nil)
 	require.NoError(t, err)
 
 	resp, err := http.DefaultClient.Do(req)

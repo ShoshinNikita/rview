@@ -1,6 +1,6 @@
 FROM rclone/rclone:1.69 AS rclone-src
 
-FROM golang:1.23-alpine3.21 AS tester
+FROM golang:1.24-alpine3.21 AS tester
 
 WORKDIR /rview
 
