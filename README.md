@@ -126,9 +126,7 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
                                             more time (+32% on average) and requires more resources.
                                     - jpeg: fast thumbnail generation, large files
 
---thumbnails-max-age-days         Max age of thumbnails, days (default: 365)
-
---thumbnails-max-total-size-mb    Max total size of thumbnails, MiB (default: 500)
+--thumbnails-cache-size           Max total size of cached thumbnails (default: 500Mi)
 
 --thumbnails-workers-count        Number of workers for thumbnail generation (default: # of threads)
 

@@ -10,6 +10,8 @@ import (
 	"runtime"
 	"runtime/debug"
 	"slices"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/rlog"
@@ -23,10 +25,9 @@ type Config struct {
 
 	ImagePreviewMode ImagePreviewMode
 
-	ThumbnailsFormat           ThumbnailsFormat
-	ThumbnailsMaxAgeInDays     int
-	ThumbnailsMaxTotalSizeInMB int
-	ThumbnailsWorkersCount     int
+	ThumbnailsFormat       ThumbnailsFormat
+	ThumbnailsCacheSize    MegaBytes
+	ThumbnailsWorkersCount int
 
 	Rclone RcloneConfig
 
@@ -62,13 +63,7 @@ func (m ImagePreviewMode) MarshalText() (text []byte, err error) {
 func (m *ImagePreviewMode) UnmarshalText(text []byte) error {
 	*m = ImagePreviewMode(text)
 
-	supportedValues := []ImagePreviewMode{
-		ImagePreviewModeNone, ImagePreviewModeOriginal, ImagePreviewModeThumbnails,
-	}
-	if !slices.Contains(supportedValues, *m) {
-		return fmt.Errorf("supported values: %v", supportedValues)
-	}
-	return nil
+	return checkEnum(*m, ImagePreviewModeNone, ImagePreviewModeOriginal, ImagePreviewModeThumbnails)
 }
 
 type ThumbnailsFormat string
@@ -88,10 +83,46 @@ func (m ThumbnailsFormat) MarshalText() (text []byte, err error) {
 func (m *ThumbnailsFormat) UnmarshalText(text []byte) error {
 	*m = ThumbnailsFormat(text)
 
-	supportedValues := []ThumbnailsFormat{JpegThumbnails, AvifThumbnails}
-	if !slices.Contains(supportedValues, *m) {
-		return fmt.Errorf("supported values: %v", supportedValues)
+	return checkEnum(*m, JpegThumbnails, AvifThumbnails)
+}
+
+func checkEnum[T comparable](v T, validValues ...T) error {
+	if !slices.Contains(validValues, v) {
+		return fmt.Errorf("valid values: %v", validValues)
 	}
+	return nil
+}
+
+type MegaBytes int
+
+func (mb MegaBytes) Bytes() int64 {
+	return int64(mb << 20)
+}
+
+func (mb MegaBytes) MarshalText() (text []byte, err error) {
+	if mb >= 1024 && mb%1024 == 0 {
+		return []byte(strconv.Itoa(int(mb/1024)) + "Gi"), nil
+	}
+	return []byte(strconv.Itoa(int(mb)) + "Mi"), nil
+}
+
+func (mb *MegaBytes) UnmarshalText(data []byte) error {
+	text := string(data)
+
+	mul := 1
+	switch {
+	case strings.HasSuffix(text, "Mi"):
+	case strings.HasSuffix(text, "Gi"):
+		mul = 1024
+	default:
+		return fmt.Errorf("valid suffixes: Mi, Gi")
+	}
+	n, err := strconv.Atoi(text[:len(text)-2])
+	if err != nil {
+		return fmt.Errorf("invalid size: %w", err)
+	}
+
+	*mb = MegaBytes(n * mul)
 	return nil
 }
 
@@ -137,11 +168,8 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 				"          thumbnails takes more time (+32% on average) and requires more resources\n" +
 				"  - jpeg: fast thumbnail generation, large files\n",
 		},
-		"thumbnails-max-age-days": {
-			p: &cfg.ThumbnailsMaxAgeInDays, defaultValue: 365, desc: "Max age of thumbnails, days",
-		},
-		"thumbnails-max-total-size-mb": {
-			p: &cfg.ThumbnailsMaxTotalSizeInMB, defaultValue: 500, desc: "Max total size of thumbnails, MiB",
+		"thumbnails-cache-size": {
+			p: &cfg.ThumbnailsCacheSize, defaultValue: MegaBytes(500), desc: "Max total size of cached thumbnails",
 		},
 		"thumbnails-workers-count": {
 			p: &cfg.ThumbnailsWorkersCount, defaultValue: runtime.NumCPU(), desc: "Number of workers for thumbnail generation",

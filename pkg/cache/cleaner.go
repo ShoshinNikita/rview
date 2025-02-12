@@ -28,7 +28,6 @@ func (NoopCleaner) Shutdown(context.Context) error {
 type Cleaner struct {
 	dir              string
 	cleanupInterval  time.Duration
-	maxFileAge       time.Duration
 	maxTotalFileSize int64 // in bytes
 
 	stopCh                 chan struct{}
@@ -41,11 +40,10 @@ type fileInfo struct {
 	size    int64
 }
 
-func NewCleaner(dir string, maxFileAge time.Duration, maxTotalFileSize int64) *Cleaner {
+func NewCleaner(dir string, maxTotalFileSize int64) *Cleaner {
 	c := &Cleaner{
 		dir:              dir,
 		cleanupInterval:  5 * time.Minute,
-		maxFileAge:       maxFileAge,
 		maxTotalFileSize: maxTotalFileSize,
 		//
 		stopCh:                 make(chan struct{}),
@@ -63,7 +61,7 @@ func (c Cleaner) startCleanupProcess() {
 
 	for {
 		// Run immediately.
-		c.cleanup(time.Now())
+		c.cleanup()
 
 		select {
 		case <-ticker.C:
@@ -75,7 +73,7 @@ func (c Cleaner) startCleanupProcess() {
 	}
 }
 
-func (c Cleaner) cleanup(now time.Time) {
+func (c Cleaner) cleanup() {
 	rlog.Debugf("start cleanup")
 
 	allFiles, err := c.loadAllFiles()
@@ -88,7 +86,7 @@ func (c Cleaner) cleanup(now time.Time) {
 		return
 	}
 
-	filesToRemove := c.getFilesToRemove(allFiles, now)
+	filesToRemove := c.getFilesToRemove(allFiles)
 	if len(filesToRemove) == 0 {
 		rlog.Debug("no files to remove from cache")
 		return
@@ -127,34 +125,22 @@ func (c Cleaner) loadAllFiles() (files []fileInfo, err error) {
 	return files, nil
 }
 
-func (c Cleaner) getFilesToRemove(files []fileInfo, now time.Time) []fileInfo {
-	minModTime := now.Add(-c.maxFileAge)
-
-	var (
-		oldFiles             []fileInfo
-		activeFiles          []fileInfo
-		activeFilesTotalSize int64
-	)
+func (c Cleaner) getFilesToRemove(files []fileInfo) []fileInfo {
+	var activeFilesTotalSize int64
 	for _, file := range files {
-		if file.modTime.Before(minModTime) {
-			oldFiles = append(oldFiles, file)
-		} else {
-			activeFiles = append(activeFiles, file)
-			activeFilesTotalSize += file.size
-		}
+		activeFilesTotalSize += file.size
 	}
 	if activeFilesTotalSize < c.maxTotalFileSize {
-		// Should remove only old files.
-		return oldFiles
+		return nil
 	}
 
 	// Remove old files first.
-	slices.SortFunc(activeFiles, func(a, b fileInfo) int {
+	slices.SortFunc(files, func(a, b fileInfo) int {
 		return a.modTime.Compare(b.modTime)
 	})
 
 	var index int
-	for i, file := range activeFiles {
+	for i, file := range files {
 		activeFilesTotalSize -= file.size
 		if activeFilesTotalSize < c.maxTotalFileSize {
 			// Other files satisfy the size limit.
@@ -163,11 +149,11 @@ func (c Cleaner) getFilesToRemove(files []fileInfo, now time.Time) []fileInfo {
 		}
 	}
 	if index == 0 {
-		// Impossible, just in case, remove all files.
-		index = len(activeFiles)
+		// Remove all files.
+		index = len(files)
 	}
 
-	return append(oldFiles, activeFiles[:index]...)
+	return files[:index]
 }
 
 func (c Cleaner) removeFiles(files []fileInfo) (removedFiles int, cleanedSpace int64, errs []error) {
