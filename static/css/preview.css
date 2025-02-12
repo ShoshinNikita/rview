@@ -161,7 +161,7 @@
 }
 
 :root {
-	--switch-preview-button-size: 100px;
+	--switch-preview-button-size: max(48px, min(100px, 15vw));
 }
 
 .switch-preview-button {
