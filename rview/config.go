@@ -130,12 +130,12 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 		},
 		//
 		"thumbnails-format": {
-			p: &cfg.ThumbnailsFormat, defaultValue: JpegThumbnails, desc: "" +
+			p: &cfg.ThumbnailsFormat, defaultValue: AvifThumbnails, desc: "" +
 				"Available thumbnail formats:\n" +
-				"  - jpeg: fast thumbnail generation, large files\n" +
 				"  - avif: AVIF images can be significantly smaller than JPEGs (-43% on average)\n" +
 				"          and supported by all modern browsers. However, generation of .avif\n" +
-				"          thumbnails takes more time (+32% on average) and requires more resources.\n",
+				"          thumbnails takes more time (+32% on average) and requires more resources\n" +
+				"  - jpeg: fast thumbnail generation, large files\n",
 		},
 		"thumbnails-max-age-days": {
 			p: &cfg.ThumbnailsMaxAgeInDays, defaultValue: 365, desc: "Max age of thumbnails, days",
