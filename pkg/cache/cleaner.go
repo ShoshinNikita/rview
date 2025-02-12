@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/misc"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 )
 
@@ -23,7 +24,7 @@ func (NoopCleaner) Shutdown(context.Context) error {
 	return nil
 }
 
-// Cleaner can be used remove old files and control the total size of cache.
+// Cleaner can be used remove old files and control total size of the cache.
 type Cleaner struct {
 	dir              string
 	cleanupInterval  time.Duration
@@ -43,7 +44,7 @@ type fileInfo struct {
 func NewCleaner(dir string, maxFileAge time.Duration, maxTotalFileSize int64) *Cleaner {
 	c := &Cleaner{
 		dir:              dir,
-		cleanupInterval:  time.Hour,
+		cleanupInterval:  5 * time.Minute,
 		maxFileAge:       maxFileAge,
 		maxTotalFileSize: maxTotalFileSize,
 		//
@@ -89,14 +90,19 @@ func (c Cleaner) cleanup(now time.Time) {
 
 	filesToRemove := c.getFilesToRemove(allFiles, now)
 	if len(filesToRemove) == 0 {
+		rlog.Debug("no files to remove from cache")
 		return
 	}
 
-	rlog.Debugf("should remove %d cached files", len(filesToRemove))
-
-	errs := c.removeFiles(filesToRemove)
+	removedFiles, cleanedSpace, errs := c.removeFiles(filesToRemove)
 	for _, err := range errs {
 		rlog.Error(err)
+	}
+	if removedFiles > 0 {
+		rlog.Infof(
+			"%d files have been removed from cache for a total of %s freed, got %d errors",
+			removedFiles, misc.FormatFileSize(cleanedSpace), len(errs),
+		)
 	}
 }
 
@@ -164,14 +170,17 @@ func (c Cleaner) getFilesToRemove(files []fileInfo, now time.Time) []fileInfo {
 	return append(oldFiles, activeFiles[:index]...)
 }
 
-func (c Cleaner) removeFiles(files []fileInfo) (errs []error) {
+func (c Cleaner) removeFiles(files []fileInfo) (removedFiles int, cleanedSpace int64, errs []error) {
 	for _, file := range files {
 		err := os.Remove(file.path)
 		if err != nil {
-			errs = append(errs, fmt.Errorf("couldn't remove cached file %q: %w", file.path, err))
+			errs = append(errs, fmt.Errorf("couldn't remove file %q from cache: %w", file.path, err))
+			continue
 		}
+		removedFiles++
+		cleanedSpace += file.size
 	}
-	return errs
+	return removedFiles, cleanedSpace, errs
 }
 
 func (c Cleaner) Shutdown(ctx context.Context) error {

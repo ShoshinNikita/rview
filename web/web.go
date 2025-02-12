@@ -19,6 +19,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/misc"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
@@ -229,8 +230,8 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 				}
 				return res, nil
 			},
-			"formatSize":    FormatFileSize,
-			"formatModTime": FormatModTime,
+			"formatSize":    misc.FormatFileSize,
+			"formatModTime": misc.FormatModTime,
 		}).
 		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html", "search-results.html", "entry.html")
 	if err != nil {
@@ -379,7 +380,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 			id := rview.NewFileID(filepath, entry.ModTime, entry.Size)
 
 			originalFileURL = fileIDToURL("/api/file", info.dirURL, id)
-			humanReadableSize = FormatFileSize(entry.Size)
+			humanReadableSize = misc.FormatFileSize(entry.Size)
 			fileType = rview.GetFileType(id.GetExt())
 
 			switch fileType {
@@ -424,7 +425,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) 
 			Size:                 entry.Size,
 			HumanReadableSize:    humanReadableSize,
 			ModTime:              modTime,
-			HumanReadableModTime: FormatModTime(modTime),
+			HumanReadableModTime: misc.FormatModTime(modTime),
 			FileType:             fileType,
 			CanPreview:           canPreview,
 			//

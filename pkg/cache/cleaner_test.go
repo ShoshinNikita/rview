@@ -51,10 +51,12 @@ func TestCleaner_loadAllFilesAndRemove(t *testing.T) {
 	}
 	r.ElementsMatch(wantFiles, gotFiles)
 
-	errs := c.removeFiles(wantFiles[:3])
+	removedFiles, cleanedSpace, errs := c.removeFiles(wantFiles[:3])
 	if len(errs) != 0 {
 		t.Fatalf("got errors: %v", errs)
 	}
+	r.Equal(3, removedFiles)
+	r.Equal(1424, int(cleanedSpace))
 
 	gotFilesAfterRemove, err := c.loadAllFiles()
 	r.NoError(err)

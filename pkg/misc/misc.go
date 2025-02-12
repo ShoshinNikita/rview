@@ -1,11 +1,11 @@
-package web
+package misc
 
 import (
 	"fmt"
 	"time"
 )
 
-var sizeSuffixes = []string{"B", "KiB", "MiB", "GiB", "TiB", "PiB"}
+var sizeSuffixes = [...]string{"B", "KiB", "MiB", "GiB", "TiB", "PiB"}
 
 func FormatFileSize(bytes int64) string {
 	size := float64(bytes)
