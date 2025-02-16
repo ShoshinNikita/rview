@@ -26,7 +26,7 @@ type Config struct {
 	ImagePreviewMode ImagePreviewMode
 
 	ThumbnailsFormat       ThumbnailsFormat
-	ThumbnailsCacheSize    MegaBytes
+	ThumbnailsCacheSize    MiB
 	ThumbnailsWorkersCount int
 
 	Rclone RcloneConfig
@@ -93,20 +93,20 @@ func checkEnum[T comparable](v T, validValues ...T) error {
 	return nil
 }
 
-type MegaBytes int
+type MiB int
 
-func (mb MegaBytes) Bytes() int64 {
+func (mb MiB) Bytes() int64 {
 	return int64(mb << 20)
 }
 
-func (mb MegaBytes) MarshalText() (text []byte, err error) {
+func (mb MiB) MarshalText() (text []byte, err error) {
 	if mb >= 1024 && mb%1024 == 0 {
 		return []byte(strconv.Itoa(int(mb/1024)) + "Gi"), nil
 	}
 	return []byte(strconv.Itoa(int(mb)) + "Mi"), nil
 }
 
-func (mb *MegaBytes) UnmarshalText(data []byte) error {
+func (mb *MiB) UnmarshalText(data []byte) error {
 	text := string(data)
 
 	mul := 1
@@ -122,7 +122,7 @@ func (mb *MegaBytes) UnmarshalText(data []byte) error {
 		return fmt.Errorf("invalid size: %w", err)
 	}
 
-	*mb = MegaBytes(n * mul)
+	*mb = MiB(n * mul)
 	return nil
 }
 
@@ -169,7 +169,7 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 				"  - jpeg: fast thumbnail generation, large files\n",
 		},
 		"thumbnails-cache-size": {
-			p: &cfg.ThumbnailsCacheSize, defaultValue: MegaBytes(500), desc: "Max total size of cached thumbnails",
+			p: &cfg.ThumbnailsCacheSize, defaultValue: MiB(500), desc: "Max total size of cached thumbnails",
 		},
 		"thumbnails-workers-count": {
 			p: &cfg.ThumbnailsWorkersCount, defaultValue: runtime.NumCPU(), desc: "Number of workers for thumbnail generation",

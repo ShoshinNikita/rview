@@ -24,7 +24,7 @@ func (NoopCleaner) Shutdown(context.Context) error {
 	return nil
 }
 
-// Cleaner can be used remove old files and control total size of the cache.
+// Cleaner controls the total size of the cache.
 type Cleaner struct {
 	dir              string
 	cleanupInterval  time.Duration
@@ -74,8 +74,6 @@ func (c Cleaner) startCleanupProcess() {
 }
 
 func (c Cleaner) cleanup() {
-	rlog.Debugf("start cleanup")
-
 	allFiles, err := c.loadAllFiles()
 	if err != nil {
 		logf := rlog.Errorf
@@ -126,11 +124,11 @@ func (c Cleaner) loadAllFiles() (files []fileInfo, err error) {
 }
 
 func (c Cleaner) getFilesToRemove(files []fileInfo) []fileInfo {
-	var activeFilesTotalSize int64
+	var totalSize int64
 	for _, file := range files {
-		activeFilesTotalSize += file.size
+		totalSize += file.size
 	}
-	if activeFilesTotalSize < c.maxTotalFileSize {
+	if totalSize < c.maxTotalFileSize {
 		return nil
 	}
 
@@ -141,8 +139,8 @@ func (c Cleaner) getFilesToRemove(files []fileInfo) []fileInfo {
 
 	var index int
 	for i, file := range files {
-		activeFilesTotalSize -= file.size
-		if activeFilesTotalSize < c.maxTotalFileSize {
+		totalSize -= file.size
+		if totalSize < c.maxTotalFileSize {
 			// Other files satisfy the size limit.
 			index = i + 1
 			break

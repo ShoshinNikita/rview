@@ -26,7 +26,7 @@ func TestThumbnailsFormat(t *testing.T) {
 	r.Equal(JpegThumbnails, v)
 }
 
-func TestMegaBytes(t *testing.T) {
+func TestMiB(t *testing.T) {
 	for _, tt := range []struct {
 		in        string
 		wantErr   string
@@ -47,7 +47,7 @@ func TestMegaBytes(t *testing.T) {
 		t.Run("", func(t *testing.T) {
 			r := require.New(t)
 
-			var s MegaBytes
+			var s MiB
 			err := s.UnmarshalText([]byte(tt.in))
 			if tt.wantErr == "" {
 				r.NoError(err)
