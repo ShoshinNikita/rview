@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"runtime/debug"
@@ -184,8 +185,8 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 	}
 }
 
-func ParseConfig() (Config, error) {
-	cfg := Config{
+func ParseConfig() (cfg Config, err error) {
+	cfg = Config{
 		BuildInfo: readBuildInfo(),
 		Rclone: RcloneConfig{
 			Port: 8181,
@@ -228,6 +229,10 @@ func ParseConfig() (Config, error) {
 	}
 	if cfg.Dir == "" {
 		return cfg, errors.New("dir can't be empty")
+	}
+	cfg.Dir, err = filepath.Abs(cfg.Dir)
+	if err != nil {
+		return cfg, fmt.Errorf("couldn't get absolute path to dir: %w", err)
 	}
 
 	return cfg, nil
