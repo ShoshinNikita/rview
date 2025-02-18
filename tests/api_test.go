@@ -387,7 +387,7 @@ func TestAPI_GetFile(t *testing.T) {
 
 	r := require.New(t)
 
-	// No file.
+	// No such file.
 	status, _, _ := makeRequest(t, "/api/file/Video/credits.txt1?mod_time=1662637030&size=0")
 	r.Equal(404, status)
 
@@ -426,6 +426,26 @@ func TestAPI_GetFile(t *testing.T) {
 	status, _, headers = makeRequest(t, "/api/file/Audio/click-button-140881.mp3?mod_time=1660004130&size=15882")
 	r.Equal(200, status)
 	r.Equal("audio/mpeg", headers.Get("Content-Type"))
+
+	t.Run("range request", func(t *testing.T) {
+		status, _, headers := makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637032&size=162")
+		r.Equal(200, status)
+		r.Equal("bytes", headers.Get("Accept-Ranges"))
+
+		header := http.Header{
+			"Range": {"bytes=0-10"},
+		}
+		status, body, _ := makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637032&size=162", requestOptions{header: header})
+		r.Equal(206, status)
+		r.Equal("traffic-539", string(body))
+
+		header = http.Header{
+			"Range": {"bytes=0-16"},
+		}
+		status, body, _ = makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637032&size=162", requestOptions{header: header})
+		r.Equal(206, status)
+		r.Equal("traffic-53902.mp4", string(body))
+	})
 }
 
 func TestAPI_Thumbnails(t *testing.T) {
@@ -562,11 +582,21 @@ func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {
 	return res
 }
 
-func makeRequest(t *testing.T, path string) (status int, body []byte, header http.Header) {
+type requestOptions struct {
+	header http.Header
+}
+
+func makeRequest(t *testing.T, path string, opts ...requestOptions) (status int, body []byte, header http.Header) {
 	t.Helper()
 
 	req, err := http.NewRequestWithContext(t.Context(), "GET", rviewAPIAddr+path, nil)
 	require.NoError(t, err)
+	if len(opts) > 0 {
+		if len(opts) > 1 {
+			t.Fatalf("opts can contain only 1 element, got %d", len(opts))
+		}
+		req.Header = opts[0].header
+	}
 
 	resp, err := http.DefaultClient.Do(req)
 	require.NoError(t, err)
