@@ -2,6 +2,7 @@ package cache
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 
@@ -49,5 +50,9 @@ func (c *InMemoryCache) Write(id rview.FileID, r io.Reader) error {
 
 func (c *InMemoryCache) Remove(id rview.FileID) error {
 	delete(c.cache, id)
+	return nil
+}
+
+func (c *InMemoryCache) Shutdown(context.Context) error {
 	return nil
 }

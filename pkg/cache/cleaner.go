@@ -14,20 +14,9 @@ import (
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 )
 
-type NoopCleaner struct{}
-
-func NewNoopCleaner() *NoopCleaner {
-	return &NoopCleaner{}
-}
-
-func (NoopCleaner) Shutdown(context.Context) error {
-	return nil
-}
-
 // Cleaner controls the total size of the cache.
 type Cleaner struct {
 	dir              string
-	cleanupInterval  time.Duration
 	maxTotalFileSize int64 // in bytes
 
 	stopCh                 chan struct{}
@@ -43,7 +32,6 @@ type fileInfo struct {
 func NewCleaner(dir string, maxTotalFileSize int64) *Cleaner {
 	c := &Cleaner{
 		dir:              dir,
-		cleanupInterval:  5 * time.Minute,
 		maxTotalFileSize: maxTotalFileSize,
 		//
 		stopCh:                 make(chan struct{}),
@@ -56,7 +44,7 @@ func NewCleaner(dir string, maxTotalFileSize int64) *Cleaner {
 }
 
 func (c Cleaner) startCleanupProcess() {
-	ticker := time.NewTimer(c.cleanupInterval)
+	ticker := time.NewTimer(5 * time.Minute)
 	defer ticker.Stop()
 
 	for {

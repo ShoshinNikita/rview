@@ -21,7 +21,7 @@ type Rview struct {
 	cfg rview.Config
 
 	thumbnailService rview.ThumbnailService
-	thumbnailCleaner rview.CacheCleaner
+	thumbnailCache   rview.Cache
 
 	searchService *search.Service
 
@@ -37,8 +37,10 @@ func NewRview(cfg rview.Config) *Rview {
 }
 
 func (r *Rview) Prepare() (err error) {
-	// Note: service cache doesn't need any cleanups.
-	serviceCache, err := cache.NewDiskCache(filepath.Join(r.cfg.Dir, "rview"))
+	serviceCache, err := cache.NewDiskCache(filepath.Join(r.cfg.Dir, "rview"), cache.Options{
+		// Service cache doesn't need any cleanups.
+		DisableCleaner: true,
+	})
 	if err != nil {
 		return fmt.Errorf("couldn't prepare disk cache for service needs: %w", err)
 	}
@@ -57,21 +59,21 @@ func (r *Rview) Prepare() (err error) {
 		}
 
 		thumbnailsCacheDir := filepath.Join(r.cfg.Dir, "thumbnails")
-		thumbnailsCache, err := cache.NewDiskCache(thumbnailsCacheDir)
+		r.thumbnailCache, err = cache.NewDiskCache(thumbnailsCacheDir, cache.Options{
+			MaxSize: r.cfg.ThumbnailsCacheSize.Bytes(),
+		})
 		if err != nil {
 			return fmt.Errorf("couldn't prepare disk cache for thumbnails: %w", err)
 		}
 
-		r.thumbnailCleaner = cache.NewCleaner(thumbnailsCacheDir, r.cfg.ThumbnailsCacheSize.Bytes())
 		r.thumbnailService = thumbnails.NewThumbnailService(
-			r.rcloneInstance, thumbnailsCache, r.cfg.ThumbnailsWorkersCount, r.cfg.ThumbnailsFormat,
+			r.rcloneInstance, r.thumbnailCache, r.cfg.ThumbnailsWorkersCount, r.cfg.ThumbnailsFormat,
 		)
 
 	} else {
 		rlog.Debug("thumbnail service is disabled")
 
 		r.thumbnailService = thumbnails.NewNoopThumbnailService()
-		r.thumbnailCleaner = cache.NewNoopCleaner()
 	}
 
 	// Search Service
@@ -118,11 +120,11 @@ func (r *Rview) Start(onError func()) <-chan struct{} {
 func (r *Rview) Shutdown(ctx context.Context) error {
 	var failed []string
 	for name, s := range map[string]shutdowner{
-		"web server":              r.server,
-		"thumbnail service":       r.thumbnailService,
-		"thumbnail cache cleaner": r.thumbnailCleaner,
-		"search service":          r.searchService,
-		"rclone instance":         r.rcloneInstance,
+		"web server":        r.server,
+		"thumbnail service": r.thumbnailService,
+		"thumbnail cache":   r.thumbnailCache,
+		"search service":    r.searchService,
+		"rclone instance":   r.rcloneInstance,
 	} {
 		err := safeShutdown(ctx, s)
 		if err != nil {

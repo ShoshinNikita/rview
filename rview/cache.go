@@ -16,8 +16,5 @@ type Cache interface {
 	GetFilepath(id FileID) (path string, err error)
 	Write(id FileID, r io.Reader) (err error)
 	Remove(id FileID) error
-}
-
-type CacheCleaner interface {
-	Shutdown(ctx context.Context) error
+	Shutdown(context.Context) error
 }

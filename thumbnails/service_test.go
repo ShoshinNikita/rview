@@ -28,7 +28,7 @@ func TestThumbnailService(t *testing.T) {
 
 	const useOriginalImageThresholdSize = 10
 
-	cache, err := cache.NewDiskCache(t.TempDir())
+	cache, err := cache.NewDiskCache(t.TempDir(), cache.Options{DisableCleaner: true})
 	require.NoError(t, err)
 
 	newService := func(
@@ -306,7 +306,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 			},
 		},
 	} {
-		cache, err := cache.NewDiskCache(t.TempDir())
+		cache, err := cache.NewDiskCache(t.TempDir(), cache.Options{DisableCleaner: true})
 		require.NoError(t, err)
 
 		thumbnailsFormat := tt.thumbnailsFormat
@@ -345,7 +345,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 // TestThumbnailService_AllImageTypes checks that we can successfully generate
 // thumbnails for all supported image types.
 func TestThumbnailService_AllImageTypes(t *testing.T) {
-	cache, err := cache.NewDiskCache(t.TempDir())
+	cache, err := cache.NewDiskCache(t.TempDir(), cache.Options{DisableCleaner: true})
 	require.NoError(t, err)
 
 	type Test struct {

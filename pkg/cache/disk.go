@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"crypto/md5"
 	"encoding/hex"
 	"errors"
@@ -15,19 +16,29 @@ import (
 )
 
 type DiskCache struct {
-	absDir string
+	absDir  string
+	cleaner *Cleaner
+}
+
+type Options struct {
+	DisableCleaner bool
+	MaxSize        int64
 }
 
 var _ rview.Cache = (*DiskCache)(nil)
 
-func NewDiskCache(dir string) (*DiskCache, error) {
-	absDir, err := filepath.Abs(dir)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't get absolute path: %w", err)
+func NewDiskCache(absDir string, opts Options) (*DiskCache, error) {
+	if !filepath.IsAbs(absDir) {
+		return nil, fmt.Errorf("dir should be absolute")
 	}
-	return &DiskCache{
+
+	cache := &DiskCache{
 		absDir: absDir,
-	}, nil
+	}
+	if !opts.DisableCleaner {
+		cache.cleaner = NewCleaner(absDir, opts.MaxSize)
+	}
+	return cache, nil
 }
 
 // Open return an [io.ReadCloser] with cache content. If the file is not cached, it returns [rview.ErrCacheMiss].
@@ -122,4 +133,11 @@ func (c *DiskCache) generateFilepath(id rview.FileID) string {
 	filename := fmt.Sprintf("t%d_s%d_%s", modTime.Unix(), id.GetSize(), name+id.GetExt())
 
 	return filepath.Join(c.absDir, subdir, filename)
+}
+
+func (c *DiskCache) Shutdown(ctx context.Context) error {
+	if c.cleaner != nil {
+		return c.cleaner.Shutdown(ctx)
+	}
+	return nil
 }
