@@ -27,7 +27,7 @@ type Options struct {
 	MaxSize        int64
 }
 
-func NewDiskCache(absDir string, opts Options) (cache *DiskCache, err error) {
+func NewDiskCache(cacheName, absDir string, opts Options) (cache *DiskCache, err error) {
 	if !filepath.IsAbs(absDir) {
 		return nil, fmt.Errorf("dir should be absolute")
 	}
@@ -36,8 +36,7 @@ func NewDiskCache(absDir string, opts Options) (cache *DiskCache, err error) {
 		absDir: absDir,
 	}
 	if !opts.DisableCleaner {
-		name := filepath.Base(absDir)
-		cache.cleaner, err = NewCleaner(name, absDir, opts.MaxSize)
+		cache.cleaner, err = NewCleaner(cacheName, absDir, opts.MaxSize)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't prepare cache cleaner: %w", err)
 		}

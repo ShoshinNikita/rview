@@ -21,6 +21,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
+func init() {
+	for _, size := range []ThumbnailSize{ThumbnailSmall, ThumbnailMedium, ThumbnailLarge} {
+		metrics.ThumbnailsSizeRatio.WithLabelValues(string(size))
+	}
+}
+
 type ThumbnailSize string
 
 const (

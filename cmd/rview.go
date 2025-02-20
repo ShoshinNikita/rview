@@ -44,7 +44,7 @@ func NewRview(cfg rview.Config) *Rview {
 }
 
 func (r *Rview) Prepare() (err error) {
-	serviceCache, err := cache.NewDiskCache(filepath.Join(r.cfg.Dir, "rview"), cache.Options{
+	serviceCache, err := cache.NewDiskCache("rview", filepath.Join(r.cfg.Dir, "rview"), cache.Options{
 		// Service cache doesn't need any cleanups.
 		DisableCleaner: true,
 	})
@@ -53,7 +53,7 @@ func (r *Rview) Prepare() (err error) {
 	}
 
 	// Rclone
-	r.rcloneCache, err = cache.NewDiskCache(filepath.Join(r.cfg.Dir, "rclone"), cache.Options{
+	r.rcloneCache, err = cache.NewDiskCache("rclone", filepath.Join(r.cfg.Dir, "rclone"), cache.Options{
 		MaxSize: r.cfg.RcloneCacheSize.Bytes(),
 	})
 	if err != nil {
@@ -72,7 +72,7 @@ func (r *Rview) Prepare() (err error) {
 		}
 
 		thumbnailsCacheDir := filepath.Join(r.cfg.Dir, "thumbnails")
-		r.thumbnailCache, err = cache.NewDiskCache(thumbnailsCacheDir, cache.Options{
+		r.thumbnailCache, err = cache.NewDiskCache("thumbnails", thumbnailsCacheDir, cache.Options{
 			MaxSize: r.cfg.ThumbnailsCacheSize.Bytes(),
 		})
 		if err != nil {

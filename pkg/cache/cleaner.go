@@ -10,6 +10,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/misc"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 )
@@ -49,7 +50,7 @@ func NewCleaner(cacheName, absDir string, maxTotalFileSize int64) (*Cleaner, err
 	return c, nil
 }
 
-func (c Cleaner) startCleanupProcess() {
+func (c *Cleaner) startCleanupProcess() {
 	ticker := time.NewTimer(time.Minute)
 	defer ticker.Stop()
 
@@ -67,16 +68,24 @@ func (c Cleaner) startCleanupProcess() {
 	}
 }
 
-func (c Cleaner) cleanup() {
+func (c *Cleaner) cleanup() {
 	allFiles, err := c.loadAllFiles()
 	if err != nil {
 		logf := rlog.Errorf
 		if errors.Is(err, fs.ErrNotExist) {
 			logf = rlog.Warnf
 		}
+		metrics.CacheCleanerErrors.Inc()
 		logf("couldn't load files to clean from cache %q: %s", c.cacheName, err)
 		return
 	}
+
+	// Update metrics here because we can return early.
+	var cacheSize int64
+	for _, f := range allFiles {
+		cacheSize += f.size
+	}
+	metrics.CacheSize.WithLabelValues(c.cacheName).Set(float64(cacheSize))
 
 	filesToRemove := c.getFilesToRemove(allFiles)
 	if len(filesToRemove) == 0 {
@@ -86,6 +95,7 @@ func (c Cleaner) cleanup() {
 
 	removedFiles, cleanedSpace, errs := c.removeFiles(filesToRemove)
 	for _, err := range errs {
+		metrics.CacheCleanerErrors.Inc()
 		rlog.Error(err)
 	}
 	if removedFiles > 0 {
@@ -96,7 +106,7 @@ func (c Cleaner) cleanup() {
 	}
 }
 
-func (c Cleaner) loadAllFiles() (files []fileInfo, err error) {
+func (c *Cleaner) loadAllFiles() (files []fileInfo, err error) {
 	err = filepath.Walk(c.absDir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err

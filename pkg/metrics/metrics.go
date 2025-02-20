@@ -190,6 +190,21 @@ var (
 			Name:      "errors_total",
 		},
 	)
+	CacheSize = promauto.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: "cache",
+			Name:      "size_bytes",
+		},
+		[]string{"name"},
+	)
+	CacheCleanerErrors = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "cache_cleaner",
+			Name:      "errors_total",
+		},
+	)
 )
 
 // Init values for common labels.
