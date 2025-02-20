@@ -15,7 +15,6 @@ import (
 )
 
 func TestRclone_OpenFile(t *testing.T) {
-
 	r := require.New(t)
 
 	dir := t.TempDir()

@@ -485,13 +485,12 @@ func newMutexMap[K comparable]() *mutexMap[K] {
 
 func (m *mutexMap[K]) Lock(k K) (unlock func()) {
 	m.mu.Lock()
-	defer m.mu.Unlock()
-
 	res, ok := m.m[k]
 	if !ok {
 		res = new(sync.Mutex)
 		m.m[k] = res
 	}
+	m.mu.Unlock()
 
 	res.Lock()
 	return res.Unlock

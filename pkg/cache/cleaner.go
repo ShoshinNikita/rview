@@ -51,7 +51,7 @@ func NewCleaner(cacheName, absDir string, maxTotalFileSize int64) (*Cleaner, err
 }
 
 func (c *Cleaner) startCleanupProcess() {
-	ticker := time.NewTimer(time.Minute)
+	ticker := time.NewTicker(time.Minute)
 	defer ticker.Stop()
 
 	for {
