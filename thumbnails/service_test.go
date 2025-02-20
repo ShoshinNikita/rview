@@ -101,7 +101,7 @@ func TestThumbnailService(t *testing.T) {
 				r.NoError(res.err)
 				data, err := io.ReadAll(res.rc)
 				r.NoError(err)
-				r.Equal("resized-content-1.thumbnail.jpg", string(data))
+				r.Equal("resized-content-1.thumbnail-medium.jpg", string(data))
 			}
 
 			dur := time.Since(resizeStart)
@@ -229,16 +229,32 @@ func TestThumbnailService_NewThumbnailID(t *testing.T) {
 
 	service := NewThumbnailService(nil, nil, 0, rview.JpegThumbnails)
 
-	for path, wantThumbnail := range map[string]string{
-		"/home/cat.jpeg":             "/home/cat.thumbnail.jpeg",
-		"/home/abc/qwe/ghj/dog.heic": "/home/abc/qwe/ghj/dog.heic.thumbnail.jpeg",
-		"/x/mouse.JPG":               "/x/mouse.thumbnail.JPG",
-		"/x/y/z/screenshot.PNG":      "/x/y/z/screenshot.PNG.thumbnail.jpeg",
+	for _, tt := range []struct {
+		path          string
+		size          rview.ThumbnailSize
+		wantThumbnail string
+	}{
+		{
+			path: "/home/cat.jpeg", size: rview.ThumbnailSmall,
+			wantThumbnail: "/home/cat.thumbnail-small.jpeg",
+		},
+		{
+			path: "/home/abc/qwe/ghj/dog.heic", size: rview.ThumbnailMedium,
+			wantThumbnail: "/home/abc/qwe/ghj/dog.heic.thumbnail-medium.jpeg",
+		},
+		{
+			path: "/x/mouse.JPG", size: rview.ThumbnailLarge,
+			wantThumbnail: "/x/mouse.thumbnail-large.JPG",
+		},
+		{
+			path: "/x/y/z/screenshot.PNG", size: rview.ThumbnailLarge,
+			wantThumbnail: "/x/y/z/screenshot.PNG.thumbnail-large.jpeg",
+		},
 	} {
-		id := rview.NewFileID(path, 33, 15)
-		thumbnail, err := service.newThumbnailID(id, "")
+		id := rview.NewFileID(tt.path, 33, 15)
+		thumbnail, err := service.newThumbnailID(id, tt.size)
 		require.NoError(t, err)
-		assert.Equal(t, wantThumbnail, thumbnail.GetPath())
+		assert.Equal(t, tt.wantThumbnail, thumbnail.GetPath())
 		assert.Equal(t, int64(33), thumbnail.GetModTime().Unix())
 		assert.Equal(t, int64(15), thumbnail.GetSize())
 	}

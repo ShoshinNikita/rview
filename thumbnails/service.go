@@ -147,11 +147,13 @@ func (s *ThumbnailService) startWorkers() {
 
 				default:
 					metrics.ThumbnailsProcessTaskDuration.Observe(dur.Seconds())
-					metrics.ThumbnailsSizeRatio.Observe(float64(stats.originalSize) / float64(stats.thumbnailSize))
+					metrics.ThumbnailsSizeRatio.
+						WithLabelValues(string(task.size)).
+						Observe(float64(stats.originalSize) / float64(stats.thumbnailSize))
 
 					msg := fmt.Sprintf(
-						"thumbnail for %q was generated in %s, original size: %s, new size: %s",
-						task.fileID.GetPath(), dur, toMiB(stats.originalSize), toMiB(stats.thumbnailSize),
+						"%s thumbnail for %q was generated in %s, original size: %s, new size: %s",
+						task.size, task.fileID.GetPath(), dur, toMiB(stats.originalSize), toMiB(stats.thumbnailSize),
 					)
 
 					const reportThreshold = 10 << 10 // 10 Kib
@@ -308,9 +310,16 @@ func resizeWithVips(originalFile, cacheFile string, id ThumbnailID, thumbnailSiz
 		return fmt.Errorf("unsupported thumbnail format: %q", t)
 	}
 
-	size := "1024>"
-	if thumbnailSize == rview.ThumbnailLarge {
+	var size string
+	switch thumbnailSize {
+	case rview.ThumbnailSmall:
+		size = "256>"
+	case rview.ThumbnailMedium:
+		size = "1024>"
+	case rview.ThumbnailLarge:
 		size = "2048>"
+	default:
+		return fmt.Errorf("invalid thumbnail size: %q", thumbnailSize)
 	}
 
 	cmd := exec.Command(
@@ -362,8 +371,16 @@ func (s *ThumbnailService) OpenThumbnail(
 	ctx context.Context, id rview.FileID, size rview.ThumbnailSize,
 ) (rc io.ReadCloser, contentType string, err error) {
 
+	if s.stopped.Load() {
+		return nil, "", errors.New("service was stopped")
+	}
+
 	if getImageType(id) == unsupportedImageType {
 		return nil, "", fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())
+	}
+
+	if size == "" {
+		size = rview.ThumbnailMedium
 	}
 
 	thumbnailID := ThumbnailID{FileID: id}
@@ -447,10 +464,7 @@ func (s *ThumbnailService) newThumbnailID(id rview.FileID, size rview.ThumbnailS
 		return ThumbnailID{}, err
 	}
 
-	suffix := ".thumbnail"
-	if size == rview.ThumbnailLarge {
-		suffix += "-large"
-	}
+	suffix := ".thumbnail-" + string(size)
 	if newExt == "" {
 		originalExt := pkgPath.Ext(path)
 		path = strings.TrimSuffix(path, originalExt)

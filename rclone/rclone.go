@@ -239,6 +239,7 @@ func (r *Rclone) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, 
 
 	rc, err := r.cache.Open(id)
 	if err == nil {
+		metrics.RcloneFilesServedFromCache.Inc()
 		return rc, nil
 	}
 

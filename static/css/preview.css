@@ -95,6 +95,12 @@
 	padding: 0 10px;
 	/* Images don't have any controls. Therefore we can make them slightly bigger. */
 	width: 100%;
+
+	&.loaded+.g-loader,
+	&.failed+.g-loader {
+		/* Hide loader after image load or error */
+		display: none;
+	}
 }
 
 .preview-text {

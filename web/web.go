@@ -464,9 +464,17 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	size := rview.ThumbnailSmall
-	if r.FormValue("thumbnail_size") == "large" {
+	var size rview.ThumbnailSize
+	switch v := r.FormValue("thumbnail_size"); v {
+	case "small":
+		size = rview.ThumbnailSmall
+	case "medium", "":
+		size = rview.ThumbnailMedium
+	case "large":
 		size = rview.ThumbnailLarge
+	default:
+		writeBadRequestError(w, "invalid thumbnail_size: %q", v)
+		return
 	}
 
 	rc, contentType, err := s.thumbnailService.OpenThumbnail(r.Context(), id, size)

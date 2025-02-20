@@ -47,6 +47,13 @@ var (
 			Buckets:   []float64{0.05, 0.1, 0.2, 0.5, 1, 2, 5},
 		},
 	)
+	RcloneFilesServedFromCache = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "rclone",
+			Name:      "files_served_from_cache",
+		},
+	)
 )
 
 // Thumbnails
@@ -108,13 +115,14 @@ var (
 			Buckets:   []float64{0.2, 0.5, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120},
 		},
 	)
-	ThumbnailsSizeRatio = promauto.NewHistogram(
+	ThumbnailsSizeRatio = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: namespace,
 			Subsystem: "thumbnails",
 			Name:      "size_ratio",
 			Buckets:   []float64{0.7, 0.9, 1, 2, 5, 10, 20, 30, 50, 70, 100, 150},
 		},
+		[]string{"thumbnail_size"},
 	)
 )
 

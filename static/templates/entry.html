@@ -14,7 +14,7 @@
 			{{ if $entry.ThumbnailURL }}
 			<!-- Show thumbnail if available -->
 			<img
-				src="{{ $entry.ThumbnailURL }}"
+				src="{{ printf `%s&thumbnail_size=small` $entry.ThumbnailURL }}"
 				class="thumbnail"
 				loading="lazy"
 				onload="this.classList.add('loaded')"

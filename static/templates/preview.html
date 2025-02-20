@@ -41,8 +41,8 @@
 						</a>
 					</div>
 					{{ else if eq .FileType "image" }}
-					<!-- TODO: add loader -->
-					<img class="preview-image" src="{{ .ThumbnailURL }}" loading="lazy"></img>
+					<img class="preview-image" src="{{ .ThumbnailURL }}" loading="lazy" onload="this.classList.add('loaded')" onerror="this.classList.add('failed')"></img>
+					<div class="g-loader"></div>
 					{{ else if eq .FileType "text" }}
 					<pre class="preview-text"></pre>
 					{{ else if eq .FileType "audio" }}
@@ -315,6 +315,25 @@
 				case "mod_time":
 					fileInfo.innerHTML = entry.human_readable_mod_time;
 					break;
+			}
+		}
+
+		// Preload medium thumbnails for the previous and next images.
+		{
+			const step = 3;
+			const start = Math.max(newIndex - step, 0);
+			const end = Math.min(entries.length, newIndex + step);
+			for (let i = start; i < end; i++) {
+				if (i === newIndex) {
+					continue;
+				}
+
+				const elem = document.getElementById(previewElementIDPrefix + `${i}`);
+				const img = elem.querySelector("img");
+				if (img) {
+					img.loading = "";
+					console.log(img);
+				}
 			}
 		}
 

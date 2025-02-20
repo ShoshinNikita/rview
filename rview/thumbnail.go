@@ -8,8 +8,9 @@ import (
 type ThumbnailSize string
 
 const (
-	ThumbnailSmall ThumbnailSize = ""
-	ThumbnailLarge ThumbnailSize = "large"
+	ThumbnailSmall  ThumbnailSize = "small"
+	ThumbnailMedium ThumbnailSize = "medium"
+	ThumbnailLarge  ThumbnailSize = "large"
 )
 
 type ThumbnailService interface {
