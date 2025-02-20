@@ -15,6 +15,8 @@ import (
 	"github.com/ShoshinNikita/rview/rview"
 )
 
+var ErrCacheMiss = errors.New("cache miss")
+
 type DiskCache struct {
 	absDir  string
 	cleaner *Cleaner
@@ -24,8 +26,6 @@ type Options struct {
 	DisableCleaner bool
 	MaxSize        int64
 }
-
-var _ rview.Cache = (*DiskCache)(nil)
 
 func NewDiskCache(absDir string, opts Options) (cache *DiskCache, err error) {
 	if !filepath.IsAbs(absDir) {
@@ -53,7 +53,7 @@ func (c *DiskCache) Open(id rview.FileID) (io.ReadCloser, error) {
 	if err != nil {
 		if errors.Is(err, fs.ErrNotExist) {
 			metrics.CacheMisses.Inc()
-			return nil, rview.ErrCacheMiss
+			return nil, ErrCacheMiss
 		}
 
 		metrics.CacheErrors.Inc()

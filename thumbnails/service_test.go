@@ -28,16 +28,16 @@ func TestThumbnailService(t *testing.T) {
 
 	const useOriginalImageThresholdSize = 10
 
-	cache, err := cache.NewDiskCache(t.TempDir(), cache.Options{DisableCleaner: true})
+	diskCache, err := cache.NewDiskCache(t.TempDir(), cache.Options{DisableCleaner: true})
 	require.NoError(t, err)
 
 	newService := func(
 		t *testing.T,
 		openFileFn func(ctx context.Context, id rview.FileID) (io.ReadCloser, error),
-		resizeFn func(originalFile, cacheFile string, id ThumbnailID, size rview.ThumbnailSize) error,
+		resizeFn func(originalFile, cacheFile string, id ThumbnailID, size ThumbnailSize) error,
 	) *ThumbnailService {
 
-		service := NewThumbnailService(nil, cache, 2, rview.JpegThumbnails)
+		service := NewThumbnailService(nil, diskCache, 2, rview.JpegThumbnails)
 		service.useOriginalImageThresholdSize = useOriginalImageThresholdSize
 		service.rclone = rcloneMock{openFileFn: openFileFn}
 		service.resizeFn = resizeFn
@@ -61,7 +61,7 @@ func TestThumbnailService(t *testing.T) {
 				time.Sleep(100 * time.Millisecond)
 				return io.NopCloser(strings.NewReader(strings.Repeat("x", int(id.GetSize())))), nil
 			},
-			func(_, cacheFile string, id ThumbnailID, _ rview.ThumbnailSize) error {
+			func(_, cacheFile string, id ThumbnailID, _ ThumbnailSize) error {
 				resizedCount++
 				return os.WriteFile(cacheFile, []byte("resized-content-"+id.GetName()), 0o600)
 			},
@@ -157,13 +157,13 @@ func TestThumbnailService(t *testing.T) {
 			func(context.Context, rview.FileID) (io.ReadCloser, error) {
 				return io.NopCloser(bytes.NewReader([]byte("long phrase to exceed threshold"))), nil
 			},
-			func(_, cacheFile string, thumbnailID ThumbnailID, _ rview.ThumbnailSize) error {
+			func(_, cacheFile string, thumbnailID ThumbnailID, _ ThumbnailSize) error {
 				// File must be created by vips, emulate it.
 				f, err := os.Create(cacheFile)
 				r.NoError(err)
 				r.NoError(f.Close())
 
-				rc, err := cache.Open(thumbnailID.FileID)
+				rc, err := diskCache.Open(thumbnailID.FileID)
 				r.NoError(err)
 				rc.Close()
 
@@ -174,11 +174,11 @@ func TestThumbnailService(t *testing.T) {
 		fileID := rview.NewFileID("2.jpg", time.Now().Unix(), useOriginalImageThresholdSize+1)
 
 		_, _, err = service.OpenThumbnail(ctx, fileID, "")
-		r.ErrorIs(err, rview.ErrCacheMiss)
+		r.ErrorIs(err, cache.ErrCacheMiss)
 
 		// Cache file must be removed.
 		_, err := service.cache.Open(fileID)
-		r.ErrorIs(err, rview.ErrCacheMiss)
+		r.ErrorIs(err, cache.ErrCacheMiss)
 	})
 
 	t.Run("use original file", func(t *testing.T) {
@@ -190,7 +190,7 @@ func TestThumbnailService(t *testing.T) {
 			func(context.Context, rview.FileID) (io.ReadCloser, error) {
 				return io.NopCloser(bytes.NewReader([]byte("x"))), nil
 			},
-			func(_, _ string, _ ThumbnailID, _ rview.ThumbnailSize) error {
+			func(_, _ string, _ ThumbnailID, _ ThumbnailSize) error {
 				resizeCalled = true
 				return errors.New("should not be called")
 			},
@@ -231,23 +231,23 @@ func TestThumbnailService_NewThumbnailID(t *testing.T) {
 
 	for _, tt := range []struct {
 		path          string
-		size          rview.ThumbnailSize
+		size          ThumbnailSize
 		wantThumbnail string
 	}{
 		{
-			path: "/home/cat.jpeg", size: rview.ThumbnailSmall,
+			path: "/home/cat.jpeg", size: ThumbnailSmall,
 			wantThumbnail: "/home/cat.thumbnail-small.jpeg",
 		},
 		{
-			path: "/home/abc/qwe/ghj/dog.heic", size: rview.ThumbnailMedium,
+			path: "/home/abc/qwe/ghj/dog.heic", size: ThumbnailMedium,
 			wantThumbnail: "/home/abc/qwe/ghj/dog.heic.thumbnail-medium.jpeg",
 		},
 		{
-			path: "/x/mouse.JPG", size: rview.ThumbnailLarge,
+			path: "/x/mouse.JPG", size: ThumbnailLarge,
 			wantThumbnail: "/x/mouse.thumbnail-large.JPG",
 		},
 		{
-			path: "/x/y/z/screenshot.PNG", size: rview.ThumbnailLarge,
+			path: "/x/y/z/screenshot.PNG", size: ThumbnailLarge,
 			wantThumbnail: "/x/y/z/screenshot.PNG.thumbnail-large.jpeg",
 		},
 	} {

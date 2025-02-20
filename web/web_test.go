@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/thumbnails"
 	"github.com/stretchr/testify/require"
@@ -12,9 +13,9 @@ import (
 func TestServer_convertRcloneInfo(t *testing.T) {
 	t.Parallel()
 
-	getTestRcloneInfo := func() *rview.RcloneDirInfo {
-		return &rview.RcloneDirInfo{
-			Entries: []rview.RcloneDirEntry{
+	getTestRcloneInfo := func() *rclone.DirInfo {
+		return &rclone.DirInfo{
+			Entries: []rclone.DirEntry{
 				{URL: "a.txt"},
 				{URL: "b.jpg"},
 				{URL: "c.png"},

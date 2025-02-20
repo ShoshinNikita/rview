@@ -28,6 +28,21 @@ import (
 	"github.com/ShoshinNikita/rview/static"
 )
 
+//nolint:revive
+type RcloneError struct {
+	StatusCode int
+	BodyPrefix string
+}
+
+func (err *RcloneError) Error() string {
+	return fmt.Sprintf("unexpected rclone response: status code: %d, body prefix: %q", err.StatusCode, err.BodyPrefix)
+}
+
+func IsNotFoundError(err error) bool {
+	var rcloneErr *RcloneError
+	return errors.As(err, &rcloneErr) && rcloneErr.StatusCode == http.StatusNotFound
+}
+
 // Rclone is an abstraction for an Rclone instance.
 type Rclone struct {
 	cmd               *exec.Cmd
@@ -324,7 +339,26 @@ func checkFileHeaders(id rview.FileID, fileHeaders http.Header) error {
 	return nil
 }
 
-func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string) (*rview.RcloneDirInfo, error) {
+type DirInfo struct {
+	Sort  string `json:"sort"`
+	Order string `json:"order"`
+
+	Breadcrumbs []DirBreadcrumb `json:"breadcrumbs"`
+	Entries     []DirEntry      `json:"entries"`
+}
+
+type DirBreadcrumb struct {
+	Text string `json:"text"`
+}
+
+type DirEntry struct {
+	URL     string `json:"url"`
+	IsDir   bool   `json:"is_dir"`
+	Size    int64  `json:"size"`
+	ModTime int64  `json:"mod_time"`
+}
+
+func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string) (*DirInfo, error) {
 	now := time.Now()
 
 	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", path)
@@ -338,7 +372,7 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 	}
 	defer body.Close()
 
-	var rcloneInfo rview.RcloneDirInfo
+	var rcloneInfo DirInfo
 	err = json.NewDecoder(body).Decode(&rcloneInfo)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't decode rclone response: %w", err)
@@ -385,7 +419,7 @@ func (r *Rclone) makeRequest(ctx context.Context, method string, url *url.URL) (
 		n, _ := resp.Body.Read(bodyPrefix)
 		bodyPrefix = bodyPrefix[:n]
 
-		return nil, nil, &rview.RcloneError{
+		return nil, nil, &RcloneError{
 			StatusCode: resp.StatusCode,
 			BodyPrefix: string(bodyPrefix),
 		}

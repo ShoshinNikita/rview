@@ -20,15 +20,21 @@ import (
 type Rview struct {
 	cfg rview.Config
 
-	thumbnailService rview.ThumbnailService
-	thumbnailCache   rview.Cache
+	thumbnailService ThumbnailService
+	thumbnailCache   *cache.DiskCache
 
 	searchService *search.Service
 
-	rcloneCache    rview.Cache
 	rcloneInstance *rclone.Rclone
+	rcloneCache    *cache.DiskCache
 
 	server *web.Server
+}
+
+type ThumbnailService interface {
+	web.ThumbnailService
+
+	Shutdown(context.Context) error
 }
 
 func NewRview(cfg rview.Config) *Rview {

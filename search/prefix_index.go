@@ -11,9 +11,12 @@ import (
 	"unicode"
 
 	"golang.org/x/text/unicode/norm"
-
-	"github.com/ShoshinNikita/rview/rview"
 )
+
+type Hit struct {
+	Path  string
+	Score float64
+}
 
 type prefixIndex struct {
 	MinPrefixLen int                 `json:"min_prefix_len"`
@@ -100,7 +103,7 @@ func filterHits(hits []searchHit, f func(searchHit) bool) (res []searchHit) {
 	return res
 }
 
-func (index *prefixIndex) Search(search string, limit int) []rview.SearchHit {
+func (index *prefixIndex) Search(search string, limit int) []Hit {
 	req := newSearchRequest(search)
 	if len(req.words) == 0 && len(req.exactMatches) == 0 && len(req.toExclude) == 0 {
 		// Just in case
@@ -142,15 +145,15 @@ func (index *prefixIndex) Search(search string, limit int) []rview.SearchHit {
 		})
 	}
 
-	res := make([]rview.SearchHit, 0, len(hits))
+	res := make([]Hit, 0, len(hits))
 	for _, h := range hits {
-		res = append(res, rview.SearchHit{
+		res = append(res, Hit{
 			Path:  index.Paths[h.id],
 			Score: h.score,
 		})
 	}
 
-	slices.SortFunc(res, func(a, b rview.SearchHit) int {
+	slices.SortFunc(res, func(a, b Hit) int {
 		if a.Score != b.Score {
 			return -1 * cmp.Compare(a.Score, b.Score)
 		}

@@ -21,26 +21,20 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-type imageType int
+type ThumbnailSize string
 
 const (
-	unsupportedImageType imageType = iota
-	jpegImageType
-	pngImageType
-	gifImageType
-	webpImageType
-	heicImageType
-	avifImageType
+	ThumbnailSmall  ThumbnailSize = "small"
+	ThumbnailMedium ThumbnailSize = "medium"
+	ThumbnailLarge  ThumbnailSize = "large"
 )
 
-var (
-	ErrUnsupportedImageFormat = errors.New("unsupported image format")
-)
+var ErrUnsupportedImageFormat = errors.New("unsupported image format")
 
 type ThumbnailService struct {
-	cache    rview.Cache
+	cache    Cache
 	rclone   Rclone
-	resizeFn func(originalFile, cacheFile string, id ThumbnailID, size rview.ThumbnailSize) error
+	resizeFn func(originalFile, cacheFile string, id ThumbnailID, size ThumbnailSize) error
 	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
 	// used without resizing. The main purpose of resizing is to reduce image size, and with small
 	// files it is not always possible - after resizing they become just larger.
@@ -57,6 +51,12 @@ type ThumbnailService struct {
 	workersDoneCh chan struct{}
 }
 
+type Cache interface {
+	Open(id rview.FileID) (io.ReadCloser, error)
+	GetFilepath(id rview.FileID) (path string, err error)
+	Remove(id rview.FileID) error
+}
+
 type Rclone interface {
 	OpenFile(context.Context, rview.FileID) (io.ReadCloser, error)
 }
@@ -69,7 +69,7 @@ type generateThumbnailTask struct {
 	fileID      rview.FileID
 	thumbnailID ThumbnailID
 	useOriginal bool
-	size        rview.ThumbnailSize
+	size        ThumbnailSize
 }
 
 func CheckVips() error {
@@ -86,7 +86,7 @@ func CheckVips() error {
 // For some images we can generate thumbnails of different formats. For example,
 // for .heic images we generate .jpeg thumbnails.
 func NewThumbnailService(
-	rclone Rclone, cache rview.Cache, workersCount int, thumbnailsFormat rview.ThumbnailsFormat,
+	rclone Rclone, cache Cache, workersCount int, thumbnailsFormat rview.ThumbnailsFormat,
 ) *ThumbnailService {
 
 	r := &ThumbnailService{
@@ -291,7 +291,7 @@ func createCacheFileFromTempFile(tempFile *os.File, cacheFilepath string, origin
 // than the original ones.
 //
 // See https://www.libvips.org/API/current/Using-vipsthumbnail.html for "vipsthumbnail" docs.
-func resizeWithVips(originalFile, cacheFile string, id ThumbnailID, thumbnailSize rview.ThumbnailSize) error {
+func resizeWithVips(originalFile, cacheFile string, id ThumbnailID, thumbnailSize ThumbnailSize) error {
 	output := cacheFile
 	switch t := getImageType(id.FileID); t {
 	// Ignore .heic, .png and etc. because thumbnail id must already have the correct extension.
@@ -312,11 +312,11 @@ func resizeWithVips(originalFile, cacheFile string, id ThumbnailID, thumbnailSiz
 
 	var size string
 	switch thumbnailSize {
-	case rview.ThumbnailSmall:
+	case ThumbnailSmall:
 		size = "256>"
-	case rview.ThumbnailMedium:
+	case ThumbnailMedium:
 		size = "1024>"
-	case rview.ThumbnailLarge:
+	case ThumbnailLarge:
 		size = "2048>"
 	default:
 		return fmt.Errorf("invalid thumbnail size: %q", thumbnailSize)
@@ -346,6 +346,18 @@ func (*ThumbnailService) CanGenerateThumbnail(id rview.FileID) bool {
 	return getImageType(id) != unsupportedImageType
 }
 
+type imageType int
+
+const (
+	unsupportedImageType imageType = iota
+	jpegImageType
+	pngImageType
+	gifImageType
+	webpImageType
+	heicImageType
+	avifImageType
+)
+
 func getImageType(id rview.FileID) imageType {
 	switch id.GetExt() {
 	case ".jpg", ".jpeg":
@@ -368,7 +380,7 @@ func getImageType(id rview.FileID) imageType {
 // OpenThumbnail returns [io.ReadCloser] for the image thumbnail. It generates a new thumbnail if needed.
 // Only the first call to OpenThumbnail generates a thumbnail.
 func (s *ThumbnailService) OpenThumbnail(
-	ctx context.Context, id rview.FileID, size rview.ThumbnailSize,
+	ctx context.Context, id rview.FileID, size ThumbnailSize,
 ) (rc io.ReadCloser, contentType string, err error) {
 
 	if s.stopped.Load() {
@@ -380,7 +392,7 @@ func (s *ThumbnailService) OpenThumbnail(
 	}
 
 	if size == "" {
-		size = rview.ThumbnailMedium
+		size = ThumbnailMedium
 	}
 
 	thumbnailID := ThumbnailID{FileID: id}
@@ -456,7 +468,7 @@ func (s *ThumbnailService) shouldUseOriginalImage(id rview.FileID) bool {
 }
 
 // newThumbnailID converts [rview.FileID] to [ThumbnailID].
-func (s *ThumbnailService) newThumbnailID(id rview.FileID, size rview.ThumbnailSize) (ThumbnailID, error) {
+func (s *ThumbnailService) newThumbnailID(id rview.FileID, size ThumbnailSize) (ThumbnailID, error) {
 	path := id.GetPath()
 
 	newExt, err := s.getThumbnailExt(id)

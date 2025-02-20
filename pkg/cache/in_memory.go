@@ -22,7 +22,7 @@ func NewInMemoryCache() *InMemoryCache {
 func (c *InMemoryCache) Open(id rview.FileID) (io.ReadCloser, error) {
 	data, ok := c.cache[id]
 	if !ok {
-		return nil, rview.ErrCacheMiss
+		return nil, ErrCacheMiss
 	}
 	return io.NopCloser(bytes.NewReader(data)), nil
 }

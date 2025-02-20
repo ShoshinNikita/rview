@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math"
 	"strings"
 	"sync"
@@ -18,7 +19,7 @@ import (
 
 type Service struct {
 	rclone Rclone
-	cache  rview.Cache
+	cache  Cache
 
 	stopCh    chan struct{}
 	stoppedCh chan struct{}
@@ -35,6 +36,11 @@ type Rclone interface {
 	GetAllFiles(ctx context.Context) (dirs, files []string, err error)
 }
 
+type Cache interface {
+	Open(id rview.FileID) (io.ReadCloser, error)
+	Write(id rview.FileID, r io.Reader) (err error)
+}
+
 type builtIndexes struct {
 	Dirs  *prefixIndex `json:"dirs"`
 	Files *prefixIndex `json:"files"`
@@ -42,7 +48,7 @@ type builtIndexes struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func NewService(rclone Rclone, cache rview.Cache) *Service {
+func NewService(rclone Rclone, cache Cache) *Service {
 	const (
 		minPrefixLen = 3
 		maxPrefixLen = 10
@@ -172,7 +178,7 @@ func (s *Service) GetMinSearchLength() int {
 	return s.minPrefixLen
 }
 
-func (s *Service) Search(_ context.Context, search string, dirLimit, fileLimit int) (dirs, files []rview.SearchHit, err error) {
+func (s *Service) Search(_ context.Context, search string, dirLimit, fileLimit int) (dirs, files []Hit, err error) {
 	now := time.Now()
 	defer func() {
 		metrics.SearchDuration.Observe(time.Since(now).Seconds())

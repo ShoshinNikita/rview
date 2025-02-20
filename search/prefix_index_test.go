@@ -5,7 +5,6 @@ import (
 	"math"
 	"testing"
 
-	"github.com/ShoshinNikita/rview/rview"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -89,7 +88,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits := index.Search(`games`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: 3},
 				{Path: "games/hi-fi rush/2.jpg", Score: 3},
 				{Path: "games/starfield/", Score: 3},
@@ -104,7 +103,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits := index.Search(`games`, 2)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: 3},
 				{Path: "games/hi-fi rush/2.jpg", Score: 3},
 			},
@@ -118,7 +117,7 @@ func TestPrefixIndex(t *testing.T) {
 		// Short words must be ignored
 		hits := index.Search(`games ru`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: 3},
 				{Path: "games/hi-fi rush/2.jpg", Score: 3},
 				{Path: "games/starfield/", Score: 3},
@@ -129,7 +128,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits = index.Search(`games rush`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: 5},
 				{Path: "games/hi-fi rush/2.jpg", Score: 5},
 			},
@@ -145,7 +144,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits = index.Search(`"games/hi-fi RUSH"`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
 				{Path: "games/hi-fi rush/2.jpg", Score: math.Inf(1)},
 			},
@@ -154,7 +153,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits = index.Search(`"games"`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
 				{Path: "games/hi-fi rush/2.jpg", Score: math.Inf(1)},
 				{Path: "games/starfield/", Score: math.Inf(1)},
@@ -164,7 +163,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits = index.Search(`"games" "jpg"`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
 				{Path: "games/hi-fi rush/2.jpg", Score: math.Inf(1)},
 			},
@@ -173,7 +172,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits = index.Search(`"games" "jpg" "1"`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
 			},
 			hits,
@@ -188,7 +187,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits := index.Search(`games -"hi-fi"`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/starfield/", Score: 3},
 				{Path: "gaming/", Score: 1},
 			},
@@ -197,7 +196,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits = index.Search(`games -"hi-fi" -"gaming"`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/starfield/", Score: 3},
 			},
 			hits,
@@ -205,7 +204,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits = index.Search(`"games" -"starfield"`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
 				{Path: "games/hi-fi rush/2.jpg", Score: math.Inf(1)},
 			},
@@ -214,7 +213,7 @@ func TestPrefixIndex(t *testing.T) {
 
 		hits = index.Search(`-"games" -"gaming" -"лето"`, 5)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "hello !&a! world.go", Score: math.Inf(1)},
 			},
 			hits,
@@ -227,7 +226,7 @@ func TestPrefixIndex(t *testing.T) {
 		index := newPrefixIndex([]string{"a beautiful picture"}, 3, 7)
 		hits := index.Search("a beautiful", 10)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "a beautiful picture", Score: 5},
 			},
 			hits,
@@ -248,12 +247,12 @@ func TestPrefixIndex(t *testing.T) {
 		// Both searches, with and without accented characters, succeed.
 		hits := index.Search("schuchternes", 10)
 		r.Equal(
-			[]rview.SearchHit{{Path: "schüchternes Lächeln", Score: 5}},
+			[]Hit{{Path: "schüchternes Lächeln", Score: 5}},
 			hits,
 		)
 		hits = index.Search("schüchternes", 10)
 		r.Equal(
-			[]rview.SearchHit{{Path: "schüchternes Lächeln", Score: 5}},
+			[]Hit{{Path: "schüchternes Lächeln", Score: 5}},
 			hits,
 		)
 
@@ -266,7 +265,7 @@ func TestPrefixIndex(t *testing.T) {
 		// Other cases.
 		hits = index.Search("hello", 10)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "hello world", Score: 3},
 				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 3},
 			},
@@ -274,7 +273,7 @@ func TestPrefixIndex(t *testing.T) {
 		)
 		hits = index.Search("ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛", 10)
 		r.Equal(
-			[]rview.SearchHit{
+			[]Hit{
 				{Path: "hello world", Score: 1},
 				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 1},
 			},
@@ -282,7 +281,7 @@ func TestPrefixIndex(t *testing.T) {
 		)
 		hits = index.Search("белыи", 10)
 		r.Equal(
-			[]rview.SearchHit{{Path: "белый", Score: 3}},
+			[]Hit{{Path: "белый", Score: 3}},
 			hits,
 		)
 

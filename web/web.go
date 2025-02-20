@@ -19,10 +19,14 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/pkg/misc"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
+	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
+	"github.com/ShoshinNikita/rview/search"
 	"github.com/ShoshinNikita/rview/static"
+	"github.com/ShoshinNikita/rview/thumbnails"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
@@ -31,15 +35,20 @@ type Server struct {
 
 	httpServer *http.Server
 
-	rclone           rview.Rclone
-	thumbnailService rview.ThumbnailService
-	searchService    rview.SearchService
+	rclone           *rclone.Rclone
+	thumbnailService ThumbnailService
+	searchService    *search.Service
 
 	iconsFS     fs.FS
 	templatesFS fs.FS
 }
 
-func NewServer(cfg rview.Config, rclone rview.Rclone, thumbnailService rview.ThumbnailService, searchService rview.SearchService) (s *Server) {
+type ThumbnailService interface {
+	CanGenerateThumbnail(rview.FileID) bool
+	OpenThumbnail(context.Context, rview.FileID, thumbnails.ThumbnailSize) (rc io.ReadCloser, contentType string, err error)
+}
+
+func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService ThumbnailService, searchService *search.Service) (s *Server) {
 	if cfg.ReadStaticFilesFromDisk {
 		rlog.Info("static files will be read from disk")
 	}
@@ -286,14 +295,14 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 	var isNotFound bool
 
 	rcloneInfo, err := s.rclone.GetDirInfo(ctx, dir, query.Get("sort"), query.Get("order"))
-	if rview.IsRcloneNotFoundError(err) {
+	if rclone.IsNotFoundError(err) {
 		// It's hard to replicate the logic of "DirInfo" preparation. Therefore, just
 		// set error to nil and init RcloneDirInfo with the predefined values.
 		err = nil
 		isNotFound = true
 
-		rcloneInfo = &rview.RcloneDirInfo{
-			Breadcrumbs: []rview.RcloneDirBreadcrumb{
+		rcloneInfo = &rclone.DirInfo{
+			Breadcrumbs: []rclone.DirBreadcrumb{
 				{Text: "/"},   // for link to Home
 				{Text: "???"}, // indicate that something went wrong
 			},
@@ -313,7 +322,7 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 	return info, nil
 }
 
-func (s *Server) convertRcloneInfo(rcloneInfo *rview.RcloneDirInfo, dir string) (DirInfo, error) {
+func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo, dir string) (DirInfo, error) {
 	info := DirInfo{
 		BuildInfo: s.cfg.BuildInfo,
 		//
@@ -464,14 +473,14 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var size rview.ThumbnailSize
+	var size thumbnails.ThumbnailSize
 	switch v := r.FormValue("thumbnail_size"); v {
 	case "small":
-		size = rview.ThumbnailSmall
+		size = thumbnails.ThumbnailSmall
 	case "medium", "":
-		size = rview.ThumbnailMedium
+		size = thumbnails.ThumbnailMedium
 	case "large":
-		size = rview.ThumbnailLarge
+		size = thumbnails.ThumbnailLarge
 	default:
 		writeBadRequestError(w, "invalid thumbnail_size: %q", v)
 		return
@@ -479,7 +488,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 
 	rc, contentType, err := s.thumbnailService.OpenThumbnail(r.Context(), id, size)
 	if err != nil {
-		if errors.Is(err, rview.ErrCacheMiss) {
+		if errors.Is(err, cache.ErrCacheMiss) {
 			writeError(w, http.StatusNotFound, "no thumbnail for %q, size %d, mod time %q", id.GetPath(), id.GetSize(), id.GetModTime())
 			return
 		}
@@ -507,9 +516,9 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return res
 	}
 
-	search := r.FormValue("search")
+	searchValue := r.FormValue("search")
 	minLength := s.searchService.GetMinSearchLength()
-	if len([]rune(search)) < minLength {
+	if len([]rune(searchValue)) < minLength {
 		writeBadRequestError(w, `minimum "search" length is %d characters`, minLength)
 		return
 	}
@@ -517,13 +526,13 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	fileLimit := atoi("file-limit", 5)
 	isUI := r.FormValue("ui") != ""
 
-	dirs, files, err := s.searchService.Search(r.Context(), search, dirLimit, fileLimit)
+	dirs, files, err := s.searchService.Search(r.Context(), searchValue, dirLimit, fileLimit)
 	if err != nil {
 		writeInternalServerError(w, "search failed: %s", err)
 		return
 	}
 
-	convertSearchHits := func(hits []rview.SearchHit, isDir bool) []SearchHit {
+	convertSearchHits := func(hits []search.Hit, isDir bool) []SearchHit {
 		res := make([]SearchHit, 0, len(hits))
 		for _, hit := range hits {
 			var webURL string

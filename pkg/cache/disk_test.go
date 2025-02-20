@@ -78,7 +78,7 @@ func TestDiskCache_FilesWithSameName(t *testing.T) {
 
 func checkFile(t *testing.T, cache *DiskCache, id rview.FileID) bool {
 	rc, err := cache.Open(id)
-	if errors.Is(err, rview.ErrCacheMiss) {
+	if errors.Is(err, ErrCacheMiss) {
 		return false
 	}
 	require.NoError(t, err)
