@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"io"
 	"strings"
 	"testing"
@@ -26,30 +27,18 @@ func TestDiskCache(t *testing.T) {
 	path := cache.generateFilepath(fileID)
 	r.Equal(tempDir+"/2022-04/t1650027901_s0_4532f251c9f83c0ec83cc421f0a9a2b3.txt", path)
 
-	t.Run("check", func(t *testing.T) {
-		r := require.New(t)
-
-		err := cache.Check(fileID)
-		r.ErrorIs(err, rview.ErrCacheMiss)
-
-		_, err = cache.Open(fileID)
-		r.ErrorIs(err, rview.ErrCacheMiss)
-	})
-
 	t.Run("remove", func(t *testing.T) {
 		r := require.New(t)
 
-		err = cache.Check(fileID)
-		r.ErrorIs(err, rview.ErrCacheMiss)
+		r.False(checkFile(t, cache, fileID))
 
 		err := cache.Write(fileID, strings.NewReader("hello world"))
 		r.NoError(err)
 
-		err = cache.Check(fileID)
-		r.NoError(err)
+		r.True(checkFile(t, cache, fileID))
 
 		r.NoError(cache.Remove(fileID))
-		r.ErrorIs(cache.Check(fileID), rview.ErrCacheMiss)
+		r.False(checkFile(t, cache, fileID))
 	})
 
 	t.Run("read", func(t *testing.T) {
@@ -84,6 +73,15 @@ func TestDiskCache_FilesWithSameName(t *testing.T) {
 	err = cache.Write(file1, strings.NewReader("hello world"))
 	r.NoError(err)
 
-	err = cache.Check(file2)
-	r.ErrorIs(err, rview.ErrCacheMiss)
+	r.False(checkFile(t, cache, file2))
+}
+
+func checkFile(t *testing.T, cache *DiskCache, id rview.FileID) bool {
+	rc, err := cache.Open(id)
+	if errors.Is(err, rview.ErrCacheMiss) {
+		return false
+	}
+	require.NoError(t, err)
+	rc.Close()
+	return true
 }

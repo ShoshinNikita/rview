@@ -64,25 +64,6 @@ func (c *DiskCache) Open(id rview.FileID) (io.ReadCloser, error) {
 	return file, nil
 }
 
-// Check can be used to check whether a file is cached. If the file is not cached, it returns [rview.ErrCacheMiss].
-func (c *DiskCache) Check(id rview.FileID) error {
-	path := c.generateFilepath(id)
-
-	_, err := os.Stat(path)
-	if err != nil {
-		if errors.Is(err, fs.ErrNotExist) {
-			metrics.CacheMisses.Inc()
-			return rview.ErrCacheMiss
-		}
-
-		metrics.CacheErrors.Inc()
-		return err
-	}
-
-	metrics.CacheHits.Inc()
-	return nil
-}
-
 // GetFilepath returns the absolute path of the cache file associated with passed [rview.FileID].
 // It creates all directories, so the caller can create the cache file without any additional
 // actions.

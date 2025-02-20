@@ -378,10 +378,9 @@ func (s *ThumbnailService) OpenThumbnail(
 
 	contentType = mime.TypeByExtension(thumbnailID.GetExt())
 
-	if s.cache.Check(thumbnailID.FileID) == nil {
+	if rc, err := s.cache.Open(thumbnailID.FileID); err == nil {
 		// Thumbnail already exists.
-		rc, err := s.cache.Open(thumbnailID.FileID)
-		return rc, contentType, err
+		return rc, contentType, nil
 	}
 
 	isInProgress := func(addTask bool) bool {

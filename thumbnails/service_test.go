@@ -163,7 +163,9 @@ func TestThumbnailService(t *testing.T) {
 				r.NoError(err)
 				r.NoError(f.Close())
 
-				r.NoError(cache.Check(thumbnailID.FileID))
+				rc, err := cache.Open(thumbnailID.FileID)
+				r.NoError(err)
+				rc.Close()
 
 				return errors.New("some error")
 			},
@@ -175,7 +177,8 @@ func TestThumbnailService(t *testing.T) {
 		r.ErrorIs(err, rview.ErrCacheMiss)
 
 		// Cache file must be removed.
-		r.ErrorIs(service.cache.Check(fileID), rview.ErrCacheMiss)
+		_, err := service.cache.Open(fileID)
+		r.ErrorIs(err, rview.ErrCacheMiss)
 	})
 
 	t.Run("use original file", func(t *testing.T) {

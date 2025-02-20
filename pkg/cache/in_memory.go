@@ -27,14 +27,6 @@ func (c *InMemoryCache) Open(id rview.FileID) (io.ReadCloser, error) {
 	return io.NopCloser(bytes.NewReader(data)), nil
 }
 
-func (c *InMemoryCache) Check(id rview.FileID) error {
-	_, ok := c.cache[id]
-	if !ok {
-		return rview.ErrCacheMiss
-	}
-	return nil
-}
-
 func (c *InMemoryCache) GetFilepath(rview.FileID) (string, error) {
 	return "", errors.New("in-memory cache")
 }
