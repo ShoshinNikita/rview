@@ -192,6 +192,7 @@ div.g-loader {
 
 	.g-property-value {
 		font-style: italic;
+		overflow-wrap: break-word;
 	}
 }
 

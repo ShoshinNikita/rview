@@ -152,7 +152,7 @@
 	column-gap: 16px;
 	display: flex;
 	font-size: 24px;
-	overflow-wrap: break-word;
+	overflow-wrap: anywhere;
 }
 
 .preview-not-available-info-icon {
@@ -239,7 +239,6 @@
 
 .preview-file-info {
 	grid-area: file-info;
-	overflow-wrap: break-word;
 }
 
 .preview-file-info>* {
@@ -343,7 +342,7 @@
  */
 
 /* Tablets */
-@media only screen and (max-width: 1200px) {
+@media only screen and ((max-width: 1200px) or ((orientation: landscape) and (max-height: 768px))) {
 	.preview {
 		grid-template-columns: none;
 		grid-template-rows: repeat(2, max-content);
