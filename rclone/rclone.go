@@ -487,10 +487,6 @@ func (m *mutexMap[K]) Lock(k K) (unlock func()) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if m.m == nil {
-		m.m = make(map[K]*sync.Mutex)
-	}
-
 	res, ok := m.m[k]
 	if !ok {
 		res = new(sync.Mutex)

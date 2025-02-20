@@ -34,7 +34,6 @@ func TestDiskCache(t *testing.T) {
 
 		err := cache.Write(fileID, strings.NewReader("hello world"))
 		r.NoError(err)
-
 		r.True(checkFile(t, cache, fileID))
 
 		r.NoError(cache.Remove(fileID))

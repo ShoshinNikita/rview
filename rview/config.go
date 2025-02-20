@@ -236,7 +236,7 @@ func ParseConfig() (cfg Config, err error) {
 	}
 	cfg.Dir, err = filepath.Abs(cfg.Dir)
 	if err != nil {
-		return cfg, fmt.Errorf("couldn't get absolute path to dir: %w", err)
+		return cfg, fmt.Errorf("couldn't get absolute path for %q: %w", cfg.Dir, err)
 	}
 
 	return cfg, nil

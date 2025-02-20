@@ -440,11 +440,11 @@ func TestAPI_GetFile(t *testing.T) {
 		r.Equal("traffic-539", string(body))
 
 		header = http.Header{
-			"Range": {"bytes=0-16"},
+			"Range": {"bytes=3-16"},
 		}
 		status, body, _ = makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637032&size=162", requestOptions{header: header})
 		r.Equal(206, status)
-		r.Equal("traffic-53902.mp4", string(body))
+		r.Equal("ffic-53902.mp4", string(body))
 	})
 }
 

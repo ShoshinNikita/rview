@@ -320,9 +320,9 @@
 
 		// Preload medium thumbnails for the previous and next images.
 		{
-			const step = 3;
-			const start = Math.max(newIndex - step, 0);
-			const end = Math.min(entries.length, newIndex + step);
+			const halfWindow = 3;
+			const start = Math.max(newIndex - halfWindow, 0);
+			const end = Math.min(entries.length, newIndex + halfWindow + 1);
 			for (let i = start; i < end; i++) {
 				if (i === newIndex) {
 					continue;
