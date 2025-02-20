@@ -110,6 +110,8 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
                                   with the default config file. Url should include credentials
                                   for Basic Auth, e.g., http://user:pass@rclone:80
 
+--rclone-cache-size               Max size of original file cache (default: 300Mi)
+
 --dir                             Directory for app data: thumbnails and etc. (default: ./var)
 
 --port                            Server port (default: 8080)
@@ -126,7 +128,7 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
                                             more time (+32% on average) and requires more resources.
                                     - jpeg: fast thumbnail generation, large files
 
---thumbnails-cache-size           Max total size of cached thumbnails (default: 500Mi)
+--thumbnails-cache-size           Max size of thumbnail cache (default: 500Mi)
 
 --thumbnails-workers-count        Number of workers for thumbnail generation (default: # of threads)
 

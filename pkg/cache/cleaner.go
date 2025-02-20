@@ -16,7 +16,8 @@ import (
 
 // Cleaner controls the total size of the cache.
 type Cleaner struct {
-	dir              string
+	cacheName        string
+	absDir           string
 	maxTotalFileSize int64 // in bytes
 
 	stopCh                 chan struct{}
@@ -29,9 +30,14 @@ type fileInfo struct {
 	size    int64
 }
 
-func NewCleaner(dir string, maxTotalFileSize int64) *Cleaner {
+func NewCleaner(cacheName, absDir string, maxTotalFileSize int64) (*Cleaner, error) {
+	if !filepath.IsAbs(absDir) {
+		return nil, fmt.Errorf("dir should be absolute")
+	}
+
 	c := &Cleaner{
-		dir:              dir,
+		cacheName:        cacheName,
+		absDir:           absDir,
 		maxTotalFileSize: maxTotalFileSize,
 		//
 		stopCh:                 make(chan struct{}),
@@ -40,11 +46,11 @@ func NewCleaner(dir string, maxTotalFileSize int64) *Cleaner {
 
 	go c.startCleanupProcess()
 
-	return c
+	return c, nil
 }
 
 func (c Cleaner) startCleanupProcess() {
-	ticker := time.NewTimer(5 * time.Minute)
+	ticker := time.NewTimer(time.Minute)
 	defer ticker.Stop()
 
 	for {
@@ -68,13 +74,13 @@ func (c Cleaner) cleanup() {
 		if errors.Is(err, fs.ErrNotExist) {
 			logf = rlog.Warnf
 		}
-		logf("couldn't load files to clean: %s", err)
+		logf("couldn't load files to clean from cache %q: %s", c.cacheName, err)
 		return
 	}
 
 	filesToRemove := c.getFilesToRemove(allFiles)
 	if len(filesToRemove) == 0 {
-		rlog.Debug("no files to remove from cache")
+		rlog.Debugf("no files to remove from cache %q", c.cacheName)
 		return
 	}
 
@@ -84,14 +90,14 @@ func (c Cleaner) cleanup() {
 	}
 	if removedFiles > 0 {
 		rlog.Infof(
-			"%d files have been removed from cache for a total of %s freed, got %d errors",
-			removedFiles, misc.FormatFileSize(cleanedSpace), len(errs),
+			"%d files have been removed from cache %q for a total of %s freed, got %d errors",
+			removedFiles, c.cacheName, misc.FormatFileSize(cleanedSpace), len(errs),
 		)
 	}
 }
 
 func (c Cleaner) loadAllFiles() (files []fileInfo, err error) {
-	err = filepath.Walk(c.dir, func(path string, info fs.FileInfo, err error) error {
+	err = filepath.Walk(c.absDir, func(path string, info fs.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}

@@ -32,7 +32,7 @@ func TestCleaner_loadAllFilesAndRemove(t *testing.T) {
 		r.NoError(err)
 	}
 
-	c := Cleaner{dir: dir}
+	c := Cleaner{absDir: dir}
 
 	// Check all files.
 	{

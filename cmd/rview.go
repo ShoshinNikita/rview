@@ -25,6 +25,7 @@ type Rview struct {
 
 	searchService *search.Service
 
+	rcloneCache    rview.Cache
 	rcloneInstance *rclone.Rclone
 
 	server *web.Server
@@ -45,8 +46,14 @@ func (r *Rview) Prepare() (err error) {
 		return fmt.Errorf("couldn't prepare disk cache for service needs: %w", err)
 	}
 
-	// Rclone Instance
-	r.rcloneInstance, err = rclone.NewRclone(r.cfg.Rclone)
+	// Rclone
+	r.rcloneCache, err = cache.NewDiskCache(filepath.Join(r.cfg.Dir, "rclone"), cache.Options{
+		MaxSize: r.cfg.RcloneCacheSize.Bytes(),
+	})
+	if err != nil {
+		return fmt.Errorf("couldn't prepare disk cache for rclone: %w", err)
+	}
+	r.rcloneInstance, err = rclone.NewRclone(r.rcloneCache, r.cfg.Rclone)
 	if err != nil {
 		return fmt.Errorf("couldn't prepare rclone: %w", err)
 	}
@@ -95,9 +102,6 @@ func (r *Rview) Start(onError func()) <-chan struct{} {
 			"search service":  r.searchService,
 			"web server":      r.server,
 		} {
-			name := name
-			s := s
-
 			wg.Add(1)
 			go func() {
 				defer wg.Done()
@@ -125,6 +129,7 @@ func (r *Rview) Shutdown(ctx context.Context) error {
 		"thumbnail cache":   r.thumbnailCache,
 		"search service":    r.searchService,
 		"rclone instance":   r.rcloneInstance,
+		"rclone cache":      r.rcloneCache,
 	} {
 		err := safeShutdown(ctx, s)
 		if err != nil {

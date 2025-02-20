@@ -27,16 +27,20 @@ type Options struct {
 
 var _ rview.Cache = (*DiskCache)(nil)
 
-func NewDiskCache(absDir string, opts Options) (*DiskCache, error) {
+func NewDiskCache(absDir string, opts Options) (cache *DiskCache, err error) {
 	if !filepath.IsAbs(absDir) {
 		return nil, fmt.Errorf("dir should be absolute")
 	}
 
-	cache := &DiskCache{
+	cache = &DiskCache{
 		absDir: absDir,
 	}
 	if !opts.DisableCleaner {
-		cache.cleaner = NewCleaner(absDir, opts.MaxSize)
+		name := filepath.Base(absDir)
+		cache.cleaner, err = NewCleaner(name, absDir, opts.MaxSize)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't prepare cache cleaner: %w", err)
+		}
 	}
 	return cache, nil
 }
