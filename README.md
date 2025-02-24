@@ -112,6 +112,8 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
 
 --rclone-cache-size               Max size of original file cache (default: 300Mi)
 
+--rclone-dir-cache-ttl            Time to cache dir entries for. Set to 0 to disable. (default: 5m)
+
 --dir                             Directory for app data: thumbnails and etc. (default: ./var)
 
 --port                            Server port (default: 8080)

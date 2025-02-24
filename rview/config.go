@@ -45,9 +45,10 @@ type BuildInfo struct {
 }
 
 type RcloneConfig struct {
-	URL    string
-	Target string
-	Port   int
+	URL         string
+	Target      string
+	Port        int
+	DirCacheTTL time.Duration
 }
 
 type ImagePreviewMode string
@@ -156,6 +157,9 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 		"rclone-cache-size": {
 			p: &cfg.RcloneCacheSize, defaultValue: MiB(300), desc: "Max size of original file cache",
 		},
+		"rclone-dir-cache-ttl": {
+			p: &cfg.Rclone.DirCacheTTL, defaultValue: 5 * time.Minute, desc: "Time to cache dir entries for. Set to 0 to disable",
+		},
 		//
 		"image-preview-mode": {
 			p: &cfg.ImagePreviewMode, defaultValue: ImagePreviewModeThumbnails, desc: "" +
@@ -211,6 +215,8 @@ func ParseConfig() (cfg Config, err error) {
 			flag.Int64Var(p, name, params.defaultValue.(int64), params.desc)
 		case *string:
 			flag.StringVar(p, name, params.defaultValue.(string), params.desc)
+		case *time.Duration:
+			flag.DurationVar(p, name, params.defaultValue.(time.Duration), params.desc)
 		case encoding.TextUnmarshaler:
 			flag.TextVar(p, name, params.defaultValue.(encoding.TextMarshaler), params.desc)
 		default:

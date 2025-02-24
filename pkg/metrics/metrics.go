@@ -47,6 +47,13 @@ var (
 			Buckets:   []float64{0.05, 0.1, 0.2, 0.5, 1, 2, 5},
 		},
 	)
+	RcloneDirsServedFromCache = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "rclone",
+			Name:      "dirs_served_from_cache",
+		},
+	)
 	RcloneFilesServedFromCache = promauto.NewCounter(
 		prometheus.CounterOpts{
 			Namespace: namespace,

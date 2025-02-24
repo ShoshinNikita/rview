@@ -3,8 +3,10 @@ package rclone
 import (
 	"context"
 	"io"
+	"math/rand/v2"
 	"os"
 	"path/filepath"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -13,6 +15,125 @@ import (
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/stretchr/testify/require"
 )
+
+func TestRclone_DirCache(t *testing.T) {
+	r := require.New(t)
+
+	getEntries := func(t *testing.T, rclone *Rclone) []string {
+		info, err := rclone.GetDirInfo(t.Context(), "/", "", "")
+		r.NoError(err)
+
+		res := make([]string, 0, len(info.Entries))
+		for _, e := range info.Entries {
+			if e.Leaf != "" {
+				res = append(res, e.Leaf)
+			}
+		}
+		return res
+	}
+
+	t.Run("cache disabled", func(t *testing.T) {
+		dir := t.TempDir()
+		rclone := startRclone(t, cache.NewInMemoryCache(), rview.RcloneConfig{
+			Target:      dir,
+			Port:        32142,
+			DirCacheTTL: 0,
+		})
+
+		err := os.WriteFile(filepath.Join(dir, "1.txt"), nil, 0600)
+		r.NoError(err)
+		r.Equal([]string{"1.txt"}, getEntries(t, rclone))
+
+		err = os.WriteFile(filepath.Join(dir, "2.txt"), nil, 0600)
+		r.NoError(err)
+		r.Equal([]string{"1.txt", "2.txt"}, getEntries(t, rclone))
+	})
+
+	t.Run("cache enabled", func(t *testing.T) {
+		dir := t.TempDir()
+		rclone := startRclone(t, cache.NewInMemoryCache(), rview.RcloneConfig{
+			Target:      dir,
+			Port:        32142,
+			DirCacheTTL: time.Hour,
+		})
+
+		err := os.WriteFile(filepath.Join(dir, "1.txt"), nil, 0600)
+		r.NoError(err)
+		r.Equal([]string{"1.txt"}, getEntries(t, rclone))
+
+		err = os.WriteFile(filepath.Join(dir, "2.txt"), nil, 0600)
+		r.NoError(err)
+		r.Equal([]string{"1.txt"}, getEntries(t, rclone)) // got data from cache
+
+		// Expire cache.
+		{
+			item := rclone.dirCache.Get("/")
+			item.expiresAt = time.Now().Add(-time.Hour)
+		}
+
+		err = os.WriteFile(filepath.Join(dir, "2.txt"), nil, 0600)
+		r.NoError(err)
+		r.Equal([]string{"1.txt", "2.txt"}, getEntries(t, rclone)) // got data from rclone
+	})
+}
+
+func TestRclone_SortEntries(t *testing.T) {
+	entries := []DirEntry{
+		{Leaf: "images/", IsDir: true, Size: 0, ModTime: 123},
+		{Leaf: "arts/", IsDir: true, Size: 0, ModTime: 321},
+		//
+		{Leaf: "image.png", Size: 100, ModTime: 120},
+		{Leaf: "1.txt", Size: 23, ModTime: 11},
+		{Leaf: "book.pdf", Size: 234, ModTime: 400},
+		{Leaf: "book copy.pdf", Size: 234, ModTime: 400},
+	}
+
+	sortAndCheck := func(t *testing.T, sortFn func(a, b DirEntry) int, want []string) {
+		entries := slices.Clone(entries)
+
+		for range 10 {
+			rand.Shuffle(len(entries), func(i, j int) { entries[i], entries[j] = entries[j], entries[i] })
+			slices.SortFunc(entries, sortFn)
+
+			var filenames []string
+			for _, e := range entries {
+				filenames = append(filenames, e.Leaf)
+			}
+			require.Equal(t, want, filenames)
+		}
+	}
+
+	t.Run("name", func(t *testing.T) {
+		sortAndCheck(t, sortByName, []string{
+			"arts/",
+			"images/",
+			"1.txt",
+			"book copy.pdf",
+			"book.pdf",
+			"image.png",
+		})
+	})
+	t.Run("size", func(t *testing.T) {
+		sortAndCheck(t, sortBySize, []string{
+			"arts/",
+			"images/",
+			"1.txt",
+			"image.png",
+			"book copy.pdf",
+			"book.pdf",
+		})
+	})
+	t.Run("modtime", func(t *testing.T) {
+		sortAndCheck(t, sortByTime, []string{
+			"1.txt",
+			"image.png",
+			"images/",
+			"arts/",
+			"book copy.pdf",
+			"book.pdf",
+		})
+	})
+}
 
 func TestRclone_OpenFile(t *testing.T) {
 	r := require.New(t)
@@ -33,7 +154,10 @@ func TestRclone_OpenFile(t *testing.T) {
 	cache := &cacheStub{
 		inMemory: cache.NewInMemoryCache(),
 	}
-	rclone := startRclone(t, dir, cache)
+	rclone := startRclone(t, cache, rview.RcloneConfig{
+		Target: dir,
+		Port:   37144,
+	})
 
 	getFile := func() (string, error) {
 		rc, err := rclone.OpenFile(t.Context(), fileID)
@@ -93,13 +217,10 @@ func TestRclone_OpenFile(t *testing.T) {
 	r.Contains(err.Error(), "status code: 404")
 }
 
-func startRclone(t *testing.T, dir string, cache Cache) *Rclone {
+func startRclone(t *testing.T, cache Cache, cfg rview.RcloneConfig) *Rclone {
 	r := require.New(t)
 
-	rclone, err := NewRclone(cache, rview.RcloneConfig{
-		Target: dir,
-		Port:   37511,
-	})
+	rclone, err := NewRclone(cache, cfg)
 	r.NoError(err)
 	go func() {
 		if err := rclone.Start(); err != nil {

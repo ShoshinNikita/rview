@@ -2,6 +2,7 @@ package rclone
 
 import (
 	"bufio"
+	"cmp"
 	"context"
 	"crypto/rand"
 	_ "embed"
@@ -17,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -53,6 +55,7 @@ type Rclone struct {
 	stoppedByShutdown atomic.Bool
 	stoppedCh         chan struct{}
 
+	dirCache        *dirCache
 	cache           Cache
 	openFileMutexes *mutexMap[rview.FileID]
 
@@ -134,6 +137,7 @@ func NewRclone(cache Cache, cfg rview.RcloneConfig) (_ *Rclone, err error) {
 		stopCmd:   stopCmd,
 		stoppedCh: make(chan struct{}),
 		//
+		dirCache:        newDirCache(cfg.DirCacheTTL),
 		cache:           cache,
 		openFileMutexes: newMutexMap[rview.FileID](),
 		//
@@ -362,20 +366,70 @@ type DirEntry struct {
 }
 
 func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string) (*DirInfo, error) {
+	info, err := r.getDirInfo(ctx, path)
+	if err != nil {
+		return nil, err
+	}
+
+	sortFn := map[string]func(a DirEntry, b DirEntry) int{
+		"":             sortByName,
+		"namedirfirst": sortByName,
+		"size":         sortBySize,
+		"time":         sortByTime,
+	}[sort]
+	if sortFn != nil {
+		info.Sort = sort
+		slices.SortFunc(info.Entries, sortFn)
+	}
+
+	reverse, ok := map[string]bool{
+		"":     false,
+		"asc":  false,
+		"desc": true,
+	}[order]
+	if ok {
+		info.Order = order
+		if reverse {
+			slices.Reverse(info.Entries)
+		}
+	}
+
+	return info, nil
+}
+
+func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) {
+	saveToCache := func(*DirInfo) error { return nil }
+	if r.dirCache.Enabled() {
+		cacheItem := r.dirCache.Get(path)
+
+		// Prevent parallel requests for the same dir.
+		cacheItem.Lock()
+		defer cacheItem.Unlock()
+
+		info, err := cacheItem.LoadLocked()
+		if err != nil {
+			return nil, fmt.Errorf("couldn't load dir from cache: %w", err)
+		}
+		if info != nil {
+			metrics.RcloneDirsServedFromCache.Inc()
+			return info, nil
+		}
+
+		// No data in cache - proceed to load the directory.
+
+		saveToCache = cacheItem.StoreLocked
+	}
+
 	now := time.Now()
 
 	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", path)
-	rcloneURL.RawQuery = url.Values{
-		"sort":  []string{sort},
-		"order": []string{order},
-	}.Encode()
 	body, _, err := r.makeRequest(ctx, "GET", rcloneURL)
 	if err != nil {
 		return nil, err
 	}
 	defer body.Close()
 
-	var rcloneInfo DirInfo
+	var rcloneInfo *DirInfo
 	err = json.NewDecoder(body).Decode(&rcloneInfo)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't decode rclone response: %w", err)
@@ -401,7 +455,41 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 		}
 	}
 
-	return &rcloneInfo, nil
+	if err := saveToCache(rcloneInfo); err != nil {
+		return nil, fmt.Errorf("couldn't save dir to cache: %w", err)
+	}
+
+	return rcloneInfo, nil
+}
+
+func sortByName(a, b DirEntry) int {
+	if a.IsDir == b.IsDir {
+		return cmp.Compare(strings.ToLower(a.Leaf), strings.ToLower(b.Leaf))
+	}
+	if a.IsDir {
+		return -1
+	}
+	return +1
+}
+
+func sortBySize(a, b DirEntry) int {
+	switch {
+	case (a.IsDir && b.IsDir) || (a.Size == b.Size):
+		return cmp.Compare(strings.ToLower(a.Leaf), strings.ToLower(b.Leaf))
+	case a.IsDir:
+		return -1
+	case b.IsDir:
+		return +1
+	default:
+		return cmp.Compare(a.Size, b.Size)
+	}
+}
+
+func sortByTime(a, b DirEntry) int {
+	if a.ModTime != b.ModTime {
+		return cmp.Compare(a.ModTime, b.ModTime)
+	}
+	return sortByName(a, b)
 }
 
 func (r *Rclone) makeRequest(ctx context.Context, method string, url *url.URL) (io.ReadCloser, http.Header, error) {
