@@ -12,7 +12,7 @@
 	"entries": [
 		{{ range .Entries }}
 		{
-			"url": "{{ .URL }}",
+			"leaf": "{{ .Leaf }}",
 			"is_dir": {{ .IsDir }},
 			"size": {{ .Size }},
 			"mod_time": {{ .ModTime.Unix }}

@@ -8,9 +8,6 @@ import (
 	"github.com/ShoshinNikita/rview/rview"
 )
 
-//go:embed rclone.gotmpl
-var RcloneTemplate string
-
 //go:embed templates
 var templatesFS embed.FS
 

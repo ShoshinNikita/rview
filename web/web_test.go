@@ -16,11 +16,11 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 	getTestRcloneInfo := func() *rclone.DirInfo {
 		return &rclone.DirInfo{
 			Entries: []rclone.DirEntry{
-				{URL: "a.txt"},
-				{URL: "b.jpg"},
-				{URL: "c.png"},
-				{URL: "c.bmp"},
-				{URL: "d.zip"},
+				{Leaf: "a.txt"},
+				{Leaf: "b.jpg"},
+				{Leaf: "c.png"},
+				{Leaf: "c.bmp"},
+				{Leaf: "d.zip"},
 			},
 		}
 	}

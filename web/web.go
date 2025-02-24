@@ -361,13 +361,13 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo, dir string) (DirI
 	}
 
 	for _, entry := range rcloneInfo.Entries {
-		if entry.URL == "" {
+		if entry.Leaf == "" {
 			continue
 		}
 
-		filename, err := url.PathUnescape(pkgPath.Clean(entry.URL))
+		filename, err := url.PathUnescape(pkgPath.Clean(entry.Leaf))
 		if err != nil {
-			return DirInfo{}, fmt.Errorf("invalid url %q: %w", entry.URL, err)
+			return DirInfo{}, fmt.Errorf("invalid url %q: %w", entry.Leaf, err)
 		}
 		filepath := pkgPath.Join(info.Dir, filename)
 

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"crypto/rand"
+	_ "embed"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -25,8 +26,10 @@ import (
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/ShoshinNikita/rview/static"
 )
+
+//go:embed rclone.gotmpl
+var rcloneTemplate string
 
 //nolint:revive
 type RcloneError struct {
@@ -96,7 +99,7 @@ func NewRclone(cache Cache, cfg rview.RcloneConfig) (_ *Rclone, err error) {
 		if err != nil {
 			return nil, fmt.Errorf("couldn't create temp file for rclone template: %w", err)
 		}
-		_, err = f.WriteString(static.RcloneTemplate)
+		_, err = f.WriteString(rcloneTemplate)
 		if err != nil {
 			return nil, fmt.Errorf("couldn't write rclone template file: %w", err)
 		}
@@ -352,7 +355,7 @@ type DirBreadcrumb struct {
 }
 
 type DirEntry struct {
-	URL     string `json:"url"`
+	Leaf    string `json:"leaf"`
 	IsDir   bool   `json:"is_dir"`
 	Size    int64  `json:"size"`
 	ModTime int64  `json:"mod_time"`
@@ -388,7 +391,7 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 		rcloneInfo.Breadcrumbs[i].Text = html.UnescapeString(rcloneInfo.Breadcrumbs[i].Text)
 	}
 	for i := range rcloneInfo.Entries {
-		rcloneInfo.Entries[i].URL = html.UnescapeString(rcloneInfo.Entries[i].URL)
+		rcloneInfo.Entries[i].Leaf = html.UnescapeString(rcloneInfo.Entries[i].Leaf)
 	}
 
 	// Rclone can't accurately report dir size. So, just reset it (and replicate behavior of 'rclone serve').
