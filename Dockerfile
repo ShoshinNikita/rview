@@ -21,7 +21,7 @@ RUN rclone --version
 FROM alpine:3.21
 
 LABEL org.opencontainers.image.title="Rview"
-LABEL org.opencontainers.image.description="Web-based UI for Rclone"
+LABEL org.opencontainers.image.description="Web-based UI for 'rclone serve'"
 LABEL org.opencontainers.image.source="https://github.com/ShoshinNikita/rview"
 LABEL org.opencontainers.image.licenses="MIT"
 

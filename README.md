@@ -1,4 +1,4 @@
-# `Rview` - web-based UI for Rclone
+# `Rview` - web-based UI for `rclone serve`
 
 <p align="center">
   <img src="docs/screenshots/dir_home.jpg" width="90%">

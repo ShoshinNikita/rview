@@ -3,7 +3,7 @@
 	"name": "Rview",
 	"display": "standalone",
 	"start_url": "/ui/",
-	"description": "Web-based UI for Rclone",
+	"description": "Web-based UI for 'rclone serve'",
 	"orientation": "any",
 	"background_color": "#151a22",
 	"icons": [
