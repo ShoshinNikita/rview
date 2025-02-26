@@ -19,3 +19,10 @@ jobs:
       - run: make docker-build
       - run: docker tag rview ghcr.io/shoshinnikita/rview:main
       - run: docker push ghcr.io/shoshinnikita/rview:main
+      # Keep only the last 5 untagged images.
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: rview
+          package-type: container
+          min-versions-to-keep: 5
+          delete-only-untagged-versions: "true"
