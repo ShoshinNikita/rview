@@ -301,7 +301,7 @@
 		let isSearchIndexRefreshInProgress = false;
 		function refreshSearchIndexes(ev) {
 			if (isSearchIndexRefreshInProgress) {
-				console.log("search index refresh is already in progress");
+				console.warn("search index refresh is already in progress");
 				return;
 			}
 			if (!confirm("The refresh of search indexes can take a while. Start the process?")) {
@@ -390,7 +390,7 @@
 			const paramsWithoutPreview = new URLSearchParams(params);
 			paramsWithoutPreview.delete("preview");
 			const url = window.location.pathname + (paramsWithoutPreview.size > 0 ? "?" + paramsWithoutPreview.toString() : "");
-			history.replaceState(null, "", url);
+			history.replaceState(history.state, "", url);
 
 			const previewFilename = params.get("preview");
 			if (previewFilename) {
@@ -436,7 +436,11 @@
 			});
 			newBreadcrumbs[newBreadcrumbs.length - 1].append(document.querySelector(".dir-info").cloneNode(true));
 
-			// Show spinner.
+			// We hide the files, and hence the browser can't restore the scroll position after 'Go back'.
+			// So, we have to do it ourselves.
+			history.replaceState({ ...history.state, scrollY: window.scrollY }, "");
+
+			// Show spinner and hide the files.
 			document.querySelector("#app").classList.add("loading");
 
 			// Add fake breadcrumbs, keep the existing ones to be able to restore them (see 'pageshow' event listener).
@@ -458,6 +462,10 @@
 				document.querySelectorAll(".breadcrumbs .new-page-breadcrumb").forEach(v => v.remove());
 				document.querySelector("#app").classList.remove("loading");
 				document.querySelector(".header").style.pointerEvents = "";
+			}
+
+			if (history.state?.scrollY) {
+				window.scrollTo(0, history.state.scrollY);
 			}
 		});
 	</script>

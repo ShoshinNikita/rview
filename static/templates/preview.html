@@ -332,7 +332,6 @@
 				const img = elem.querySelector("img");
 				if (img) {
 					img.loading = "";
-					console.log(img);
 				}
 			}
 		}
@@ -419,7 +418,7 @@
 			history.pushState(null, "", newPath);
 		} else {
 			// Replace state because we don't want to create a new history entry for every preview.
-			history.replaceState(null, "", newPath);
+			history.replaceState(history.state, "", newPath);
 		}
 	};
 </script>
