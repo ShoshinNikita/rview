@@ -60,10 +60,10 @@ func (c *dirCacheItem) Unlock() {
 // for the duration of the call.
 func (c *dirCacheItem) LoadLocked() (*DirInfo, error) {
 	if len(c.gobData) == 0 {
-		return nil, nil //nolint:nilnil
+		return nil, nil
 	}
 	if time.Now().After(c.expiresAt) {
-		return nil, nil //nolint:nilnil
+		return nil, nil
 	}
 
 	var info DirInfo

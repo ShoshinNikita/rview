@@ -21,7 +21,6 @@ linters:
     - mirror
     - misspell
     - nilerr
-    - nilnil
     - noctx
     - nolintlint
     - predeclared

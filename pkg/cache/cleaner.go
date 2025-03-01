@@ -122,6 +122,10 @@ func (c *Cleaner) loadAllFiles() (files []fileInfo, err error) {
 		return nil
 	})
 	if err != nil {
+		if errors.Is(err, os.ErrNotExist) {
+			// Directory hasn't been created yet.
+			return nil, nil
+		}
 		return nil, err
 	}
 	return files, nil
