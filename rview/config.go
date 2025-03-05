@@ -102,11 +102,15 @@ func (mb MiB) Bytes() int64 {
 	return int64(mb << 20)
 }
 
-func (mb MiB) MarshalText() (text []byte, err error) {
+func (mb MiB) String() string {
 	if mb >= 1024 && mb%1024 == 0 {
-		return []byte(strconv.Itoa(int(mb/1024)) + "Gi"), nil
+		return strconv.Itoa(int(mb/1024)) + "Gi"
 	}
-	return []byte(strconv.Itoa(int(mb)) + "Mi"), nil
+	return strconv.Itoa(int(mb)) + "Mi"
+}
+
+func (mb MiB) MarshalText() (text []byte, err error) {
+	return []byte(mb.String()), nil
 }
 
 func (mb *MiB) UnmarshalText(data []byte) error {

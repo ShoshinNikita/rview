@@ -56,9 +56,7 @@ func TestMiB(t *testing.T) {
 				r.Contains(err.Error(), tt.wantErr)
 			}
 
-			text, err := s.MarshalText()
-			r.NoError(err)
-			r.Equal(tt.wantText, string(text))
+			r.Equal(tt.wantText, s.String())
 			r.Equal(tt.wantBytes, s.Bytes())
 		})
 	}
