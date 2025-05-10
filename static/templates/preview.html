@@ -457,7 +457,7 @@
 		}
 	});
 
-	// Load the original image on pinch-to-zoom on mobile devices and tablets.
+	// Load a large thumbnail on pinch-to-zoom on mobile devices and tablets.
 	if (window.matchMedia('(pointer: coarse)').matches) {
 		window.visualViewport.addEventListener("resize", ev => {
 			if (!ev.target?.scale) {
@@ -493,7 +493,12 @@
 				console.warn(`no <img> for ${currentEntry.filename}`);
 				return;
 			}
-			if (img.src.includes("&thumbnail_size=")) {
+			if (img.src.includes("&thumbnail_size=large")) {
+				// Already displaying the large thumbnail.
+				return;
+			}
+			if (img.src.includes("/api/file/")) {
+				// Don't load the original file second time.
 				return;
 			}
 
