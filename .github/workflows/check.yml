@@ -1,5 +1,5 @@
 # This workflow runs tests and linters.
-name: check
+name: Check
 on:
   push:
     paths-ignore:
@@ -8,6 +8,7 @@ on:
 
 jobs:
   lint:
+    name: Lint code
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
@@ -20,6 +21,7 @@ jobs:
           args: "-v"
 
   test:
+    name: Run tests
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4

@@ -1,0 +1,116 @@
+# This workflow builds a docker image and pushes it to GitHub Container Registry.
+name: Build and push
+on:
+  push:
+    branches:
+      - main
+
+env:
+  IMAGE: ghcr.io/shoshinnikita/rview
+  TAG: main
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: "ubuntu-24.04"
+            platform: "amd64"
+          - os: "ubuntu-24.04-arm"
+            platform: "arm64"
+    name: Build docker image for ${{ matrix.platform }}
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Buildx is required for the modern manifest format.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - id: build
+        uses: docker/build-push-action@v6
+        with:
+          push: true
+          provenance: false
+          context: .
+          platforms: ${{ matrix.platform }}
+          tags: ${{ env.IMAGE }}:${{ env.TAG }}-${{ matrix.platform }}
+          cache-from: type=registry,ref=${{ env.IMAGE }}:${{ env.TAG }}-${{ matrix.platform }}
+          cache-to: type=inline
+          # Both 'manifest' and 'manifest-descriptor' are required for multi-platform manifest.
+          annotations: |
+            manifest:org.opencontainers.image.title=Rview
+            manifest:org.opencontainers.image.description=Web-based UI for 'rclone serve'
+            manifest:org.opencontainers.image.source=https://github.com/ShoshinNikita/rview
+            manifest:org.opencontainers.image.url=https://github.com/ShoshinNikita/rview
+            manifest:org.opencontainers.image.licenses=MIT
+            manifest-descriptor:org.opencontainers.image.title=Rview
+            manifest-descriptor:org.opencontainers.image.description=Web-based UI for 'rclone serve'
+            manifest-descriptor:org.opencontainers.image.source=https://github.com/ShoshinNikita/rview
+            manifest-descriptor:org.opencontainers.image.url=https://github.com/ShoshinNikita/rview
+            manifest-descriptor:org.opencontainers.image.licenses=MIT
+        env:
+          DOCKER_BUILD_RECORD_RETENTION_DAYS: 1
+      - name: Export image digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+      - name: Upload image digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digest-${{ matrix.platform }}
+          path: /tmp/digests/*
+          retention-days: 1
+          if-no-files-found: error
+
+  create-manifest:
+    name: Create multi-platform manifest
+    runs-on: ubuntu-24.04
+    needs: build
+    steps:
+      - name: Download image digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digest-*
+          merge-multiple: true
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      # Buildx is required for the modern manifest format.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+      - name: Create and push manifest
+        working-directory: /tmp/digests
+        run: |
+          docker buildx imagetools create \
+            --tag ${{ env.IMAGE }}:${{ env.TAG }} \
+            --annotation index:org.opencontainers.image.title="Rview" \
+            --annotation index:org.opencontainers.image.description="Web-based UI for 'rclone serve'" \
+            --annotation index:org.opencontainers.image.source="https://github.com/ShoshinNikita/rview" \
+            --annotation index:org.opencontainers.image.url="https://github.com/ShoshinNikita/rview" \
+            --annotation index:org.opencontainers.image.licenses="MIT" \
+            $(printf '${{ env.IMAGE }}@sha256:%s ' *)
+      - name: Inspect manifest
+        run: docker buildx imagetools inspect --raw ${{ env.IMAGE }}:${{ env.TAG }}
+
+  cleanup:
+    name: Clean up old untagged docker images
+    runs-on: ubuntu-24.04
+    needs: create-manifest
+    if: github.ref_name == 'main'
+    steps:
+      - uses: actions/delete-package-versions@v5
+        with:
+          package-name: rview
+          package-type: container
+          min-versions-to-keep: 5
+          delete-only-untagged-versions: "true"
