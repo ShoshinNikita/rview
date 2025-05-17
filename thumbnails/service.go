@@ -191,6 +191,11 @@ type stats struct {
 }
 
 func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbnailTask) (finalStats stats, err error) {
+	cacheFilepath, err := s.cache.GetFilepath(task.thumbnailID.FileID)
+	if err != nil {
+		return stats{}, fmt.Errorf("couldn't get path for a thumbnail file: %w", err)
+	}
+
 	downloadImageTimer := prometheus.NewTimer(metrics.ThumbnailsDownloadImageDuration)
 	rc, err := s.rclone.OpenFile(ctx, task.fileID)
 	if err != nil {
@@ -198,16 +203,26 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 	}
 	defer rc.Close()
 
+	if task.useOriginal {
+		size := task.fileID.GetSize()
+		err := createCacheFileFromTempFile(rc, cacheFilepath, size)
+		if err != nil {
+			return stats{}, err
+		}
+		downloadImageTimer.ObserveDuration()
+
+		return stats{
+			originalSize:      size,
+			thumbnailSize:     size,
+			originalImageUsed: true,
+		}, nil
+	}
+
 	tempFile, err := os.CreateTemp("", "rview-*")
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't create temp image file: %w", err)
 	}
 	defer func() {
-		if err := tempFile.Close(); err != nil {
-			rlog.Errorf("couldn't close temp image file: %s", err)
-
-			// Don't exit - try to remove the temp file.
-		}
 		if err := os.Remove(tempFile.Name()); err != nil {
 			rlog.Errorf("couldn't remove temp image file: %s", err)
 		}
@@ -220,27 +235,10 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 	if originalSize != task.fileID.GetSize() {
 		return stats{}, fmt.Errorf("temp file has wrong size, expected: %d, got: %d", task.fileID.GetSize(), originalSize)
 	}
+	if err := tempFile.Close(); err != nil {
+		return stats{}, fmt.Errorf("couldn't close temp file: %w", err)
+	}
 	downloadImageTimer.ObserveDuration()
-
-	// Don't close temp file right after the copy operation because we still may use it.
-
-	cacheFilepath, err := s.cache.GetFilepath(task.thumbnailID.FileID)
-	if err != nil {
-		return stats{}, fmt.Errorf("couldn't get path of a cache file: %w", err)
-	}
-
-	if task.useOriginal {
-		err := createCacheFileFromTempFile(tempFile, cacheFilepath, originalSize)
-		if err != nil {
-			return stats{}, err
-		}
-
-		return stats{
-			originalSize:      originalSize,
-			thumbnailSize:     originalSize,
-			originalImageUsed: true,
-		}, nil
-	}
 
 	resizeTimer := prometheus.NewTimer(metrics.ThumbnailsResizeDuration)
 	err = s.resizeFn(tempFile.Name(), cacheFilepath, task.thumbnailID, task.size)
@@ -266,25 +264,19 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 // createCacheFileFromTempFile creates a cache file reading the content from a passed temp file.
 // We can't just use [os.Rename] because rename operation can fail in docker containers, see
 // https://stackoverflow.com/q/42392600/7752659.
-func createCacheFileFromTempFile(tempFile *os.File, cacheFilepath string, originalSize int64) error {
-	_, err := tempFile.Seek(0, 0)
-	if err != nil {
-		return fmt.Errorf("couldn't seek temp file: %w", err)
-	}
-
+func createCacheFileFromTempFile(r io.Reader, cacheFilepath string, originalSize int64) error {
 	cacheFile, err := os.Create(cacheFilepath)
 	if err != nil {
 		return fmt.Errorf("couldn't create cache file: %w", err)
 	}
 
-	copied, err := io.Copy(cacheFile, tempFile)
+	copied, err := io.Copy(cacheFile, r)
 	if err != nil {
 		return fmt.Errorf("couldn't copy temp file content to a cache file: %w", err)
 	}
 	if copied != originalSize {
 		return fmt.Errorf("not all content was copied, original size: %d, copied: %d", originalSize, copied)
 	}
-
 	if err := cacheFile.Close(); err != nil {
 		return fmt.Errorf("couldn't close cache file: %w", err)
 	}
