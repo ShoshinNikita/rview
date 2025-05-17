@@ -37,7 +37,7 @@ func TestThumbnailService(t *testing.T) {
 		resizeFn func(originalFile, cacheFile string, id ThumbnailID, size ThumbnailSize) error,
 	) *ThumbnailService {
 
-		service := NewThumbnailService(nil, diskCache, 2, rview.JpegThumbnails)
+		service := NewThumbnailService(nil, diskCache, cache.NewInMemoryCache(), 2, rview.JpegThumbnails)
 		service.useOriginalImageThresholdSize = useOriginalImageThresholdSize
 		service.rclone = rcloneMock{openFileFn: openFileFn}
 		service.resizeFn = resizeFn
@@ -214,7 +214,7 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 
 	now := time.Now().Unix()
 
-	canGenerate := NewThumbnailService(nil, nil, 0, rview.JpegThumbnails).CanGenerateThumbnail
+	canGenerate := NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails).CanGenerateThumbnail
 
 	r.True(canGenerate(rview.NewFileID("/home/users/test.png", now, 0)))
 	r.True(canGenerate(rview.NewFileID("/home/users/test.pNg", now, 0)))
@@ -227,7 +227,7 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 func TestThumbnailService_NewThumbnailID(t *testing.T) {
 	t.Parallel()
 
-	service := NewThumbnailService(nil, nil, 0, rview.JpegThumbnails)
+	service := NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails)
 
 	for _, tt := range []struct {
 		path          string
@@ -325,7 +325,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 			},
 		},
 	} {
-		cache, err := cache.NewDiskCache("", t.TempDir(), cache.Options{DisableCleaner: true})
+		diskCache, err := cache.NewDiskCache("", t.TempDir(), cache.Options{DisableCleaner: true})
 		require.NoError(t, err)
 
 		thumbnailsFormat := tt.thumbnailsFormat
@@ -345,7 +345,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 							return io.NopCloser(bytes.NewReader(img.rawImage)), nil
 						},
 					}
-					service := NewThumbnailService(rclone, cache, 1, thumbnailsFormat)
+					service := NewThumbnailService(rclone, diskCache, cache.NewInMemoryCache(), 1, thumbnailsFormat)
 
 					fileID := rview.NewFileID(tt.file, 0, img.size)
 					rc, contentType, err := service.OpenThumbnail(t.Context(), fileID, "")
@@ -364,7 +364,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 // TestThumbnailService_AllImageTypes checks that we can successfully generate
 // thumbnails for all supported image types.
 func TestThumbnailService_AllImageTypes(t *testing.T) {
-	cache, err := cache.NewDiskCache("", t.TempDir(), cache.Options{DisableCleaner: true})
+	diskCache, err := cache.NewDiskCache("", t.TempDir(), cache.Options{DisableCleaner: true})
 	require.NoError(t, err)
 
 	type Test struct {
@@ -386,7 +386,7 @@ func TestThumbnailService_AllImageTypes(t *testing.T) {
 						return io.NopCloser(bytes.NewReader(originalImage)), nil
 					},
 				}
-				thumbnailService := NewThumbnailService(mock, cache, 1, format)
+				thumbnailService := NewThumbnailService(mock, diskCache, cache.NewInMemoryCache(), 1, format)
 				thumbnailService.GenerateThumbnailsForSmallFiles()
 
 				ctx, cancel := context.WithTimeout(t.Context(), time.Second)
@@ -431,6 +431,62 @@ func TestThumbnailService_AllImageTypes(t *testing.T) {
 			{imageType: "gif", file: "test.gif", wantContentType: "image/gif", sameSize: true}, // we save the original file
 		})
 	})
+}
+
+func TestThumbnailService_openImage(t *testing.T) {
+	r := require.New(t)
+
+	var openFileCount int
+	rclone := rcloneMock{
+		openFileFn: func(context.Context, rview.FileID) (io.ReadCloser, error) {
+			openFileCount++
+			return io.NopCloser(bytes.NewReader([]byte("hello world"))), nil
+		},
+	}
+	service := NewThumbnailService(rclone, nil, cache.NewInMemoryCache(), 1, rview.JpegThumbnails)
+
+	getFile := func() (string, error) {
+		rc, err := service.openImage(t.Context(), rview.NewFileID("1.txt", 0, 0))
+		if err != nil {
+			return "", err
+		}
+		defer rc.Close()
+
+		data, err := io.ReadAll(rc)
+		if err != nil {
+			return "", err
+		}
+		return string(data), nil
+	}
+
+	// Many parallel requests - only 1 write to the cache.
+	var (
+		wg    sync.WaitGroup
+		resCh = make(chan struct {
+			data string
+			err  error
+		}, 100)
+	)
+	for range 50 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			data, err := getFile()
+			resCh <- struct {
+				data string
+				err  error
+			}{data, err}
+		}()
+	}
+	wg.Wait()
+	close(resCh)
+	r.Len(resCh, 50)
+	for res := range resCh {
+		r.NoError(res.err)
+		r.Equal("hello world", res.data)
+	}
+	r.Equal(1, openFileCount)
 }
 
 type rcloneMock struct {

@@ -54,13 +54,6 @@ var (
 			Name:      "dirs_served_from_cache",
 		},
 	)
-	RcloneFilesServedFromCache = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "rclone",
-			Name:      "files_served_from_cache",
-		},
-	)
 )
 
 // Thumbnails
@@ -130,6 +123,13 @@ var (
 			Buckets:   []float64{0.7, 0.9, 1, 2, 5, 10, 20, 30, 50, 70, 100, 150},
 		},
 		[]string{"thumbnail_size"},
+	)
+	ThumbnailsOriginalImagesUsedFromCache = promauto.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Subsystem: "thumbnails",
+			Name:      "original_images_used_from_cache",
+		},
 	)
 )
 

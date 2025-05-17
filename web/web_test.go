@@ -38,7 +38,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 	t.Run("thumbnails mode", func(t *testing.T) {
 		r := require.New(t)
 
-		thumbnailService := thumbnails.NewThumbnailService(nil, nil, 0, rview.JpegThumbnails)
+		thumbnailService := thumbnails.NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails)
 		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeThumbnails}, nil, thumbnailService, nil)
 
 		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")

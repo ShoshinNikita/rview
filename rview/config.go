@@ -26,12 +26,12 @@ type Config struct {
 
 	ImagePreviewMode ImagePreviewMode
 
-	ThumbnailsFormat       ThumbnailsFormat
-	ThumbnailsCacheSize    MiB
-	ThumbnailsWorkersCount int
+	ThumbnailsFormat                 ThumbnailsFormat
+	ThumbnailsCacheSize              MiB
+	ThumbnailsOriginalImageCacheSize MiB
+	ThumbnailsWorkersCount           int
 
-	RcloneCacheSize MiB
-	Rclone          RcloneConfig
+	Rclone RcloneConfig
 
 	// Debug options
 
@@ -158,9 +158,6 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 		"rclone-target": {
 			p: &cfg.Rclone.Target, defaultValue: "", desc: "Rclone target, required",
 		},
-		"rclone-cache-size": {
-			p: &cfg.RcloneCacheSize, defaultValue: MiB(300), desc: "Max size of original file cache",
-		},
 		"rclone-dir-cache-ttl": {
 			p: &cfg.Rclone.DirCacheTTL, defaultValue: 5 * time.Minute, desc: "Time to cache dir entries for. Set to 0 to disable",
 		},
@@ -183,6 +180,9 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 		},
 		"thumbnails-cache-size": {
 			p: &cfg.ThumbnailsCacheSize, defaultValue: MiB(500), desc: "Max size of thumbnail cache",
+		},
+		"thumbnails-original-image-cache-size": {
+			p: &cfg.ThumbnailsOriginalImageCacheSize, defaultValue: MiB(300), desc: "Max size of original image cache",
 		},
 		"thumbnails-workers-count": {
 			p: &cfg.ThumbnailsWorkersCount, defaultValue: runtime.NumCPU(), desc: "Number of workers for thumbnail generation",

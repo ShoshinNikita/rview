@@ -2,16 +2,13 @@ package rclone
 
 import (
 	"context"
-	"io"
 	"math/rand/v2"
 	"os"
 	"path/filepath"
 	"slices"
-	"sync"
 	"testing"
 	"time"
 
-	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/stretchr/testify/require"
 )
@@ -34,7 +31,7 @@ func TestRclone_DirCache(t *testing.T) {
 
 	t.Run("cache disabled", func(t *testing.T) {
 		dir := t.TempDir()
-		rclone := startRclone(t, cache.NewInMemoryCache(), rview.RcloneConfig{
+		rclone := startRclone(t, rview.RcloneConfig{
 			Target:      dir,
 			Port:        32142,
 			DirCacheTTL: 0,
@@ -51,7 +48,7 @@ func TestRclone_DirCache(t *testing.T) {
 
 	t.Run("cache enabled", func(t *testing.T) {
 		dir := t.TempDir()
-		rclone := startRclone(t, cache.NewInMemoryCache(), rview.RcloneConfig{
+		rclone := startRclone(t, rview.RcloneConfig{
 			Target:      dir,
 			Port:        32142,
 			DirCacheTTL: time.Hour,
@@ -135,92 +132,10 @@ func TestRclone_SortEntries(t *testing.T) {
 	})
 }
 
-func TestRclone_OpenFile(t *testing.T) {
+func startRclone(t *testing.T, cfg rview.RcloneConfig) *Rclone {
 	r := require.New(t)
 
-	dir := t.TempDir()
-
-	// Prepare files.
-	modtime := time.Date(2025, 2, 20, 0, 0, 0, 0, time.UTC)
-	file := filepath.Join(dir, "1.txt")
-	fileID := rview.NewFileID("1.txt", modtime.Unix(), 11)
-	{
-		err := os.WriteFile(file, []byte("hello world"), 0600)
-		r.NoError(err)
-		err = os.Chtimes(file, modtime, modtime)
-		r.NoError(err)
-	}
-
-	cache := &cacheStub{
-		inMemory: cache.NewInMemoryCache(),
-	}
-	rclone := startRclone(t, cache, rview.RcloneConfig{
-		Target: dir,
-		Port:   37144,
-	})
-
-	getFile := func() (string, error) {
-		rc, err := rclone.OpenFile(t.Context(), fileID)
-		if err != nil {
-			return "", err
-		}
-		defer rc.Close()
-
-		data, err := io.ReadAll(rc)
-		if err != nil {
-			return "", err
-		}
-		return string(data), nil
-	}
-
-	// Parallel requests - only 1 write to the cache.
-	var (
-		wg    sync.WaitGroup
-		resCh = make(chan struct {
-			data string
-			err  error
-		}, 100)
-	)
-	for range 20 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
-			data, err := getFile()
-			resCh <- struct {
-				data string
-				err  error
-			}{data, err}
-		}()
-	}
-	wg.Wait()
-	close(resCh)
-	for res := range resCh {
-		r.NoError(res.err)
-		r.Equal("hello world", res.data)
-	}
-	r.Equal(1, cache.writeCount)
-	r.Equal(21, cache.openCount)
-
-	// File should be served from the cache.
-	err := os.Remove(file)
-	r.NoError(err)
-	data, err := getFile()
-	r.NoError(err)
-	r.Equal("hello world", data)
-
-	// No file in the cache.
-	err = cache.inMemory.Remove(fileID)
-	r.NoError(err)
-	_, err = getFile()
-	r.Error(err)
-	r.Contains(err.Error(), "status code: 404")
-}
-
-func startRclone(t *testing.T, cache Cache, cfg rview.RcloneConfig) *Rclone {
-	r := require.New(t)
-
-	rclone, err := NewRclone(cache, cfg)
+	rclone, err := NewRclone(cfg)
 	r.NoError(err)
 	go func() {
 		if err := rclone.Start(); err != nil {
@@ -242,20 +157,4 @@ func startRclone(t *testing.T, cache Cache, cfg rview.RcloneConfig) *Rclone {
 
 	t.Fatal("rclone is not ready")
 	return nil
-}
-
-type cacheStub struct {
-	inMemory   *cache.InMemoryCache
-	openCount  int
-	writeCount int
-}
-
-func (c *cacheStub) Open(id rview.FileID) (io.ReadCloser, error) {
-	c.openCount++
-	return c.inMemory.Open(id)
-}
-
-func (c *cacheStub) Write(id rview.FileID, r io.Reader) error {
-	c.writeCount++
-	return c.inMemory.Write(id, r)
 }

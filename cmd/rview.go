@@ -20,13 +20,13 @@ import (
 type Rview struct {
 	cfg rview.Config
 
-	thumbnailService ThumbnailService
-	thumbnailCache   *cache.DiskCache
+	thumbnailService   ThumbnailService
+	thumbnailCache     *cache.DiskCache
+	originalImageCache *cache.DiskCache
 
 	searchService *search.Service
 
 	rcloneInstance *rclone.Rclone
-	rcloneCache    *cache.DiskCache
 
 	server *web.Server
 }
@@ -53,13 +53,7 @@ func (r *Rview) Prepare() (err error) {
 	}
 
 	// Rclone
-	r.rcloneCache, err = cache.NewDiskCache("rclone", filepath.Join(r.cfg.Dir, "rclone"), cache.Options{
-		MaxSize: r.cfg.RcloneCacheSize.Bytes(),
-	})
-	if err != nil {
-		return fmt.Errorf("couldn't prepare disk cache for rclone: %w", err)
-	}
-	r.rcloneInstance, err = rclone.NewRclone(r.rcloneCache, r.cfg.Rclone)
+	r.rcloneInstance, err = rclone.NewRclone(r.cfg.Rclone)
 	if err != nil {
 		return fmt.Errorf("couldn't prepare rclone: %w", err)
 	}
@@ -71,16 +65,27 @@ func (r *Rview) Prepare() (err error) {
 			return err
 		}
 
-		thumbnailsCacheDir := filepath.Join(r.cfg.Dir, "thumbnails")
-		r.thumbnailCache, err = cache.NewDiskCache("thumbnails", thumbnailsCacheDir, cache.Options{
-			MaxSize: r.cfg.ThumbnailsCacheSize.Bytes(),
-		})
+		r.thumbnailCache, err = cache.NewDiskCache(
+			"thumbnails", filepath.Join(r.cfg.Dir, "thumbnails"), cache.Options{
+				MaxSize: r.cfg.ThumbnailsCacheSize.Bytes(),
+			},
+		)
 		if err != nil {
 			return fmt.Errorf("couldn't prepare disk cache for thumbnails: %w", err)
 		}
 
+		r.originalImageCache, err = cache.NewDiskCache(
+			"original-images", filepath.Join(r.cfg.Dir, "original-images"), cache.Options{
+				MaxSize: r.cfg.ThumbnailsOriginalImageCacheSize.Bytes(),
+			},
+		)
+		if err != nil {
+			return fmt.Errorf("couldn't prepare disk cache for original images: %w", err)
+		}
+
 		r.thumbnailService = thumbnails.NewThumbnailService(
-			r.rcloneInstance, r.thumbnailCache, r.cfg.ThumbnailsWorkersCount, r.cfg.ThumbnailsFormat,
+			r.rcloneInstance, r.thumbnailCache, r.originalImageCache, r.cfg.ThumbnailsWorkersCount,
+			r.cfg.ThumbnailsFormat,
 		)
 
 	} else {
@@ -130,12 +135,12 @@ func (r *Rview) Start(onError func()) <-chan struct{} {
 func (r *Rview) Shutdown(ctx context.Context) error {
 	var failed []string
 	for name, s := range map[string]shutdowner{
-		"web server":        r.server,
-		"thumbnail service": r.thumbnailService,
-		"thumbnail cache":   r.thumbnailCache,
-		"search service":    r.searchService,
-		"rclone instance":   r.rcloneInstance,
-		"rclone cache":      r.rcloneCache,
+		"web server":           r.server,
+		"thumbnail service":    r.thumbnailService,
+		"thumbnail cache":      r.thumbnailCache,
+		"original image cache": r.originalImageCache,
+		"search service":       r.searchService,
+		"rclone instance":      r.rcloneInstance,
 	} {
 		err := safeShutdown(ctx, s)
 		if err != nil {

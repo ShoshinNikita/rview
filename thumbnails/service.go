@@ -38,7 +38,10 @@ const (
 var ErrUnsupportedImageFormat = errors.New("unsupported image format")
 
 type ThumbnailService struct {
-	cache    Cache
+	cache              Cache
+	originalImageCache Cache
+	openImageLocks     *sync.Map
+
 	rclone   Rclone
 	resizeFn func(originalFile, cacheFile string, id ThumbnailID, size ThumbnailSize) error
 	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
@@ -60,6 +63,7 @@ type ThumbnailService struct {
 type Cache interface {
 	Open(id rview.FileID) (io.ReadCloser, error)
 	GetFilepath(id rview.FileID) (path string, err error)
+	Write(id rview.FileID, r io.Reader) (err error)
 	Remove(id rview.FileID) error
 }
 
@@ -92,12 +96,15 @@ func CheckVips() error {
 // For some images we can generate thumbnails of different formats. For example,
 // for .heic images we generate .jpeg thumbnails.
 func NewThumbnailService(
-	rclone Rclone, cache Cache, workersCount int, thumbnailsFormat rview.ThumbnailsFormat,
+	rclone Rclone, cache, originalImageCache Cache, workersCount int, thumbnailsFormat rview.ThumbnailsFormat,
 ) *ThumbnailService {
 
 	r := &ThumbnailService{
+		cache:              cache,
+		originalImageCache: originalImageCache,
+		openImageLocks:     new(sync.Map),
+		//
 		rclone:                        rclone,
-		cache:                         cache,
 		resizeFn:                      resizeWithVips,
 		useOriginalImageThresholdSize: 200 << 10, // 200 KiB
 		thumbnailsFormat:              thumbnailsFormat,
@@ -197,7 +204,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 	}
 
 	downloadImageTimer := prometheus.NewTimer(metrics.ThumbnailsDownloadImageDuration)
-	rc, err := s.rclone.OpenFile(ctx, task.fileID)
+	rc, err := s.openImage(ctx, task.fileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get image reader: %w", err)
 	}
@@ -259,6 +266,30 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		originalSize:  originalSize,
 		thumbnailSize: info.Size(),
 	}, nil
+}
+
+func (s *ThumbnailService) openImage(ctx context.Context, id rview.FileID) (rc io.ReadCloser, err error) {
+	// Don't allow parallel openImage calls with the same file id because we will be saving
+	// the file content to the cache.
+	mu, _ := s.openImageLocks.LoadOrStore(id, new(sync.Mutex))
+	mu.(*sync.Mutex).Lock()
+	defer mu.(*sync.Mutex).Unlock()
+
+	rc, err = s.originalImageCache.Open(id)
+	if err == nil {
+		metrics.ThumbnailsOriginalImagesUsedFromCache.Inc()
+		return rc, nil
+	}
+
+	rc, err = s.rclone.OpenFile(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	err = s.originalImageCache.Write(id, rc)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't write original image to the cache: %w", err)
+	}
+	return s.originalImageCache.Open(id)
 }
 
 // createCacheFileFromTempFile creates a cache file reading the content from a passed temp file.

@@ -55,9 +55,7 @@ type Rclone struct {
 	stoppedByShutdown atomic.Bool
 	stoppedCh         chan struct{}
 
-	dirCache        *dirCache
-	cache           Cache
-	openFileMutexes *mutexMap[rview.FileID]
+	dirCache *dirCache
 
 	httpClient *http.Client
 	// rcloneURL with username and password for basic auth.
@@ -70,7 +68,7 @@ type Cache interface {
 	Write(id rview.FileID, r io.Reader) (err error)
 }
 
-func NewRclone(cache Cache, cfg rview.RcloneConfig) (_ *Rclone, err error) {
+func NewRclone(cfg rview.RcloneConfig) (_ *Rclone, err error) {
 	var (
 		cmd       *exec.Cmd
 		stopCmd   func()
@@ -137,9 +135,7 @@ func NewRclone(cache Cache, cfg rview.RcloneConfig) (_ *Rclone, err error) {
 		stopCmd:   stopCmd,
 		stoppedCh: make(chan struct{}),
 		//
-		dirCache:        newDirCache(cfg.DirCacheTTL),
-		cache:           cache,
-		openFileMutexes: newMutexMap[rview.FileID](),
+		dirCache: newDirCache(cfg.DirCacheTTL),
 		//
 		httpClient: &http.Client{
 			Timeout: 2 * time.Minute,
@@ -254,17 +250,6 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 // for internal purposes (for example, to download image for resizing). Serving files to users
 // should be done via [Rclone.ProxyFileRequest].
 func (r *Rclone) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
-	// Don't allow parallel OpenFile calls with the same file id because we save
-	// the file content to the cache.
-	unlock := r.openFileMutexes.Lock(id)
-	defer unlock()
-
-	rc, err := r.cache.Open(id)
-	if err == nil {
-		metrics.RcloneFilesServedFromCache.Inc()
-		return rc, nil
-	}
-
 	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
 
 	now := time.Now()
@@ -272,20 +257,13 @@ func (r *Rclone) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, 
 	if err != nil {
 		return nil, err
 	}
-	defer body.Close()
-
 	metrics.RcloneGetFileHeadersDuration.Observe(time.Since(now).Seconds())
 
 	if err := checkFileHeaders(id, headers); err != nil {
+		body.Close()
 		return nil, err
 	}
-
-	err = r.cache.Write(id, body)
-	if err != nil {
-		return nil, fmt.Errorf("couldn't write file to cache: %w", err)
-	}
-
-	return r.cache.Open(id)
+	return body, nil
 }
 
 func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *http.Request) {
@@ -561,28 +539,4 @@ func (r *Rclone) GetAllFiles(ctx context.Context) (dirs, files []string, err err
 		}
 	}
 	return dirs, files, nil
-}
-
-type mutexMap[K comparable] struct {
-	mu sync.Mutex
-	m  map[K]*sync.Mutex
-}
-
-func newMutexMap[K comparable]() *mutexMap[K] {
-	return &mutexMap[K]{
-		m: make(map[K]*sync.Mutex),
-	}
-}
-
-func (m *mutexMap[K]) Lock(k K) (unlock func()) {
-	m.mu.Lock()
-	res, ok := m.m[k]
-	if !ok {
-		res = new(sync.Mutex)
-		m.m[k] = res
-	}
-	m.mu.Unlock()
-
-	res.Lock()
-	return res.Unlock
 }
