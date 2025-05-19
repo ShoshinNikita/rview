@@ -12,6 +12,7 @@ import (
 	"path/filepath"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
+	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 )
 
@@ -89,12 +90,23 @@ func (c *DiskCache) Write(id rview.FileID, r io.Reader) error {
 	if err != nil {
 		return fmt.Errorf("couldn't create file: %w", err)
 	}
-	defer f.Close()
+	failed := false
+	defer func() {
+		_ = f.Close()
+
+		if failed {
+			if err := os.Remove(f.Name()); err != nil {
+				rlog.Warnf("couldn't clean up cache file after error: %s", err)
+			}
+		}
+	}()
 
 	if _, err := io.Copy(f, r); err != nil {
+		failed = true
 		return fmt.Errorf("couldn't write file: %w", err)
 	}
 	if err := f.Close(); err != nil {
+		failed = true
 		return fmt.Errorf("couldn't close file: %w", err)
 	}
 	return nil

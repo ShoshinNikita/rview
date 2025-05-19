@@ -57,6 +57,28 @@ func TestDiskCache(t *testing.T) {
 	})
 }
 
+func TestDiskCache_Write(t *testing.T) {
+	t.Parallel()
+
+	r := require.New(t)
+
+	tempDir := t.TempDir()
+	cache, err := NewDiskCache("", tempDir, Options{DisableCleaner: true})
+	r.NoError(err)
+
+	reader, writer := io.Pipe()
+	go func() {
+		writer.Write([]byte("hello world")) //nolint:errcheck
+		writer.CloseWithError(errors.New("test error"))
+	}()
+
+	id := rview.NewFileID("1.txt", 0, 0)
+	err = cache.Write(id, reader)
+	r.Error(err)
+	_, err = cache.Open(id)
+	r.ErrorIs(err, ErrCacheMiss)
+}
+
 func TestDiskCache_FilesWithSameName(t *testing.T) {
 	t.Parallel()
 
