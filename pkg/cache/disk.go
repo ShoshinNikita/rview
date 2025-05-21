@@ -71,7 +71,7 @@ func (c *DiskCache) GetFilepath(id rview.FileID) (path string, err error) {
 	path = c.generateFilepath(id)
 
 	dir := filepath.Dir(path)
-	err = os.MkdirAll(dir, 0o777)
+	err = os.MkdirAll(dir, 0o700)
 	if err != nil {
 		return "", fmt.Errorf("couldn't create dir %q: %w", dir, err)
 	}

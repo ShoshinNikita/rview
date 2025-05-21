@@ -68,7 +68,7 @@ func TestDiskCache_Write(t *testing.T) {
 
 	reader, writer := io.Pipe()
 	go func() {
-		writer.Write([]byte("hello world")) //nolint:errcheck
+		_, _ = writer.Write([]byte("hello world"))
 		writer.CloseWithError(errors.New("test error"))
 	}()
 

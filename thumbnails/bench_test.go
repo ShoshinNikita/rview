@@ -39,7 +39,7 @@ func BenchmarkVipsthumbnail(b *testing.B) {
 	}
 
 	if prepare {
-		err := os.MkdirAll("_data/resized", 0777)
+		err := os.MkdirAll("_data/resized", 0700)
 		if err != nil {
 			b.Fatalf("mkdir failed: %s", err)
 		}
@@ -107,7 +107,7 @@ type BenchFile struct {
 }
 
 func (f BenchFile) Download() error {
-	resp, err := http.Get(f.URL) //nolint:noctx
+	resp, err := http.Get(f.URL)
 	if err != nil {
 		return fmt.Errorf("request failed: %w", err)
 	}

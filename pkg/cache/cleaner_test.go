@@ -25,7 +25,7 @@ func TestCleaner_loadAllFilesAndRemove(t *testing.T) {
 	} {
 		path = filepath.Join(dir, path)
 		dir := filepath.Dir(path)
-		err := os.MkdirAll(dir, 0o777)
+		err := os.MkdirAll(dir, 0o700)
 		r.NoError(err)
 
 		err = os.WriteFile(path, make([]byte, size), 0600)

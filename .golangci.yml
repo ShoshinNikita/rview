@@ -1,8 +1,10 @@
+version: "2"
+
 run:
   modules-download-mode: vendor
 
 linters:
-  disable-all: true
+  default: none
   enable:
     - asciicheck
     - bodyclose
@@ -10,13 +12,9 @@ linters:
     - errname
     - errorlint
     - gocritic
-    - gofmt
-    - goimports
     - gosec
-    - gosimple
     - govet
     - ineffassign
-    - intrange
     - intrange
     - mirror
     - misspell
@@ -26,34 +24,53 @@ linters:
     - predeclared
     - revive
     - staticcheck
-    - stylecheck
     - tagliatelle
     - testifylint
-    - typecheck
     - unconvert
     - unparam
     - unused
     - usetesting
     - wastedassign
-
-linters-settings:
-  errcheck:
-    exclude-functions:
-      - io.Copy
-      - (*encoding/json.Encoder).Encode
-      - (net/http.ResponseWriter).Write
-  tagliatelle:
-    case:
-      use-field-name: true
+  settings:
+    errcheck:
+      exclude-functions:
+        - io.Copy
+        - (io.Closer).Close
+        - (*encoding/json.Encoder).Encode
+        - (net/http.ResponseWriter).Write
+    tagliatelle:
+      case:
+        use-field-name: true
+        rules:
+          json: snake
+    gosec:
+      excludes:
+        - G104 # Audit errors not checked - errcheck is enabled
+        - G203 # Use of unescaped data in HTML templates
+        - G304 # Potential file inclusion via variable - too many false positives
+        - G401 # Detect the usage of MD5 or SHA1
+        - G501 # Import blocklist: crypto/md5
+    revive:
       rules:
-        json: snake
-  gosec:
-    excludes:
-      - G203 # Use of unescaped data in HTML templates
-      - G401 # Detect the usage of MD5 or SHA1
-      - G501 # Import blocklist: crypto/md5
+        - name: exported
+          disabled: true
+    testifylint:
+      disable:
+        - len
+        - empty
+  exclusions:
+    rules:
+      - linters: [ errcheck ]
+        source: ^\t+defer\s+
+      - linters: [ noctx ]
+        path: "_test\\.go"
 
 issues:
   # Display all issues
   max-issues-per-linter: 0
   max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

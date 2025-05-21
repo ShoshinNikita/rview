@@ -338,7 +338,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 
 					img, ok := images[tt.file]
 					r.True(ok)
-					r.Equal(int(img.size), len(img.rawImage), "wrong image size") //nolint:testifylint
+					r.Equal(int(img.size), len(img.rawImage), "wrong image size")
 
 					rclone := rcloneMock{
 						openFileFn: func(context.Context, rview.FileID) (io.ReadCloser, error) {

@@ -33,7 +33,6 @@ import (
 //go:embed rclone.gotmpl
 var rcloneTemplate string
 
-//nolint:revive
 type RcloneError struct {
 	StatusCode int
 	BodyPrefix string
@@ -112,6 +111,7 @@ func NewRclone(cfg rview.RcloneConfig) (_ *Rclone, err error) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 
+		//nolint:gosec
 		cmd = exec.CommandContext(ctx,
 			"rclone",
 			"rcd",

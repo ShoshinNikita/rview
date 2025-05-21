@@ -74,7 +74,7 @@ func startTestRview() {
 				time.Sleep(20 * time.Millisecond)
 			}
 
-			resp, err := http.DefaultClient.Get(rcloneAddr) //nolint:noctx
+			resp, err := http.DefaultClient.Get(rcloneAddr)
 			if resp != nil {
 				resp.Body.Close()
 			}
@@ -89,7 +89,7 @@ func startTestRview() {
 				time.Sleep(100 * time.Millisecond)
 			}
 
-			resp, err := http.DefaultClient.Get(rviewAPIAddr + "/api/search?search=test") //nolint:noctx
+			resp, err := http.DefaultClient.Get(rviewAPIAddr + "/api/search?search=test")
 			if resp != nil {
 				resp.Body.Close()
 			}

@@ -29,7 +29,8 @@ func TestEmbeddedFileIcons(t *testing.T) {
 		if err != nil {
 			t.Errorf("couldn't open icon %q", icon)
 		} else {
-			f.Close()
+			err = f.Close()
+			require.NoError(t, err)
 		}
 	}
 }

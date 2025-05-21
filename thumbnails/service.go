@@ -351,6 +351,7 @@ func resizeWithVips(originalFile, cacheFile string, id ThumbnailID, thumbnailSiz
 		return fmt.Errorf("invalid thumbnail size: %q", thumbnailSize)
 	}
 
+	//nolint:gosec
 	cmd := exec.Command(
 		"vipsthumbnail",
 		"--rotate", // auto-rotate
@@ -466,7 +467,7 @@ func (s *ThumbnailService) OpenThumbnail(
 	defer ticker.Stop()
 	for {
 		// Check immediately
-		if !isInProgress(false) {
+		if !isInProgress(false) { //nolint:staticcheck
 			break
 		}
 
@@ -573,7 +574,7 @@ func (s *ThumbnailService) Shutdown(ctx context.Context) error {
 	s.stopped.Store(true)
 
 	close(s.tasksCh)
-	for range s.tasksCh { //nolint:revive
+	for range s.tasksCh {
 	}
 
 	select {
