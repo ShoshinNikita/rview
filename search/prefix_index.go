@@ -18,6 +18,13 @@ type Hit struct {
 	Score float64
 }
 
+func (h Hit) compare(h1 Hit) int {
+	if h.Score != h1.Score {
+		return -1 * cmp.Compare(h.Score, h1.Score)
+	}
+	return cmp.Compare(h.Path, h1.Path)
+}
+
 type prefixIndex struct {
 	MinPrefixLen int                 `json:"min_prefix_len"`
 	MaxPrefixLen int                 `json:"max_prefix_len"`
@@ -40,9 +47,8 @@ func newPrefixIndex(rawPaths []string, minPrefixLen, maxPrefixLen int) *prefixIn
 		}
 	}
 	for prefix, ids := range prefixes {
-		ids = unique(ids)
 		slices.Sort(ids)
-		prefixes[prefix] = ids
+		prefixes[prefix] = slices.Clone(slices.Compact(ids)) // use slices.Clone because we don't need extra capacity
 	}
 
 	index := &prefixIndex{
@@ -94,16 +100,23 @@ type searchHit struct {
 	score          float64
 }
 
-func filterHits(hits []searchHit, f func(searchHit) bool) (res []searchHit) {
-	for _, h := range hits {
-		if f(h) {
-			res = append(res, h)
-		}
-	}
-	return res
+type searchOptions struct {
+	compactHits bool
 }
 
-func (index *prefixIndex) Search(search string, limit int) []Hit {
+func (opts searchOptions) CompactHits() searchOptions {
+	opts.compactHits = true
+	return opts
+}
+
+func (index *prefixIndex) Search(search string, limit int, opts ...func(searchOptions) searchOptions) []Hit {
+	searchOpts := searchOptions{
+		compactHits: false,
+	}
+	for _, fn := range opts {
+		searchOpts = fn(searchOpts)
+	}
+
 	req := newSearchRequest(search)
 	if len(req.words) == 0 && len(req.exactMatches) == 0 && len(req.toExclude) == 0 {
 		// Just in case
@@ -116,6 +129,7 @@ func (index *prefixIndex) Search(search string, limit int) []Hit {
 
 	} else {
 		// Only exact matches, only excludes, or both - have to check all paths.
+		hits = make([]searchHit, 0, len(index.Paths))
 		for id := range index.Paths {
 			hits = append(hits, index.newSearchHit(id, math.Inf(1)))
 		}
@@ -123,26 +137,30 @@ func (index *prefixIndex) Search(search string, limit int) []Hit {
 
 	// Filter by exact matches.
 	if len(req.exactMatches) > 0 {
-		hits = filterHits(hits, func(h searchHit) bool {
+		hits = slices.DeleteFunc(hits, func(h searchHit) bool {
 			for _, exact := range req.exactMatches {
 				if !strings.Contains(h.lowerCasedPath, exact) {
-					return false
+					return true
 				}
 			}
-			return true
+			return false
 		})
 	}
 
 	// Filter by excludes.
 	if len(req.toExclude) > 0 {
-		hits = filterHits(hits, func(h searchHit) bool {
+		hits = slices.DeleteFunc(hits, func(h searchHit) bool {
 			for _, word := range req.toExclude {
 				if strings.Contains(h.lowerCasedPath, word) {
-					return false
+					return true
 				}
 			}
-			return true
+			return false
 		})
+	}
+
+	if len(hits) == 0 {
+		return nil
 	}
 
 	res := make([]Hit, 0, len(hits))
@@ -154,11 +172,12 @@ func (index *prefixIndex) Search(search string, limit int) []Hit {
 	}
 
 	slices.SortFunc(res, func(a, b Hit) int {
-		if a.Score != b.Score {
-			return -1 * cmp.Compare(a.Score, b.Score)
-		}
-		return cmp.Compare(a.Path, b.Path)
+		return a.compare(b)
 	})
+
+	if searchOpts.compactHits {
+		res = compactSearchHits(res)
+	}
 
 	if len(res) > limit {
 		res = res[:limit]
@@ -168,7 +187,7 @@ func (index *prefixIndex) Search(search string, limit int) []Hit {
 }
 
 // searchByPrefixes searches for prefix matches. If passed "search" contains multiple words,
-// only results that matched all these words will be returned.
+// only results that match all these words will be returned.
 func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 	var (
 		matchCounts        = make(map[uint64]int)
@@ -226,6 +245,35 @@ func (index *prefixIndex) newSearchHit(id uint64, score float64) searchHit {
 		lowerCasedPath: index.lowerCasedPaths[id],
 		score:          score,
 	}
+}
+
+// compactSearchHits merges paths like '/a/b/', '/a/b/c', '/a/b/d/e/' and etc. to just '/a/b/'
+// if their scores are equal. Passed hits must be sorted.
+func compactSearchHits(hits []Hit) []Hit {
+	if len(hits) == 0 {
+		return hits
+	}
+
+	// Just in case.
+	isSorted := slices.IsSortedFunc(hits, func(a, b Hit) int { return a.compare(b) })
+	if !isSorted {
+		panic("hits must be sorted")
+	}
+
+	res := make([]Hit, 0, len(hits))
+	res = append(res, hits[0]) // len(res) is always > 0
+	for i, hit := range hits {
+		if i == 0 {
+			continue
+		}
+
+		last := res[len(res)-1]
+		if hit.Score == last.Score && strings.HasPrefix(hit.Path, last.Path) {
+			continue
+		}
+		res = append(res, hit)
+	}
+	return res
 }
 
 func generatePrefixes(path string, minLen, maxLen int) (prefixes []string) {
@@ -312,16 +360,5 @@ func splitToNormalizedWords(v string) (res [][]rune) {
 	}
 	appendWord()
 
-	return res
-}
-
-func unique(slice []uint64) (res []uint64) {
-	seen := make(map[uint64]bool)
-	for _, v := range slice {
-		if !seen[v] {
-			seen[v] = true
-			res = append(res, v)
-		}
-	}
 	return res
 }

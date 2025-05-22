@@ -284,7 +284,51 @@ func TestPrefixIndex(t *testing.T) {
 			[]Hit{{Path: "белый", Score: 3}},
 			hits,
 		)
+		hits = index.Search("бёлый", 10)
+		r.Equal(
+			[]Hit{{Path: "белый", Score: 3}},
+			hits,
+		)
+	})
 
+	t.Run("compact hits", func(t *testing.T) {
+		r := require.New(t)
+
+		texts := []string{
+			"/animals/",
+			"/animals/cats/",
+			"/animals/dogs/",
+			"/animals/dogs/2025/catch/",
+			"/animals/dogs/2025/dog park/",
+			"/anime/",
+		}
+		index := newPrefixIndex(texts, 3, 7)
+
+		hits := index.Search("anim", 10, searchOptions.CompactHits)
+		r.Equal(
+			[]Hit{
+				{Path: "/animals/", Score: 2},
+				{Path: "/anime/", Score: 2},
+			},
+			hits,
+		)
+
+		hits = index.Search("anim dogs", 10, searchOptions.CompactHits)
+		r.Equal(
+			[]Hit{
+				{Path: "/animals/dogs/", Score: 4},
+			},
+			hits,
+		)
+
+		hits = index.Search("anim cats", 10, searchOptions.CompactHits)
+		r.Equal(
+			[]Hit{
+				{Path: "/animals/cats/", Score: 4},
+				{Path: "/animals/dogs/2025/catch/", Score: 3},
+			},
+			hits,
+		)
 	})
 }
 

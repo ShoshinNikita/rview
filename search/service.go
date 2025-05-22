@@ -1,7 +1,6 @@
 package search
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -192,7 +191,7 @@ func (s *Service) Search(_ context.Context, search string, dirLimit, fileLimit i
 		return nil, nil, errors.New("indexes are not ready")
 	}
 
-	dirs = s.indexes.Dirs.Search(search, dirLimit)
+	dirs = s.indexes.Dirs.Search(search, dirLimit, searchOptions.CompactHits)
 	files = s.indexes.Files.Search(search, fileLimit)
 
 	return dirs, files, nil
@@ -201,8 +200,9 @@ func (s *Service) Search(_ context.Context, search string, dirLimit, fileLimit i
 // RefreshIndexes requests all files from rclone and creates new indexes.
 func (s *Service) RefreshIndexes(ctx context.Context) (finalErr error) {
 	var (
-		now          = time.Now()
-		entriesCount int
+		now       = time.Now()
+		dirCount  int
+		fileCount int
 	)
 	defer func() {
 		// Monitor duration even for errors.
@@ -213,7 +213,7 @@ func (s *Service) RefreshIndexes(ctx context.Context) (finalErr error) {
 			metrics.SearchRefreshIndexesErrors.Inc()
 			return
 		}
-		rlog.Infof("search indexes were successfully refreshed in %s, entries count: %d", dur, entriesCount)
+		rlog.Infof("search indexes were successfully refreshed in %s, dirs: %d, files: %d", dur, dirCount, fileCount)
 	}()
 
 	dirs, filenames, err := s.rclone.GetAllFiles(ctx)
@@ -225,7 +225,8 @@ func (s *Service) RefreshIndexes(ctx context.Context) (finalErr error) {
 			dirs[i] += "/"
 		}
 	}
-	entriesCount = len(dirs) + len(filenames)
+	dirCount = len(dirs)
+	fileCount = len(filenames)
 
 	indexes := &builtIndexes{
 		Dirs:      newPrefixIndex(dirs, s.minPrefixLen, s.maxPrefixLen),
@@ -248,13 +249,17 @@ func (s *Service) RefreshIndexes(ctx context.Context) (finalErr error) {
 }
 
 func (s *Service) saveIndexesToCache(indexes *builtIndexes) error {
-	buf := bytes.NewBuffer(nil)
-	err := json.NewEncoder(buf).Encode(indexes)
-	if err != nil {
-		return fmt.Errorf("couldn't encode indexes: %w", err)
-	}
+	// Don't store encoded indexes in memory because they can be very large.
+	r, w := io.Pipe()
+	go func() {
+		err := json.NewEncoder(w).Encode(indexes)
+		if err != nil {
+			err = fmt.Errorf("couldn't encode indexes: %w", err)
+		}
+		w.CloseWithError(err)
+	}()
 
-	err = s.cache.Write(s.indexesFileID, buf)
+	err := s.cache.Write(s.indexesFileID, r)
 	if err != nil {
 		return fmt.Errorf("couldn't write indexes to cache: %w", err)
 	}
