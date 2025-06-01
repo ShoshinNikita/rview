@@ -318,7 +318,11 @@ func (cfg Config) Print() {
 
 	fmt.Fprint(os.Stderr, "    Config:\n\n")
 	for _, name := range names {
-		fmt.Fprintf(os.Stderr, "        --%-*s = %v\n", maxNameLength, name, reflect.ValueOf(flags[name].p).Elem())
+		v := reflect.ValueOf(flags[name].p).Elem().Interface()
+		if str, ok := v.(string); ok && str == "" {
+			v = `""`
+		}
+		fmt.Fprintf(os.Stderr, "        --%-*s = %v\n", maxNameLength, name, v)
 	}
 	fmt.Fprint(os.Stderr, "\n")
 }

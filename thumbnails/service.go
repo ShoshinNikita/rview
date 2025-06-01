@@ -230,6 +230,8 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		return stats{}, fmt.Errorf("couldn't create temp image file: %w", err)
 	}
 	defer func() {
+		_ = tempFile.Close()
+
 		if err := os.Remove(tempFile.Name()); err != nil {
 			rlog.Errorf("couldn't remove temp image file: %s", err)
 		}
