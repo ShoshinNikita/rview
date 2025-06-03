@@ -15,6 +15,7 @@ import (
 
 type Hit struct {
 	Path  string
+	IsDir bool
 	Score float64
 }
 
@@ -100,27 +101,11 @@ type searchHit struct {
 	score          float64
 }
 
-type searchOptions struct {
-	compactHits bool
-}
-
-func (opts searchOptions) CompactHits() searchOptions {
-	opts.compactHits = true
-	return opts
-}
-
-func (index *prefixIndex) Search(search string, limit int, opts ...func(searchOptions) searchOptions) []Hit {
-	searchOpts := searchOptions{
-		compactHits: false,
-	}
-	for _, fn := range opts {
-		searchOpts = fn(searchOpts)
-	}
-
+func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 	req := newSearchRequest(search)
 	if len(req.words) == 0 && len(req.exactMatches) == 0 && len(req.toExclude) == 0 {
 		// Just in case
-		return nil
+		return nil, 0
 	}
 
 	var hits []searchHit
@@ -160,13 +145,15 @@ func (index *prefixIndex) Search(search string, limit int, opts ...func(searchOp
 	}
 
 	if len(hits) == 0 {
-		return nil
+		return nil, 0
 	}
 
 	res := make([]Hit, 0, len(hits))
 	for _, h := range hits {
+		path := index.Paths[h.id]
 		res = append(res, Hit{
-			Path:  index.Paths[h.id],
+			Path:  path,
+			IsDir: strings.HasSuffix(path, "/"),
 			Score: h.score,
 		})
 	}
@@ -175,15 +162,14 @@ func (index *prefixIndex) Search(search string, limit int, opts ...func(searchOp
 		return a.compare(b)
 	})
 
-	if searchOpts.compactHits {
-		res = compactSearchHits(res)
-	}
+	res = compactSearchHits(res)
+	total := len(res)
 
 	if len(res) > limit {
 		res = res[:limit]
 	}
 
-	return res
+	return res, total
 }
 
 // searchByPrefixes searches for prefix matches. If passed "search" contains multiple words,
@@ -260,8 +246,11 @@ func compactSearchHits(hits []Hit) []Hit {
 		panic("hits must be sorted")
 	}
 
-	res := make([]Hit, 0, len(hits))
-	res = append(res, hits[0]) // len(res) is always > 0
+	// There's a very high chance that most of the search hits will be merged into a single
+	// entry. So, don't preallocate the resulting slice.
+	res := []Hit{
+		hits[0],
+	}
 	for i, hit := range hits {
 		if i == 0 {
 			continue

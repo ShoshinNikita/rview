@@ -1,32 +1,26 @@
-<!-- Uncomment for debugging -->
-<!-- <link rel="stylesheet" href="{{ prepareStaticLink `/static/css/search-results.css` }}"> -->
-
-{{ define "hits" }}
-<ul class="search-hits">
-	{{ range . }}
-	<li class="search-hit">
-		<div class="search-hit-icon">
-			{{ embedFileIcon .Icon }}
-		</div>
-
-		{{ $title := printf `Go to "%s"` .Path }}
-		<a class="search-hit-link" href="{{ .WebURL }}" title="{{ $title }}">{{ .Path }}</a>
-		<span class="search-hit-score">score: {{ .Score }}</span>
-	</li>
-	{{ end }}
-</ul>
-{{ end }}
-
 <div class="search-results">
-	{{ if .Dirs }}
-	{{ template "hits" .Dirs }}
+	{{ if .Hits }}
+	<ul class="search-hits">
+		{{ range .Hits }}
+		<li class="search-hit">
+			<div class="search-hit-icon">
+				{{ embedFileIcon .Icon }}
+			</div>
+
+			{{ $title := printf `Go to "%s"` .Path }}
+			<a class="search-hit-link" href="{{ .WebURL }}" title="{{ $title }}">{{ .Path }}</a>
+		</li>
+		{{ end }}
+	</ul>
 	{{ end }}
 
-	{{ if and .Dirs .Files }}
-	<hr class="search-separator">
-	{{ end }}
-
-	{{ if .Files }}
-	{{ template "hits" .Files }}
+	{{ if .Total }}
+	<div class="total">
+		{{ if eq .Total (len .Hits) }}
+		<span>Showing {{ len .Hits }} of {{ .Total}} matches</span>
+		{{ else }}
+		<span>Showing top {{ len .Hits }} of {{ .Total}} matches</span>
+		{{ end }}
+	</div>
 	{{ end }}
 </div>

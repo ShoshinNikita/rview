@@ -65,12 +65,13 @@ type DirEntry struct {
 }
 
 type SearchResponse struct {
-	Dirs  []SearchHit `json:"dirs"`
-	Files []SearchHit `json:"files"`
+	Hits  []SearchHit `json:"hits"`
+	Total int         `json:"total"`
 }
 
 type SearchHit struct {
 	Path   string  `json:"path"`
+	IsDir  bool    `json:"is_dir"`
 	Score  float64 `json:"score"`
 	WebURL string  `json:"web_url"`
 	Icon   string  `json:"icon"`

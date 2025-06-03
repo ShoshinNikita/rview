@@ -86,13 +86,13 @@ func TestPrefixIndex(t *testing.T) {
 	t.Run("basic search", func(t *testing.T) {
 		r := require.New(t)
 
-		hits := index.Search(`games`, 5)
+		hits, _ := index.Search(`games`, 5)
 		r.Equal(
 			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: 3},
 				{Path: "games/hi-fi rush/2.jpg", Score: 3},
-				{Path: "games/starfield/", Score: 3},
-				{Path: "gaming/", Score: 1},
+				{Path: "games/starfield/", Score: 3, IsDir: true},
+				{Path: "gaming/", Score: 1, IsDir: true},
 			},
 			hits,
 		)
@@ -101,7 +101,8 @@ func TestPrefixIndex(t *testing.T) {
 	t.Run("limit", func(t *testing.T) {
 		r := require.New(t)
 
-		hits := index.Search(`games`, 2)
+		hits, total := index.Search(`games`, 2)
+		r.Equal(4, total)
 		r.Equal(
 			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: 3},
@@ -115,18 +116,18 @@ func TestPrefixIndex(t *testing.T) {
 		r := require.New(t)
 
 		// Short words must be ignored
-		hits := index.Search(`games ru`, 5)
+		hits, _ := index.Search(`games ru`, 5)
 		r.Equal(
 			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: 3},
 				{Path: "games/hi-fi rush/2.jpg", Score: 3},
-				{Path: "games/starfield/", Score: 3},
-				{Path: "gaming/", Score: 1},
+				{Path: "games/starfield/", Score: 3, IsDir: true},
+				{Path: "gaming/", Score: 1, IsDir: true},
 			},
 			hits,
 		)
 
-		hits = index.Search(`games rush`, 5)
+		hits, _ = index.Search(`games rush`, 5)
 		r.Equal(
 			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: 5},
@@ -139,10 +140,10 @@ func TestPrefixIndex(t *testing.T) {
 	t.Run("exact match", func(t *testing.T) {
 		r := require.New(t)
 
-		hits := index.Search(`"games/hifi RUSH"`, 5)
+		hits, _ := index.Search(`"games/hifi RUSH"`, 5)
 		r.Empty(hits)
 
-		hits = index.Search(`"games/hi-fi RUSH"`, 5)
+		hits, _ = index.Search(`"games/hi-fi RUSH"`, 5)
 		r.Equal(
 			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
@@ -151,17 +152,17 @@ func TestPrefixIndex(t *testing.T) {
 			hits,
 		)
 
-		hits = index.Search(`"games"`, 5)
+		hits, _ = index.Search(`"games"`, 5)
 		r.Equal(
 			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
 				{Path: "games/hi-fi rush/2.jpg", Score: math.Inf(1)},
-				{Path: "games/starfield/", Score: math.Inf(1)},
+				{Path: "games/starfield/", Score: math.Inf(1), IsDir: true},
 			},
 			hits,
 		)
 
-		hits = index.Search(`"games" "jpg"`, 5)
+		hits, _ = index.Search(`"games" "jpg"`, 5)
 		r.Equal(
 			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
@@ -170,7 +171,7 @@ func TestPrefixIndex(t *testing.T) {
 			hits,
 		)
 
-		hits = index.Search(`"games" "jpg" "1"`, 5)
+		hits, _ = index.Search(`"games" "jpg" "1"`, 5)
 		r.Equal(
 			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
@@ -178,31 +179,31 @@ func TestPrefixIndex(t *testing.T) {
 			hits,
 		)
 
-		hits = index.Search(`"games" "jpg" "1" "2"`, 5)
+		hits, _ = index.Search(`"games" "jpg" "1" "2"`, 5)
 		r.Empty(hits)
 	})
 
 	t.Run("exclude", func(t *testing.T) {
 		r := require.New(t)
 
-		hits := index.Search(`games -"hi-fi"`, 5)
+		hits, _ := index.Search(`games -"hi-fi"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "games/starfield/", Score: 3},
-				{Path: "gaming/", Score: 1},
+				{Path: "games/starfield/", Score: 3, IsDir: true},
+				{Path: "gaming/", Score: 1, IsDir: true},
 			},
 			hits,
 		)
 
-		hits = index.Search(`games -"hi-fi" -"gaming"`, 5)
+		hits, _ = index.Search(`games -"hi-fi" -"gaming"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "games/starfield/", Score: 3},
+				{Path: "games/starfield/", Score: 3, IsDir: true},
 			},
 			hits,
 		)
 
-		hits = index.Search(`"games" -"starfield"`, 5)
+		hits, _ = index.Search(`"games" -"starfield"`, 5)
 		r.Equal(
 			[]Hit{
 				{Path: "games/hi-fi rush/1.jpg", Score: math.Inf(1)},
@@ -211,7 +212,7 @@ func TestPrefixIndex(t *testing.T) {
 			hits,
 		)
 
-		hits = index.Search(`-"games" -"gaming" -"лето"`, 5)
+		hits, _ = index.Search(`-"games" -"gaming" -"лето"`, 5)
 		r.Equal(
 			[]Hit{
 				{Path: "hello !&a! world.go", Score: math.Inf(1)},
@@ -224,7 +225,7 @@ func TestPrefixIndex(t *testing.T) {
 		r := require.New(t)
 
 		index := newPrefixIndex([]string{"a beautiful picture"}, 3, 7)
-		hits := index.Search("a beautiful", 10)
+		hits, _ := index.Search("a beautiful", 10)
 		r.Equal(
 			[]Hit{
 				{Path: "a beautiful picture", Score: 5},
@@ -245,25 +246,25 @@ func TestPrefixIndex(t *testing.T) {
 		index := newPrefixIndex(texts, 3, 7)
 
 		// Both searches, with and without accented characters, succeed.
-		hits := index.Search("schuchternes", 10)
+		hits, _ := index.Search("schuchternes", 10)
 		r.Equal(
 			[]Hit{{Path: "schüchternes Lächeln", Score: 5}},
 			hits,
 		)
-		hits = index.Search("schüchternes", 10)
+		hits, _ = index.Search("schüchternes", 10)
 		r.Equal(
 			[]Hit{{Path: "schüchternes Lächeln", Score: 5}},
 			hits,
 		)
 
 		// But exact search succeeds only for input with accented characters.
-		hits = index.Search(`"schuchternes"`, 10)
+		hits, _ = index.Search(`"schuchternes"`, 10)
 		r.Empty(hits)
-		hits = index.Search(`"schüchternes"`, 10)
+		hits, _ = index.Search(`"schüchternes"`, 10)
 		r.NotEmpty(hits)
 
 		// Other cases.
-		hits = index.Search("hello", 10)
+		hits, _ = index.Search("hello", 10)
 		r.Equal(
 			[]Hit{
 				{Path: "hello world", Score: 3},
@@ -271,7 +272,7 @@ func TestPrefixIndex(t *testing.T) {
 			},
 			hits,
 		)
-		hits = index.Search("ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛", 10)
+		hits, _ = index.Search("ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛", 10)
 		r.Equal(
 			[]Hit{
 				{Path: "hello world", Score: 1},
@@ -279,12 +280,12 @@ func TestPrefixIndex(t *testing.T) {
 			},
 			hits,
 		)
-		hits = index.Search("белыи", 10)
+		hits, _ = index.Search("белыи", 10)
 		r.Equal(
 			[]Hit{{Path: "белый", Score: 3}},
 			hits,
 		)
-		hits = index.Search("бёлый", 10)
+		hits, _ = index.Search("бёлый", 10)
 		r.Equal(
 			[]Hit{{Path: "белый", Score: 3}},
 			hits,
@@ -301,31 +302,40 @@ func TestPrefixIndex(t *testing.T) {
 			"/animals/dogs/2025/catch/",
 			"/animals/dogs/2025/dog park/",
 			"/anime/",
+			"/anime/art.jpeg",
 		}
 		index := newPrefixIndex(texts, 3, 7)
 
-		hits := index.Search("anim", 10, searchOptions.CompactHits)
+		hits, _ := index.Search("anim", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "/animals/", Score: 2},
-				{Path: "/anime/", Score: 2},
+				{Path: "/animals/", Score: 2, IsDir: true},
+				{Path: "/anime/", Score: 2, IsDir: true},
 			},
 			hits,
 		)
 
-		hits = index.Search("anim dogs", 10, searchOptions.CompactHits)
+		hits, _ = index.Search("anim dogs", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "/animals/dogs/", Score: 4},
+				{Path: "/animals/dogs/", Score: 4, IsDir: true},
 			},
 			hits,
 		)
 
-		hits = index.Search("anim cats", 10, searchOptions.CompactHits)
+		hits, _ = index.Search("anim cats", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "/animals/cats/", Score: 4},
-				{Path: "/animals/dogs/2025/catch/", Score: 3},
+				{Path: "/animals/cats/", Score: 4, IsDir: true},
+				{Path: "/animals/dogs/2025/catch/", Score: 3, IsDir: true},
+			},
+			hits,
+		)
+
+		hits, _ = index.Search("anime jpeg", 10)
+		r.Equal(
+			[]Hit{
+				{Path: "/anime/art.jpeg", Score: 5},
 			},
 			hits,
 		)

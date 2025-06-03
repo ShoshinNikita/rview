@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -41,8 +42,7 @@ type Cache interface {
 }
 
 type builtIndexes struct {
-	Dirs  *prefixIndex `json:"dirs"`
-	Files *prefixIndex `json:"files"`
+	Index *prefixIndex `json:"index"`
 
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -116,17 +116,12 @@ func (s *Service) loadIndexesFromCache() (res *builtIndexes, err error) {
 	if err != nil {
 		return nil, fmt.Errorf("decode error: %w", err)
 	}
-	if res == nil || res.Dirs == nil || res.Files == nil {
+	if res == nil || res.Index == nil {
 		return nil, errors.New("some indexes are not ready")
 	}
-
-	if err := res.Dirs.Check(s.minPrefixLen, s.maxPrefixLen); err != nil {
+	if err := res.Index.Check(s.minPrefixLen, s.maxPrefixLen); err != nil {
 		return nil, err
 	}
-	if err := res.Files.Check(s.minPrefixLen, s.maxPrefixLen); err != nil {
-		return nil, err
-	}
-
 	return res, nil
 }
 
@@ -177,7 +172,7 @@ func (s *Service) GetMinSearchLength() int {
 	return s.minPrefixLen
 }
 
-func (s *Service) Search(_ context.Context, search string, dirLimit, fileLimit int) (dirs, files []Hit, err error) {
+func (s *Service) Search(_ context.Context, search string, limit int) (hits []Hit, total int, _ error) {
 	now := time.Now()
 	defer func() {
 		metrics.SearchDuration.Observe(time.Since(now).Seconds())
@@ -188,13 +183,11 @@ func (s *Service) Search(_ context.Context, search string, dirLimit, fileLimit i
 
 	// Usually happens in integration tests.
 	if s.indexes == nil {
-		return nil, nil, errors.New("indexes are not ready")
+		return nil, 0, errors.New("indexes are not ready")
 	}
 
-	dirs = s.indexes.Dirs.Search(search, dirLimit, searchOptions.CompactHits)
-	files = s.indexes.Files.Search(search, fileLimit)
-
-	return dirs, files, nil
+	hits, total = s.indexes.Index.Search(search, limit)
+	return hits, total, nil
 }
 
 // RefreshIndexes requests all files from rclone and creates new indexes.
@@ -228,9 +221,9 @@ func (s *Service) RefreshIndexes(ctx context.Context) (finalErr error) {
 	dirCount = len(dirs)
 	fileCount = len(filenames)
 
+	allEntries := slices.Concat(filenames, dirs)
 	indexes := &builtIndexes{
-		Dirs:      newPrefixIndex(dirs, s.minPrefixLen, s.maxPrefixLen),
-		Files:     newPrefixIndex(filenames, s.minPrefixLen, s.maxPrefixLen),
+		Index:     newPrefixIndex(allEntries, s.minPrefixLen, s.maxPrefixLen),
 		CreatedAt: time.Now(),
 	}
 

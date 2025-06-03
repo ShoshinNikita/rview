@@ -524,24 +524,25 @@ func TestAPI_Search(t *testing.T) {
 	search := func(t *testing.T, s string) (dirs, files []string) {
 		r := require.New(t)
 
-		status, body, _ := makeRequest(t, "/api/search?search="+url.QueryEscape(s))
+		status, body, _ := makeRequest(t, "/api/search?limit=10&search="+url.QueryEscape(s))
 		r.Equal(200, status)
 
 		var resp web.SearchResponse
 		err := json.Unmarshal(body, &resp)
 		r.NoError(err)
 
-		for _, d := range resp.Dirs {
-			r.True(strings.HasSuffix(d.WebURL, "/"))
-			r.NotEmpty(d.Icon)
+		for _, h := range resp.Hits {
+			if h.IsDir {
+				r.True(strings.HasSuffix(h.WebURL, "/"))
+				r.NotEmpty(h.Icon)
+				dirs = append(dirs, h.Path)
 
-			dirs = append(dirs, d.Path)
-		}
-		for _, f := range resp.Files {
-			r.Contains(f.WebURL, "?preview=")
-			r.NotEmpty(f.Icon)
+			} else {
+				r.Contains(h.WebURL, "?preview=")
+				r.NotEmpty(h.Icon)
 
-			files = append(files, f.Path)
+				files = append(files, h.Path)
+			}
 		}
 		return dirs, files
 	}
@@ -567,7 +568,7 @@ func TestAPI_Search(t *testing.T) {
 
 	dirs, files = search(t, "tests")
 	r.Equal([]string{"Other/test-thumbnails/"}, dirs)
-	r.Len(files, 3)
+	r.Equal([]string{"test.gif"}, files)
 }
 
 func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {

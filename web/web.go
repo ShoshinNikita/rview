@@ -508,65 +508,56 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
-	atoi := func(param string, defaultValue int) int {
-		res, err := strconv.Atoi(r.FormValue(param))
-		if err != nil {
-			return defaultValue
-		}
-		return res
-	}
-
 	searchValue := r.FormValue("search")
 	minLength := s.searchService.GetMinSearchLength()
 	if len([]rune(searchValue)) < minLength {
 		writeBadRequestError(w, `minimum "search" length is %d characters`, minLength)
 		return
 	}
-	dirLimit := atoi("dir-limit", 3)
-	fileLimit := atoi("file-limit", 5)
+	limit, err := strconv.Atoi(r.FormValue("limit"))
+	if err != nil {
+		writeBadRequestError(w, "invalid limit value: %s", err)
+		return
+	}
 	isUI := r.FormValue("ui") != ""
 
-	dirs, files, err := s.searchService.Search(r.Context(), searchValue, dirLimit, fileLimit)
+	hits, total, err := s.searchService.Search(r.Context(), searchValue, limit)
 	if err != nil {
 		writeInternalServerError(w, "search failed: %s", err)
 		return
 	}
 
-	convertSearchHits := func(hits []search.Hit, isDir bool) []SearchHit {
-		res := make([]SearchHit, 0, len(hits))
-		for _, hit := range hits {
-			var webURL string
-
-			if isDir {
-				webURL = mustParseURL("/ui").JoinPath(hit.Path, "/").String()
-
-			} else {
-				dir := pkgPath.Dir(hit.Path)
-				filename := pkgPath.Base(hit.Path)
-
-				u := mustParseURL("/ui").JoinPath(dir, "/")
-				u.RawQuery = url.Values{
-					"preview": []string{filename},
-				}.Encode()
-				webURL = u.String()
-			}
-
-			res = append(res, SearchHit{
-				Path:   hit.Path,
-				Score:  hit.Score,
-				WebURL: webURL,
-				Icon:   static.GetFileIcon(hit.Path, isDir),
-			})
-		}
-		return res
-	}
 	resp := SearchResponse{
-		Dirs:  convertSearchHits(dirs, true),
-		Files: convertSearchHits(files, false),
+		Hits:  make([]SearchHit, 0, len(hits)),
+		Total: total,
+	}
+	for _, hit := range hits {
+		var webURL string
+		if hit.IsDir {
+			webURL = mustParseURL("/ui").JoinPath(hit.Path, "/").String()
+
+		} else {
+			dir := pkgPath.Dir(hit.Path)
+			filename := pkgPath.Base(hit.Path)
+
+			u := mustParseURL("/ui").JoinPath(dir, "/")
+			u.RawQuery = url.Values{
+				"preview": []string{filename},
+			}.Encode()
+			webURL = u.String()
+		}
+
+		resp.Hits = append(resp.Hits, SearchHit{
+			Path:   hit.Path,
+			IsDir:  hit.IsDir,
+			Score:  hit.Score,
+			WebURL: webURL,
+			Icon:   static.GetFileIcon(hit.Path, hit.IsDir),
+		})
 	}
 
 	if isUI {
-		if len(resp.Dirs) == 0 && len(resp.Files) == 0 {
+		if len(resp.Hits) == 0 {
 			w.WriteHeader(http.StatusNoContent)
 			return
 		}

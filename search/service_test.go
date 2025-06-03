@@ -30,10 +30,9 @@ func TestService_RefreshIndexes(t *testing.T) {
 		r.NoError(err)
 	})
 
-	dirs, files, err := s.Search(ctx, "games", 3, 5)
+	hits, _, err := s.Search(ctx, "games", 5)
 	r.NoError(err)
-	r.Empty(dirs)
-	r.NotEmpty(files)
+	r.NotEmpty(hits)
 
 	rclone.GetAllFilesFn = func(context.Context) (dirs, files []string, err error) {
 		files = []string{
@@ -46,10 +45,9 @@ func TestService_RefreshIndexes(t *testing.T) {
 	err = s.RefreshIndexes(ctx)
 	r.NoError(err)
 
-	dirs, files, err = s.Search(ctx, "games", 3, 5)
+	hits, _, err = s.Search(ctx, "games", 5)
 	r.NoError(err)
-	r.Empty(dirs)
-	r.Empty(files)
+	r.Empty(hits)
 }
 
 type rcloneStub struct {
@@ -123,11 +121,11 @@ func Example() {
 
 	fmt.Print("\n**Search Requests:**\n\n")
 	for _, tt := range tests {
-		_, files, err := s.Search(context.Background(), tt.search, 10, 10)
+		hits, _, err := s.Search(context.Background(), tt.search, 10)
 		assertNoError(err)
 
 		fmt.Printf("- `%s` - %s. Results:\n", tt.search, tt.desc)
-		for _, h := range files {
+		for _, h := range hits {
 			fmt.Printf("  - `%s`\n", h.Path)
 		}
 	}
