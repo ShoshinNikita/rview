@@ -19,9 +19,13 @@
 - `cat dog` - search for filepaths that have the same prefixes as both `cat` and `dog`. Results:
   - `animals/Cat & Dog play.mkv`
   - `dogmas/catalog.zip`
-- `cat dog -"zip"` - search for filepaths that have the same prefixes as both `cat` and `dog`, but don't have exactly `zip`. Results:
+- `cat dog -zip` - search for filepaths that have the same prefixes as both `cat` and `dog`, but don't have exactly `zip`. Results:
   - `animals/Cat & Dog play.mkv`
-- `-"dog" -"png" -"jumps"` - search for filepaths that don't have exactly `dog`, `png` and `jumps`. Results:
+- `-"dog" -png -jumps` - search for filepaths that don't have exactly `dog`, `png` and `jumps`. Results:
   - `animals/cute cat.jpeg`
-- `dog "/cat" -"mkv"` - search for filepaths that have the same prefixes as `dog`, have exactly `/cat` and don't have exactly `mkv`. Results:
+- `dog "/cat" -mkv` - search for filepaths that have the same prefixes as `dog`, have exactly `/cat` and don't have exactly `mkv`. Results:
   - `dogmas/catalog.zip`
+- `animals -"cat & dog"` - search for filepaths that have the same prefixes as `animals` and don't have exactly `cat & dog`. Results:
+  - `animals/cat jumps.mp4`
+  - `animals/caterpillar.png`
+  - `animals/cute cat.jpeg`

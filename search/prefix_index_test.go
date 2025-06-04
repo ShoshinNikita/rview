@@ -350,28 +350,27 @@ func TestNewSearchRequest(t *testing.T) {
 		{
 			search: `nothi--n"g to -exclude`,
 			want: searchRequest{
-				searchForWords: `nothi--n"g to -exclude`,
+				toExclude:      []string{"exclude"},
+				extractedWords: []string{`nothi--n"g`, "to"},
 			},
 		},
 		{
 			search: `hello dear -"word-abc" -""`,
 			want: searchRequest{
 				toExclude:      []string{"word-abc"},
-				searchForWords: `hello dear  -""`,
+				extractedWords: []string{"hello", "dear"},
 			},
 		},
 		{
 			search: `-"test!&some--/characters" -"animal park"`,
 			want: searchRequest{
-				toExclude:      []string{"test!&some--/characters", "animal park"},
-				searchForWords: "",
+				toExclude: []string{"test!&some--/characters", "animal park"},
 			},
 		},
 		{
 			search: `"exact" "match"`,
 			want: searchRequest{
-				exactMatches:   []string{"exact", "match"},
-				searchForWords: "",
+				exactMatches: []string{"exact", "match"},
 			},
 		},
 		{
@@ -379,14 +378,27 @@ func TestNewSearchRequest(t *testing.T) {
 			want: searchRequest{
 				toExclude:      []string{"first", "second"},
 				exactMatches:   []string{"third"},
-				searchForWords: "test  abc  qwerty",
+				extractedWords: []string{"test", "abc", "qwerty"},
 			},
 		},
 		{
 			search: `-"inside-"""`,
 			want: searchRequest{
-				toExclude:      []string{"inside-"},
-				searchForWords: `""`,
+				toExclude: []string{"inside-"},
+			},
+		},
+		{
+			search: `hello -"  beautiful world"  ""   abc "def"hh  -xxx --qwerty test"xy"z aa"a f   `,
+			want: searchRequest{
+				toExclude:      []string{"beautiful world", "xxx", "-qwerty"},
+				exactMatches:   []string{"def"},
+				extractedWords: []string{"hello", "abc", "hh", `test"xy"z`, `aa"a`, "f"},
+			},
+		},
+		{
+			search: `-"hello world     `,
+			want: searchRequest{
+				toExclude: []string{"hello world"},
 			},
 		},
 	} {

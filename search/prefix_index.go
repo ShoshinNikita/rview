@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
-	"regexp"
 	"slices"
 	"strings"
+	"testing"
 	"unicode"
 
 	"golang.org/x/text/unicode/norm"
@@ -283,42 +283,97 @@ type searchRequest struct {
 	exactMatches []string
 	toExclude    []string
 
-	searchForWords string // only for testing
+	extractedWords []string // only for testing
 }
-
-var (
-	toExcludeRegexp    = regexp.MustCompile(`-"(.+?)"`)
-	exactMatchesRegexp = regexp.MustCompile(`"(.+?)"`)
-)
 
 func newSearchRequest(search string) (req searchRequest) {
 	search = strings.ToLower(search)
 
-	req.toExclude, search = extractSearchTokens(toExcludeRegexp, search)
-	req.exactMatches, search = extractSearchTokens(exactMatchesRegexp, search)
+	var (
+		idx = 0
 
-	req.searchForWords = search
-	req.words = splitToNormalizedWords(search)
-
-	return req
-}
-
-func extractSearchTokens(r *regexp.Regexp, search string) (res []string, newSearch string) {
-	matches := r.FindAllStringSubmatch(search, -1)
-	if len(matches) == 0 {
-		return nil, search
-	}
-	for _, match := range matches {
-		if len(match) != 2 {
-			panic(fmt.Errorf("invalid number of matches: %v", match))
+		// get returns the current character.
+		get = func() (byte, bool) {
+			if idx < len(search) {
+				return search[idx], true
+			}
+			return 0, false
 		}
-		res = append(res, match[1])
+		// move advances the scanner.
+		move = func() {
+			idx++
+		}
+		// readUntil advances the scanner *after* the first occurrence of 'until'
+		// and returns all characters, excluding 'until'.
+		readUntil = func(until byte) (res string) {
+			if _, ok := get(); !ok {
+				return ""
+			}
+
+			start := idx
+			for {
+				r, ok := get()
+				move()
+				if !ok {
+					return search[start:]
+				}
+				if r == until {
+					return search[start : idx-1]
+				}
+			}
+		}
+	)
+
+	for {
+		r, ok := get()
+		if !ok {
+			break
+		}
+		if r == ' ' {
+			move()
+			continue
+		}
+
+		var (
+			exclude bool
+			exact   bool
+			until   byte = ' '
+		)
+		switch r {
+		case '"':
+			until = '"'
+			exact = true
+			move()
+
+		case '-':
+			exclude = true
+			move()
+			if r, _ := get(); r == '"' {
+				until = '"'
+				move()
+			}
+		}
+
+		word := readUntil(until)
+		word = strings.TrimSpace(word)
+		if len(word) == 0 {
+			continue
+		}
+
+		switch {
+		case exact:
+			req.exactMatches = append(req.exactMatches, word)
+		case exclude:
+			req.toExclude = append(req.toExclude, word)
+		default:
+			req.words = append(req.words, splitToNormalizedWords(word)...)
+
+			if testing.Testing() {
+				req.extractedWords = append(req.extractedWords, word)
+			}
+		}
 	}
-
-	newSearch = r.ReplaceAllString(search, "")
-	newSearch = strings.TrimSpace(newSearch)
-
-	return res, newSearch
+	return req
 }
 
 func splitToNormalizedWords(v string) (res [][]rune) {

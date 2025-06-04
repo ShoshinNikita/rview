@@ -96,16 +96,20 @@ func TestGenerateDocs(t *testing.T) {
 			desc:   "search for filepaths that have the same prefixes as both `cat` and `dog`",
 		},
 		{
-			search: `cat dog -"zip"`,
+			search: `cat dog -zip`,
 			desc:   "search for filepaths that have the same prefixes as both `cat` and `dog`, but don't have exactly `zip`",
 		},
 		{
-			search: `-"dog" -"png" -"jumps"`,
+			search: `-"dog" -png -jumps`,
 			desc:   "search for filepaths that don't have exactly `dog`, `png` and `jumps`",
 		},
 		{
-			search: `dog "/cat" -"mkv"`,
+			search: `dog "/cat" -mkv`,
 			desc:   "search for filepaths that have the same prefixes as `dog`, have exactly `/cat` and don't have exactly `mkv`",
+		},
+		{
+			search: `animals -"cat & dog"`,
+			desc:   "search for filepaths that have the same prefixes as `animals` and don't have exactly `cat & dog`",
 		},
 	}
 
