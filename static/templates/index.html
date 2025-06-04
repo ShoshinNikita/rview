@@ -324,7 +324,7 @@
 			searchInput.style["cursor"] = "progress";
 
 			let errorText = "";
-			fetch("/api/search/refresh-indexes", {
+			fetch("/api/search/refresh-index", {
 				method: "POST"
 			}).
 				then(resp => {

@@ -96,7 +96,7 @@ func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService Thumbna
 	mux.HandleFunc("GET /api/file/", s.handleFile)
 	mux.HandleFunc("GET /api/thumbnail/", s.handleThumbnail)
 	mux.HandleFunc("GET /api/search", s.handleSearch)
-	mux.HandleFunc("POST /api/search/refresh-indexes", s.handleRefreshIndexes)
+	mux.HandleFunc("POST /api/search/refresh-index", s.handleRefreshIndex)
 
 	// Prometheus Metrics
 	mux.Handle("GET /debug/metrics", promhttp.Handler())
@@ -569,17 +569,11 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(resp)
 }
 
-func (s *Server) handleRefreshIndexes(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		code := http.StatusMethodNotAllowed
-		http.Error(w, http.StatusText(code), code)
-		return
-	}
+func (s *Server) handleRefreshIndex(w http.ResponseWriter, r *http.Request) {
+	// Index refresh can take a while, and we don't want to interrupt this process.
+	ctx := context.WithoutCancel(r.Context())
 
-	// Use background context because index refresh can take a while, and
-	// we don't want to interrupt this process.
-	ctx := context.Background()
-	err := s.searchService.RefreshIndexes(ctx)
+	err := s.searchService.RefreshIndex(ctx)
 	if err != nil {
 		writeInternalServerError(w, "couldn't refresh indexes: %s", err)
 		return

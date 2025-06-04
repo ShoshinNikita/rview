@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -44,12 +45,9 @@ func NewRview(cfg rview.Config) *Rview {
 }
 
 func (r *Rview) Prepare() (err error) {
-	serviceCache, err := cache.NewDiskCache("rview", filepath.Join(r.cfg.Dir, "rview"), cache.Options{
-		// Service cache doesn't need any cleanups.
-		DisableCleaner: true,
-	})
+	dirRoot, err := os.OpenRoot(r.cfg.Dir)
 	if err != nil {
-		return fmt.Errorf("couldn't prepare disk cache for service needs: %w", err)
+		return fmt.Errorf("couldn't open %q: %w", r.cfg.Dir, err)
 	}
 
 	// Rclone
@@ -95,7 +93,10 @@ func (r *Rview) Prepare() (err error) {
 	}
 
 	// Search Service
-	r.searchService = search.NewService(r.rcloneInstance, serviceCache)
+	r.searchService, err = search.NewService(r.rcloneInstance, dirRoot)
+	if err != nil {
+		return fmt.Errorf("couldn't prepare search service: %w", err)
+	}
 
 	// Web Server
 	r.server = web.NewServer(r.cfg, r.rcloneInstance, r.thumbnailService, r.searchService)
