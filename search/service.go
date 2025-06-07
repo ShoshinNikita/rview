@@ -142,7 +142,7 @@ func (s *Service) loadIndexFromCache() (res *searchIndex, err error) {
 
 func (s *Service) startBackgroundRefresh() {
 	const (
-		checkInterval   = time.Hour
+		checkInterval   = time.Minute
 		refreshInterval = 24 * time.Hour
 	)
 
