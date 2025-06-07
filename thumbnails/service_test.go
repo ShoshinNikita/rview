@@ -8,6 +8,7 @@ import (
 	"image/jpeg"
 	"image/png"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,7 +38,7 @@ func TestThumbnailService(t *testing.T) {
 		resizeFn func(originalFile, cacheFile string, id ThumbnailID, size ThumbnailSize) error,
 	) *ThumbnailService {
 
-		service := NewThumbnailService(nil, diskCache, cache.NewInMemoryCache(), 2, rview.JpegThumbnails)
+		service := NewThumbnailService(nil, diskCache, cache.NewInMemoryCache(), 2, rview.JpegThumbnails, true)
 		service.useOriginalImageThresholdSize = useOriginalImageThresholdSize
 		service.rclone = rcloneMock{openFileFn: openFileFn}
 		service.resizeFn = resizeFn
@@ -214,7 +215,7 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 
 	now := time.Now().Unix()
 
-	canGenerate := NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails).CanGenerateThumbnail
+	canGenerate := NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails, true).CanGenerateThumbnail
 
 	r.True(canGenerate(rview.NewFileID("/home/users/test.png", now, 0)))
 	r.True(canGenerate(rview.NewFileID("/home/users/test.pNg", now, 0)))
@@ -227,7 +228,7 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 func TestThumbnailService_NewThumbnailID(t *testing.T) {
 	t.Parallel()
 
-	service := NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails)
+	service := NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails, true)
 
 	for _, tt := range []struct {
 		path          string
@@ -345,7 +346,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 							return io.NopCloser(bytes.NewReader(img.rawImage)), nil
 						},
 					}
-					service := NewThumbnailService(rclone, diskCache, cache.NewInMemoryCache(), 1, thumbnailsFormat)
+					service := NewThumbnailService(rclone, diskCache, cache.NewInMemoryCache(), 1, thumbnailsFormat, true)
 
 					fileID := rview.NewFileID(tt.file, 0, img.size)
 					rc, contentType, err := service.OpenThumbnail(t.Context(), fileID, "")
@@ -386,7 +387,7 @@ func TestThumbnailService_AllImageTypes(t *testing.T) {
 						return io.NopCloser(bytes.NewReader(originalImage)), nil
 					},
 				}
-				thumbnailService := NewThumbnailService(mock, diskCache, cache.NewInMemoryCache(), 1, format)
+				thumbnailService := NewThumbnailService(mock, diskCache, cache.NewInMemoryCache(), 1, format, true)
 				thumbnailService.GenerateThumbnailsForSmallFiles()
 
 				ctx, cancel := context.WithTimeout(t.Context(), time.Second)
@@ -443,7 +444,7 @@ func TestThumbnailService_openImage(t *testing.T) {
 			return io.NopCloser(bytes.NewReader([]byte("hello world"))), nil
 		},
 	}
-	service := NewThumbnailService(rclone, nil, cache.NewInMemoryCache(), 1, rview.JpegThumbnails)
+	service := NewThumbnailService(rclone, nil, cache.NewInMemoryCache(), 1, rview.JpegThumbnails, true)
 
 	getFile := func() (string, error) {
 		rc, err := service.openImage(t.Context(), rview.NewFileID("1.txt", 0, 0))
@@ -490,9 +491,161 @@ func TestThumbnailService_openImage(t *testing.T) {
 }
 
 type rcloneMock struct {
-	openFileFn func(context.Context, rview.FileID) (io.ReadCloser, error)
+	openFileFn         func(context.Context, rview.FileID) (io.ReadCloser, error)
+	requestFileRangeFn func(ctx context.Context, id rview.FileID, start, end int) (io.ReadCloser, error)
 }
 
-func (x rcloneMock) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
-	return x.openFileFn(ctx, id)
+func (m rcloneMock) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+	return m.openFileFn(ctx, id)
+}
+
+func (m rcloneMock) RequestFileRange(ctx context.Context, id rview.FileID, start, end int) (io.ReadCloser, error) {
+	return m.requestFileRangeFn(ctx, id, start, end)
+}
+
+func TestThumbnailService_extractPreviewFromRawImage(t *testing.T) {
+	var jpgFromRaw []byte
+	{
+		buf := bytes.NewBuffer(nil)
+		err := jpeg.Encode(buf, image.NewRGBA(image.Rect(0, 0, 100, 100)), nil)
+		require.NoError(t, err)
+		jpgFromRaw = buf.Bytes()
+	}
+
+	type Call struct {
+		Fn    string
+		Start int
+		End   int
+	}
+	var calls []Call
+	mock := rcloneMock{
+		openFileFn: func(_ context.Context, id rview.FileID) (io.ReadCloser, error) {
+			calls = append(calls, Call{Fn: "OpenFile"})
+			return os.Open("./fixtures/" + id.GetName())
+		},
+		requestFileRangeFn: func(_ context.Context, id rview.FileID, start, end int) (io.ReadCloser, error) {
+			calls = append(calls, Call{Fn: "RequestFileRange", Start: start, End: end})
+			if start == 0 {
+				return os.Open("./fixtures/" + id.GetName())
+			}
+			return io.NopCloser(bytes.NewReader(jpgFromRaw)), nil
+		},
+	}
+	service := NewThumbnailService(mock, cache.NewInMemoryCache(), cache.NewInMemoryCache(), 1, rview.AvifThumbnails, true)
+
+	extract := func(t *testing.T, name string) ([]byte, []Call) {
+		calls = nil
+		rc, err := service.extractPreviewFromRawImage(t.Context(), rview.NewFileID(name, 0, 0))
+		require.NoError(t, err)
+		defer rc.Close()
+
+		data, err := io.ReadAll(rc)
+		require.NoError(t, err)
+
+		return data, calls
+	}
+
+	t.Run("arw", func(t *testing.T) {
+		r := require.New(t)
+
+		// Vertical orientation.
+		{
+			data, calls := extract(t, "vertical.ARW")
+			r.Equal(
+				[]Call{
+					{Fn: "RequestFileRange", Start: 0, End: 4096},
+					{Fn: "RequestFileRange", Start: 127138, End: 518698},
+				},
+				calls,
+			)
+			r.Less(len(jpgFromRaw), len(data)) // size should be large because we embedded 'Orientation' tag
+		}
+
+		// Horizontal orientation.
+		{
+			data, calls := extract(t, "horizontal.ARW")
+			r.Equal(
+				[]Call{
+					{Fn: "RequestFileRange", Start: 0, End: 4096},
+					{Fn: "RequestFileRange", Start: 131234, End: 734974},
+				},
+				calls,
+			)
+			r.Equal(len(jpgFromRaw), len(data)) // no 'Orientation' tag
+		}
+	})
+
+	t.Run("rw2", func(t *testing.T) {
+		r := require.New(t)
+
+		data, calls := extract(t, "img.RW2")
+		r.Equal(
+			[]Call{
+				{Fn: "RequestFileRange", Start: 0, End: 4096},
+				{Fn: "RequestFileRange", Start: 4608, End: 311162},
+			},
+			calls,
+		)
+		r.Equal(len(jpgFromRaw), len(data)) // no 'Orientation' tag
+	})
+
+	t.Run("manual", func(t *testing.T) {
+		// We need entire RAW files to test the preview extraction for .CR3 and .NEF.
+		// So, skip this test and run it only manually.
+		t.Skip("requires manual setup")
+
+		downloadImage := func(url string, dest string) {
+			r := require.New(t)
+
+			resp, err := http.Get(url) //nolint:gosec
+			r.NoError(err)
+			defer resp.Body.Close()
+
+			f, err := os.Create(dest)
+			r.NoError(err)
+
+			_, err = io.Copy(f, resp.Body)
+			r.NoError(err)
+
+			err = f.Close()
+			r.NoError(err)
+		}
+		for _, v := range []struct {
+			url  string
+			dest string
+		}{
+			// For example, https://www.dpreview.com/sample-galleries/1125065351/nikon-z50ii-review-samples-gallery/0599119243
+			{
+				url:  "",
+				dest: "./fixtures/img.NEF",
+			},
+			// For example, https://www.dpreview.com/sample-galleries/3994260317/canon-powershot-v1-sample-gallery/4926839669
+			{
+				url:  "",
+				dest: "./fixtures/img.CR3",
+			},
+		} {
+			if v.url != "" {
+				downloadImage(v.url, v.dest)
+			}
+		}
+
+		t.Run("nef", func(t *testing.T) {
+			r := require.New(t)
+
+			data, calls := extract(t, "img.NEF")
+			r.Equal([]Call{{Fn: "OpenFile"}}, calls)
+			r.NotEmpty(len(data))
+			_ = os.WriteFile("./fixtures/img.NEF.jpeg", data, 0o600)
+		})
+
+		t.Run("cr3", func(t *testing.T) {
+			r := require.New(t)
+
+			data, calls := extract(t, "img.CR3")
+			r.Equal([]Call{{Fn: "OpenFile"}}, calls)
+			r.NotEmpty(len(data))
+			_ = os.WriteFile("./fixtures/img.CR3.jpeg", data, 0o600)
+		})
+	})
 }

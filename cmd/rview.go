@@ -58,7 +58,7 @@ func (r *Rview) Prepare() (err error) {
 
 	// Thumbnail Service
 	if r.cfg.ImagePreviewMode == rview.ImagePreviewModeThumbnails {
-		err := thumbnails.CheckVips()
+		err := thumbnails.CheckDeps()
 		if err != nil {
 			return err
 		}
@@ -83,7 +83,7 @@ func (r *Rview) Prepare() (err error) {
 
 		r.thumbnailService = thumbnails.NewThumbnailService(
 			r.rcloneInstance, r.thumbnailCache, r.originalImageCache, r.cfg.ThumbnailsWorkersCount,
-			r.cfg.ThumbnailsFormat,
+			r.cfg.ThumbnailsFormat, r.cfg.ThumbnailsProcessRawFiles,
 		)
 
 	} else {

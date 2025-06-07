@@ -13,6 +13,7 @@ run: build
 			--image-preview-mode=${IMAGE_PREVIEW_MODE} \
 			--log-level=${LOG_LEVEL} \
 			--thumbnails-format=${THUMBNAILS_FORMAT} \
+			--thumbnails-process-raw-files=${THUMBNAILS_PROCESS_RAW_FILES} \
 			--read-static-files-from-disk
 
 build:

@@ -130,6 +130,11 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
                                             more time (+32% on average) and requires more resources.
                                     - jpeg: fast thumbnail generation, large files
 
+--thumbnails-process-raw-files    Generate thumbnails for RAW files: .ARW, .CR3, .NEF, etc.
+                                  Extracting JPEG previews from some RAW images requires
+                                  downloading the entire file. Consider ingress/egress costs
+                                  before enabling this option
+
 --thumbnails-cache-size           Max size of thumbnail cache (default: 500Mi)
 
 --thumbnails-workers-count        Number of workers for thumbnail generation (default: # of threads)
@@ -146,12 +151,11 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
 
 First, you have to install the following dependencies:
 
-1. [Rclone](https://github.com/rclone/rclone) - instructions can be found [here](https://rclone.org/install/).
+1. [Rclone](https://github.com/rclone/rclone) - instructions can be found [here](https://rclone.org/install/)
 2. [libvips](https://github.com/libvips/libvips) - on Ubuntu you can install it with the following command:
-
-	```bash
-	sudo apt-get install libvips-tools
-	```
+   `sudo apt-get install libvips-tools`
+3. [exiftool](https://github.com/exiftool/exiftool) - on Ubuntu you can install it with the following command:
+   `sudo apt-get install libimage-exiftool-perl`
 
 After completion of these steps you should be able to run `Rview`:
 
@@ -177,7 +181,8 @@ By default `make run` uses environment variables from `.env` file. You can redef
 
 Special thanks to these open-source projects:
 
-- [Rclone](https://github.com/rclone/rclone) - rsync for cloud storage.
-- [libvips](https://github.com/libvips/libvips) - A fast image processing library with low memory needs.
-- [Material Icon Theme](https://github.com/PKief/vscode-material-icon-theme) - Material Design icons for VS Code.
-- [Feather](https://github.com/feathericons/feather) - Simply beautiful open source icons.
+- [Rclone](https://github.com/rclone/rclone) - rsync for cloud storage
+- [libvips](https://github.com/libvips/libvips) - A fast image processing library with low memory needs
+- [exiftool](https://github.com/exiftool/exiftool) - ExifTool meta information reader/writer
+- [Material Icon Theme](https://github.com/PKief/vscode-material-icon-theme) - Material Design icons for VS Code
+- [Feather](https://github.com/feathericons/feather) - Simply beautiful open source icons

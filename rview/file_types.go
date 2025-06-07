@@ -3,11 +3,12 @@ package rview
 type FileType string
 
 const (
-	FileTypeUnknown FileType = ""
-	FileTypeImage   FileType = "image"
-	FileTypeAudio   FileType = "audio"
-	FileTypeVideo   FileType = "video"
-	FileTypeText    FileType = "text"
+	FileTypeUnknown  FileType = ""
+	FileTypeImage    FileType = "image"
+	FileTypeRawImage FileType = "raw_image"
+	FileTypeAudio    FileType = "audio"
+	FileTypeVideo    FileType = "video"
+	FileTypeText     FileType = "text"
 )
 
 func GetFileType(ext string) FileType {
@@ -25,6 +26,12 @@ var fileTypesByExtension = map[string]FileType{
 	".webp": FileTypeImage,
 	".heic": FileTypeImage,
 	".avif": FileTypeImage,
+
+	// Raw Image
+	".arw": FileTypeRawImage, // Sony
+	".rw2": FileTypeRawImage, // Panasonic
+	".cr3": FileTypeRawImage, // Canon
+	".nef": FileTypeRawImage, // Nikon
 
 	// Audio
 	".flac": FileTypeAudio,

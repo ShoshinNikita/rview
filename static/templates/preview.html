@@ -40,7 +40,7 @@
 							{{ embedIcon "download" }}
 						</a>
 					</div>
-					{{ else if eq .FileType "image" }}
+					{{ else if or (eq .FileType "image") (eq .FileType "raw_image") }}
 					<img class="preview-image" src="{{ .ThumbnailURL }}" loading="lazy" onload="this.classList.add('loaded')" onerror="this.classList.add('failed')"></img>
 					<div class="g-loader"></div>
 					{{ else if eq .FileType "text" }}

@@ -38,6 +38,17 @@ type RcloneError struct {
 	BodyPrefix string
 }
 
+func newRcloneError(resp *http.Response) *RcloneError {
+	bodyPrefix := make([]byte, 50)
+	n, _ := resp.Body.Read(bodyPrefix)
+	bodyPrefix = bodyPrefix[:n]
+
+	return &RcloneError{
+		StatusCode: resp.StatusCode,
+		BodyPrefix: string(bodyPrefix),
+	}
+}
+
 func (err *RcloneError) Error() string {
 	return fmt.Sprintf("unexpected rclone response: status code: %d, body prefix: %q", err.StatusCode, err.BodyPrefix)
 }
@@ -60,11 +71,6 @@ type Rclone struct {
 	// rcloneURL with username and password for basic auth.
 	rcloneURL    *url.URL
 	rcloneTarget string
-}
-
-type Cache interface {
-	Open(id rview.FileID) (io.ReadCloser, error)
-	Write(id rview.FileID, r io.Reader) (err error)
 }
 
 func NewRclone(cfg rview.RcloneConfig) (_ *Rclone, err error) {
@@ -259,11 +265,44 @@ func (r *Rclone) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, 
 	}
 	metrics.RcloneGetFileHeadersDuration.Observe(time.Since(now).Seconds())
 
-	if err := checkFileHeaders(id, headers); err != nil {
+	if err := checkModTime(id, headers); err != nil {
+		body.Close()
+		return nil, err
+	}
+	if err := checkContentLength(id, headers); err != nil {
 		body.Close()
 		return nil, err
 	}
 	return body, nil
+}
+
+func (r *Rclone) RequestFileRange(ctx context.Context, id rview.FileID, rangeStart, rangeEnd int) (io.ReadCloser, error) {
+	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
+	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
+	if err != nil {
+		return nil, fmt.Errorf("couldn't prepare request: %w", err)
+	}
+	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", rangeStart, rangeEnd))
+
+	resp, err := r.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("request failed: %w", err)
+	}
+
+	if resp.StatusCode != http.StatusPartialContent {
+		defer resp.Body.Close()
+
+		return nil, newRcloneError(resp)
+	}
+	if err := checkModTime(id, resp.Header); err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+	if err := checkContentRange(id, resp.Header); err != nil {
+		resp.Body.Close()
+		return nil, err
+	}
+	return resp.Body, nil
 }
 
 func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *http.Request) {
@@ -295,7 +334,13 @@ func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *h
 
 			metrics.RcloneGetFileHeadersDuration.Observe(time.Since(now).Seconds())
 
-			return checkFileHeaders(id, r.Header)
+			if err := checkModTime(id, r.Header); err != nil {
+				return err
+			}
+			if err := checkContentLength(id, r.Header); err != nil {
+				return err
+			}
+			return nil
 		},
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {
 			http.Error(w, fmt.Sprintf("couldn't proxy file request: %s", err), http.StatusInternalServerError)
@@ -304,7 +349,7 @@ func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *h
 	proxy.ServeHTTP(w, req)
 }
 
-func checkFileHeaders(id rview.FileID, fileHeaders http.Header) error {
+func checkModTime(id rview.FileID, fileHeaders http.Header) error {
 	fileModTime, err := time.Parse(http.TimeFormat, fileHeaders.Get("Last-Modified"))
 	if err != nil {
 		return fmt.Errorf("rclone response has invalid Last-Modified header: %w", err)
@@ -312,7 +357,10 @@ func checkFileHeaders(id rview.FileID, fileHeaders http.Header) error {
 	if !fileModTime.Equal(id.GetModTime()) {
 		return fmt.Errorf("rclone response has different mod time: %q, expected: %q", fileModTime, id.GetModTime())
 	}
+	return nil
+}
 
+func checkContentLength(id rview.FileID, fileHeaders http.Header) error {
 	size, err := strconv.Atoi(fileHeaders.Get("Content-Length"))
 	if err != nil {
 		return fmt.Errorf("rclone response has invalid Content-Length header: %w", err)
@@ -320,7 +368,19 @@ func checkFileHeaders(id rview.FileID, fileHeaders http.Header) error {
 	if int64(size) != id.GetSize() {
 		return fmt.Errorf("rclone response has different size: %d, expected: %d", size, id.GetSize())
 	}
+	return nil
+}
 
+func checkContentRange(id rview.FileID, fileHeaders http.Header) error {
+	contentRange := fileHeaders.Get("Content-Range")
+	_, rawSize, _ := strings.Cut(contentRange, "/")
+	size, err := strconv.Atoi(rawSize)
+	if err != nil {
+		return fmt.Errorf("rclone response has invalid size in Content-Range header: %q: %w", contentRange, err)
+	}
+	if int64(size) != id.GetSize() {
+		return fmt.Errorf("rclone response has different size: %d, expected: %d", size, id.GetSize())
+	}
 	return nil
 }
 
@@ -484,14 +544,7 @@ func (r *Rclone) makeRequest(ctx context.Context, method string, url *url.URL) (
 	if resp.StatusCode != http.StatusOK {
 		defer resp.Body.Close()
 
-		bodyPrefix := make([]byte, 50)
-		n, _ := resp.Body.Read(bodyPrefix)
-		bodyPrefix = bodyPrefix[:n]
-
-		return nil, nil, &RcloneError{
-			StatusCode: resp.StatusCode,
-			BodyPrefix: string(bodyPrefix),
-		}
+		return nil, nil, newRcloneError(resp)
 	}
 
 	return resp.Body, resp.Header, nil

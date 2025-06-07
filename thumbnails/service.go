@@ -3,6 +3,7 @@ package thumbnails
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -10,6 +11,8 @@ import (
 	"os"
 	"os/exec"
 	pkgPath "path"
+	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -49,6 +52,7 @@ type ThumbnailService struct {
 	// files it is not always possible - after resizing they become just larger.
 	useOriginalImageThresholdSize int64
 	thumbnailsFormat              rview.ThumbnailsFormat
+	processRawImages              bool
 
 	workersCount int
 
@@ -69,6 +73,7 @@ type Cache interface {
 
 type Rclone interface {
 	OpenFile(context.Context, rview.FileID) (io.ReadCloser, error)
+	RequestFileRange(ctx context.Context, id rview.FileID, rangeStart, rangeEnd int) (io.ReadCloser, error)
 }
 
 type ThumbnailID struct {
@@ -82,10 +87,12 @@ type generateThumbnailTask struct {
 	size        ThumbnailSize
 }
 
-func CheckVips() error {
-	cmd := exec.Command("vips", "--version")
-	if err := cmd.Run(); err != nil {
+func CheckDeps() error {
+	if err := exec.Command("vips", "--version").Run(); err != nil {
 		return fmt.Errorf("vips is not installed: %w", err)
+	}
+	if err := exec.Command("exiftool", "-ver").Run(); err != nil {
+		return fmt.Errorf("exiftool is not installed: %w", err)
 	}
 	return nil
 }
@@ -97,6 +104,7 @@ func CheckVips() error {
 // for .heic images we generate .jpeg thumbnails.
 func NewThumbnailService(
 	rclone Rclone, cache, originalImageCache Cache, workersCount int, thumbnailsFormat rview.ThumbnailsFormat,
+	processRawImages bool,
 ) *ThumbnailService {
 
 	r := &ThumbnailService{
@@ -108,6 +116,7 @@ func NewThumbnailService(
 		resizeFn:                      resizeWithVips,
 		useOriginalImageThresholdSize: 200 << 10, // 200 KiB
 		thumbnailsFormat:              thumbnailsFormat,
+		processRawImages:              processRawImages,
 		//
 		workersCount: workersCount,
 		//
@@ -212,7 +221,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 
 	if task.useOriginal {
 		size := task.fileID.GetSize()
-		err := createCacheFileFromTempFile(rc, cacheFilepath, size)
+		err := createCacheFileFromReader(rc, cacheFilepath, size)
 		if err != nil {
 			return stats{}, err
 		}
@@ -241,7 +250,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't load image: %w", err)
 	}
-	if originalSize != task.fileID.GetSize() {
+	if getImageType(task.fileID) != rawImageType && originalSize != task.fileID.GetSize() {
 		return stats{}, fmt.Errorf("temp file has wrong size, expected: %d, got: %d", task.fileID.GetSize(), originalSize)
 	}
 	if err := tempFile.Close(); err != nil {
@@ -253,7 +262,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 	err = s.resizeFn(tempFile.Name(), cacheFilepath, task.thumbnailID, task.size)
 	if err != nil {
 		if err := s.cache.Remove(task.thumbnailID.FileID); err != nil {
-			rlog.Errorf("couldn't remove thumbnail for %s after resize error: %s", task.fileID, err)
+			rlog.Warnf("couldn't remove thumbnail for %s after resize error: %s", task.fileID, err)
 		}
 
 		return stats{}, err
@@ -283,7 +292,11 @@ func (s *ThumbnailService) openImage(ctx context.Context, id rview.FileID) (rc i
 		return rc, nil
 	}
 
-	rc, err = s.rclone.OpenFile(ctx, id)
+	if getImageType(id) == rawImageType {
+		rc, err = s.extractPreviewFromRawImage(ctx, id)
+	} else {
+		rc, err = s.rclone.OpenFile(ctx, id)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -294,10 +307,161 @@ func (s *ThumbnailService) openImage(ctx context.Context, id rview.FileID) (rc i
 	return s.originalImageCache.Open(id)
 }
 
-// createCacheFileFromTempFile creates a cache file reading the content from a passed temp file.
-// We can't just use [os.Rename] because rename operation can fail in docker containers, see
-// https://stackoverflow.com/q/42392600/7752659.
-func createCacheFileFromTempFile(r io.Reader, cacheFilepath string, originalSize int64) error {
+func (s *ThumbnailService) extractPreviewFromRawImage(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
+	decodeJSON := func(output []byte) (ExifToolJsonResult, error) {
+		var resp []ExifToolJsonResult
+		if err := json.Unmarshal(output, &resp); err != nil {
+			return ExifToolJsonResult{}, fmt.Errorf("couldn't decode exiftool output: %w", err)
+		}
+		if len(resp) != 1 {
+			return ExifToolJsonResult{}, fmt.Errorf("wrong number of items in exiftool output: expected 1, got %d", len(resp))
+		}
+		return resp[0], nil
+	}
+
+	var (
+		jpgFromRaw  io.ReadCloser
+		orientation string
+	)
+	switch ext := id.GetExt(); ext {
+	case ".arw":
+		// All necessary information can be found at the beginning of a file.
+		rc, err := s.rclone.RequestFileRange(ctx, id, 0, 4096)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't request file headers: %w", err)
+		}
+		defer rc.Close()
+
+		cmd := exec.Command("exiftool", "-json", "-PreviewImageStart", "-PreviewImageLength", "-Orientation", "-")
+		cmd.Stdin = rc
+		output, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("exiftool failed: %w", err)
+		}
+		res, err := decodeJSON(output)
+		if err != nil {
+			return nil, err
+		}
+		orientation = res.Orientation
+
+		offset := res.PreviewImageStart
+		length := res.PreviewImageLength
+		if offset == nil || length == nil {
+			return nil, fmt.Errorf("offset and/or length are missing")
+		}
+		jpgFromRaw, err = s.rclone.RequestFileRange(ctx, id, *offset, *offset+*length)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't request jpeg preview: %w", err)
+		}
+
+	case ".rw2":
+		// All necessary information can be found at the beginning of a file.
+		rc, err := s.rclone.RequestFileRange(ctx, id, 0, 4096)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't request file headers: %w", err)
+		}
+		defer rc.Close()
+
+		// Size and offset of JpgFromRaw can be found only in the html dump. Use -htmlDump0 for the absolute offsets.
+		cmd := exec.Command("exiftool", "-htmlDump0", "-")
+		cmd.Stdin = rc
+		output, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("exiftool failed: %w", err)
+		}
+		data := regexp.MustCompile(`>JpgFromRaw<.*?Size: (\d+) bytes.*?Value offset: 0x([0-9a-f]+)`).FindSubmatch(output)
+		if len(data) == 0 {
+			return nil, fmt.Errorf("couldn't extract 'Size' and 'Value offset' from htmldump")
+		}
+		length, err := strconv.Atoi(string(data[1]))
+		if err != nil {
+			return nil, fmt.Errorf("couldn't parse 'Size': %w", err)
+		}
+		offset, err := strconv.ParseInt(string(data[2]), 16, 64)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't parse 'Value offset': %w", err)
+		}
+		jpgFromRaw, err = s.rclone.RequestFileRange(ctx, id, int(offset), int(offset)+length)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't request jpeg preview: %w", err)
+		}
+
+	case ".nef", ".cr3":
+		// .NEF (Nikon) and .CR3 (Canon) RAW files contain jpeg previews in the middle of a file.
+		// So, we have to send the entire file to exiftool.
+		rc, err := s.rclone.OpenFile(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("couldn't open file %q: %w", id, err)
+		}
+
+		cmd := exec.Command("exiftool", "-b", "-json", "-Orientation", "-JpgFromRaw", "-")
+		cmd.Stdin = rc
+
+		output, err := cmd.Output()
+		if err != nil {
+			return nil, fmt.Errorf("exiftool failed: %w", err)
+		}
+		res, err := decodeJSON(output)
+		if err != nil {
+			return nil, err
+		}
+
+		orientation = res.Orientation
+		jpgFromRaw = io.NopCloser(bytes.NewReader(res.JpgFromRaw))
+
+	default:
+		return nil, fmt.Errorf("unsupported RAW image format: %q", ext)
+	}
+
+	if orientation == "" || strings.Contains(orientation, "Horizontal") {
+		return jpgFromRaw, nil
+	}
+
+	// Have to add 'Orientation' tag to jpeg.
+	r, w := io.Pipe()
+	go func() {
+		defer jpgFromRaw.Close()
+
+		cmd := exec.Command("exiftool", "-Orientation="+orientation, "-") //nolint:gosec
+		cmd.Stdin = jpgFromRaw
+		cmd.Stdout = w
+		err := cmd.Run()
+		if err != nil {
+			err = fmt.Errorf("couldn't add orientation tag to jpeg: %w", err)
+		}
+		w.CloseWithError(err)
+	}()
+	return r, nil
+}
+
+//nolint:tagliatelle
+type ExifToolJsonResult struct {
+	PreviewImageStart  *int           `json:"PreviewImageStart"`
+	PreviewImageLength *int           `json:"PreviewImageLength"`
+	Orientation        string         `json:"Orientation"`
+	JpgFromRaw         ExifToolBase64 `json:"JpgFromRaw"`
+}
+
+type ExifToolBase64 []byte
+
+func (b *ExifToolBase64) UnmarshalJSON(data []byte) error {
+	if !bytes.HasPrefix(data, []byte(`"base64:`)) {
+		return errors.New(`expected prefix "base64:"`)
+	}
+
+	// Replace `"base64:` with `"`.
+	data = data[7:]
+	data[0] = '"'
+
+	var res []byte
+	if err := json.Unmarshal(data, &res); err != nil {
+		return err
+	}
+	*b = ExifToolBase64(res)
+	return nil
+}
+
+func createCacheFileFromReader(r io.Reader, cacheFilepath string, originalSize int64) error {
 	cacheFile, err := os.Create(cacheFilepath)
 	if err != nil {
 		return fmt.Errorf("couldn't create cache file: %w", err)
@@ -374,8 +538,15 @@ func resizeWithVips(originalFile, cacheFile string, id ThumbnailID, thumbnailSiz
 }
 
 // CanGenerateThumbnail detects if we can generate a thumbnail for a file based on its filename.
-func (*ThumbnailService) CanGenerateThumbnail(id rview.FileID) bool {
-	return getImageType(id) != unsupportedImageType
+func (s *ThumbnailService) CanGenerateThumbnail(id rview.FileID) bool {
+	switch getImageType(id) {
+	case unsupportedImageType:
+		return false
+	case rawImageType:
+		return s.processRawImages
+	default:
+		return true
+	}
 }
 
 type imageType int
@@ -388,6 +559,7 @@ const (
 	webpImageType
 	heicImageType
 	avifImageType
+	rawImageType = 7
 )
 
 func getImageType(id rview.FileID) imageType {
@@ -404,6 +576,8 @@ func getImageType(id rview.FileID) imageType {
 		return heicImageType
 	case ".avif":
 		return avifImageType
+	case ".arw", ".rw2", ".nef", ".cr3":
+		return rawImageType
 	default:
 		return unsupportedImageType
 	}
@@ -494,6 +668,10 @@ func (s *ThumbnailService) shouldUseOriginalImage(id rview.FileID) bool {
 	case heicImageType:
 		// Always generate thumbnails for .heic because most browsers don't support it.
 		return false
+
+	case rawImageType:
+		// Always extract jpeg preview from RAW files.
+		return false
 	}
 
 	return id.GetSize() < s.useOriginalImageThresholdSize
@@ -542,6 +720,8 @@ func (s *ThumbnailService) getThumbnailExt(id rview.FileID) (string, error) {
 			newExt = ".jpeg"
 		case avifImageType: // already efficient enough and supported by modern browsers
 			newExt = ""
+		case rawImageType:
+			newExt = ".jpeg"
 		default:
 			return "", fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())
 		}
@@ -560,6 +740,8 @@ func (s *ThumbnailService) getThumbnailExt(id rview.FileID) (string, error) {
 			newExt = ".avif"
 		case avifImageType: // already .avif
 			newExt = ""
+		case rawImageType:
+			newExt = ".avif"
 		default:
 			return "", fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())
 		}

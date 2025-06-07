@@ -396,12 +396,15 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo, dir string) (DirI
 			case rview.FileTypeText:
 				canPreview = true
 
-			case rview.FileTypeImage:
+			case rview.FileTypeImage, rview.FileTypeRawImage:
 				switch s.cfg.ImagePreviewMode {
 				case rview.ImagePreviewModeNone:
 					thumbnailURL = ""
 				case rview.ImagePreviewModeOriginal:
 					thumbnailURL = originalFileURL
+					if fileType == rview.FileTypeRawImage {
+						thumbnailURL = ""
+					}
 				case rview.ImagePreviewModeThumbnails:
 					if s.thumbnailService.CanGenerateThumbnail(id) {
 						thumbnailURL = fileIDToURL("/api/thumbnail", info.dirURL, id)

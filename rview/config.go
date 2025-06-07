@@ -27,6 +27,7 @@ type Config struct {
 	ImagePreviewMode ImagePreviewMode
 
 	ThumbnailsFormat                 ThumbnailsFormat
+	ThumbnailsProcessRawFiles        bool
 	ThumbnailsCacheSize              MiB
 	ThumbnailsOriginalImageCacheSize MiB
 	ThumbnailsWorkersCount           int
@@ -177,6 +178,12 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 				"          and supported by all modern browsers. However, generation of .avif\n" +
 				"          thumbnails takes more time (+32% on average) and requires more resources\n" +
 				"  - jpeg: fast thumbnail generation, large files\n",
+		},
+		"thumbnails-process-raw-files": {
+			p: &cfg.ThumbnailsProcessRawFiles, defaultValue: false, desc: "" +
+				"Generate thumbnails for RAW files: .ARW, .CR3, .NEF, etc. Extracting JPEG\n" +
+				"previews from some RAW images requires downloading the entire file. Consider\n" +
+				"ingress/egress costs before enabling this option",
 		},
 		"thumbnails-cache-size": {
 			p: &cfg.ThumbnailsCacheSize, defaultValue: MiB(500), desc: "Max size of thumbnail cache",

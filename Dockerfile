@@ -3,7 +3,7 @@ FROM golang:1.24-alpine3.21 AS builder
 
 WORKDIR /rview
 
-# Add git to embed commit hash and build time.
+# Install git to embed the commit hash and the build time.
 RUN apk add --update --no-cache make git
 
 COPY . .
@@ -12,7 +12,7 @@ RUN make build && go clean -cache && ./bin/rview --version
 
 
 # Download rclone.
-FROM rclone/rclone:1.69 AS rclone-src
+FROM ghcr.io/rclone/rclone:1.69 AS rclone-src
 
 RUN rclone --version
 
@@ -33,14 +33,13 @@ WORKDIR /srv
 # For rclone - https://rclone.org/docs/#config-config-file
 ENV XDG_CONFIG_HOME=/config
 
-# Add rclone first for better caching.
 COPY --from=rclone-src /usr/local/bin/rclone /usr/local/bin/rclone
 
-# Install vips.
-RUN apk add --update --no-cache vips-tools libheif ca-certificates && \
-	vips --version
+RUN apk add --update --no-cache vips-tools libheif ca-certificates exiftool && \
+	printf "\n" && \
+	printf "vips version:     " && vips --version && \
+	printf "exiftool version: " && exiftool -ver
 
-# Add rview.
 COPY --from=builder /rview/bin .
 
 ENTRYPOINT [ "./rview" ]

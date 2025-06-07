@@ -57,10 +57,11 @@ const (
 
 var (
 	fileIconsByFileType = map[rview.FileType]string{
-		rview.FileTypeImage: "image",
-		rview.FileTypeAudio: "audio",
-		rview.FileTypeVideo: "video",
-		rview.FileTypeText:  "document",
+		rview.FileTypeImage:    "image",
+		rview.FileTypeRawImage: "image",
+		rview.FileTypeAudio:    "audio",
+		rview.FileTypeVideo:    "video",
+		rview.FileTypeText:     "document",
 	}
 
 	extensionsByFileIcons = map[string][]string{
