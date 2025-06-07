@@ -34,12 +34,14 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		rlog.Info("shutdown components")
+		rlog.Info("shutdown rview...")
 		if err := rview.Shutdown(ctx); err != nil {
 			rlog.Error(err)
 		}
 
-		<-startFinished
+		if startFinished != nil {
+			<-startFinished
+		}
 
 		rlog.Info("exit")
 		os.Exit(exitCode)

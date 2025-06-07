@@ -6,7 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
-	"strings"
 	"sync"
 
 	"github.com/ShoshinNikita/rview/pkg/cache"
@@ -45,9 +44,12 @@ func NewRview(cfg rview.Config) *Rview {
 }
 
 func (r *Rview) Prepare() (err error) {
+	if err := os.MkdirAll(r.cfg.Dir, 0700); err != nil {
+		return fmt.Errorf("couldn't create app data dir %q: %w", r.cfg.Dir, err)
+	}
 	dirRoot, err := os.OpenRoot(r.cfg.Dir)
 	if err != nil {
-		return fmt.Errorf("couldn't open %q: %w", r.cfg.Dir, err)
+		return fmt.Errorf("couldn't open app data dir %q: %w", r.cfg.Dir, err)
 	}
 
 	// Rclone
@@ -134,24 +136,25 @@ func (r *Rview) Start(onError func()) <-chan struct{} {
 
 // Shutdown shutdowns all components. It is safe to call this method even if Prepare has failed.
 func (r *Rview) Shutdown(ctx context.Context) error {
-	var failed []string
-	for name, s := range map[string]shutdowner{
-		"web server":           r.server,
-		"thumbnail service":    r.thumbnailService,
-		"thumbnail cache":      r.thumbnailCache,
-		"original image cache": r.originalImageCache,
-		"search service":       r.searchService,
-		"rclone instance":      r.rcloneInstance,
+	var failed int
+	for _, v := range []struct {
+		name string
+		s    shutdowner
+	}{
+		{"web server", r.server},
+		{"thumbnail service", r.thumbnailService},
+		{"thumbnail cache", r.thumbnailCache},
+		{"original image cache", r.originalImageCache},
+		{"search service", r.searchService},
+		{"rclone instance", r.rcloneInstance},
 	} {
-		err := safeShutdown(ctx, s)
+		err := safeShutdown(ctx, v.s)
 		if err != nil {
-			rlog.Errorf("couldn't shutdown %s gracefully: %s", name, err)
-
-			failed = append(failed, name)
+			rlog.Errorf("couldn't gracefully shutdown %s: %s", v.name, err)
 		}
 	}
-	if len(failed) > 0 {
-		return fmt.Errorf("couldn't gracefully shutdown %s", strings.Join(failed, ", "))
+	if failed > 0 {
+		return fmt.Errorf("couldn't gracefully shutdown %d component(s), see logs for more info", failed)
 	}
 	return nil
 }

@@ -139,7 +139,7 @@ func NewRclone(cfg rview.RcloneConfig) (_ *Rclone, err error) {
 	return &Rclone{
 		cmd:       cmd,
 		stopCmd:   stopCmd,
-		stoppedCh: make(chan struct{}),
+		stoppedCh: nil, // created in Start
 		//
 		dirCache: newDirCache(cfg.DirCacheTTL),
 		//
@@ -161,6 +161,7 @@ func newRandomString(size int) (string, error) {
 }
 
 func (r *Rclone) Start() error {
+	r.stoppedCh = make(chan struct{})
 	defer func() {
 		close(r.stoppedCh)
 	}()
@@ -244,6 +245,9 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 	r.stoppedByShutdown.Store(true)
 	r.stopCmd()
 
+	if r.stoppedCh == nil {
+		return nil
+	}
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
