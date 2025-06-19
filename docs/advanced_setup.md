@@ -86,7 +86,7 @@ services:
     ]
 
   rclone:
-    image: rclone/rclone:1.69
+    image: rclone/rclone:1.70
     container_name: rclone
     ports:
       - "127.0.0.1:8080:8080"
