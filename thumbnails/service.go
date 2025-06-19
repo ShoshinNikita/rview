@@ -559,7 +559,7 @@ const (
 	webpImageType
 	heicImageType
 	avifImageType
-	rawImageType = 7
+	rawImageType
 )
 
 func getImageType(id rview.FileID) imageType {

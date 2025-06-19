@@ -39,7 +39,7 @@ type RcloneError struct {
 }
 
 func newRcloneError(resp *http.Response) *RcloneError {
-	bodyPrefix := make([]byte, 50)
+	bodyPrefix := make([]byte, 128)
 	n, _ := resp.Body.Read(bodyPrefix)
 	bodyPrefix = bodyPrefix[:n]
 

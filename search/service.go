@@ -51,7 +51,7 @@ func NewService(rclone Rclone, dirRoot *os.Root) (*Service, error) {
 
 	err := dirRoot.Mkdir("search", 0700)
 	if err != nil && !errors.Is(err, os.ErrExist) {
-		return nil, fmt.Errorf("couldn't create 'search' sub-dir: %w", err)
+		return nil, fmt.Errorf("couldn't create 'search' subdirectory: %w", err)
 	}
 	searchDirRoot, err := dirRoot.OpenRoot("search")
 	if err != nil {
@@ -132,7 +132,7 @@ func (s *Service) loadIndexFromCache() (res *searchIndex, err error) {
 	}
 
 	if res == nil || res.Index == nil {
-		return nil, errors.New("ndex is not ready")
+		return nil, errors.New("index is not ready")
 	}
 	if err := res.Index.Check(s.minPrefixLen, s.maxPrefixLen); err != nil {
 		return nil, err

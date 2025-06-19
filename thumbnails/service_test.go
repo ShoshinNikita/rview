@@ -534,6 +534,8 @@ func TestThumbnailService_extractPreviewFromRawImage(t *testing.T) {
 	service := NewThumbnailService(mock, cache.NewInMemoryCache(), cache.NewInMemoryCache(), 1, rview.AvifThumbnails, true)
 
 	extract := func(t *testing.T, name string) ([]byte, []Call) {
+		t.Helper()
+
 		calls = nil
 		rc, err := service.extractPreviewFromRawImage(t.Context(), rview.NewFileID(name, 0, 0))
 		require.NoError(t, err)
@@ -543,6 +545,25 @@ func TestThumbnailService_extractPreviewFromRawImage(t *testing.T) {
 		require.NoError(t, err)
 
 		return data, calls
+	}
+
+	downloadImage := func(t *testing.T, url string, dest string) {
+		t.Helper()
+
+		r := require.New(t)
+
+		resp, err := http.Get(url) //nolint:gosec
+		r.NoError(err)
+		defer resp.Body.Close()
+
+		f, err := os.Create(dest)
+		r.NoError(err)
+
+		_, err = io.Copy(f, resp.Body)
+		r.NoError(err)
+
+		err = f.Close()
+		r.NoError(err)
 	}
 
 	t.Run("arw", func(t *testing.T) {
@@ -589,63 +610,33 @@ func TestThumbnailService_extractPreviewFromRawImage(t *testing.T) {
 		r.Equal(len(jpgFromRaw), len(data)) // no 'Orientation' tag
 	})
 
-	t.Run("manual", func(t *testing.T) {
-		// We need entire RAW files to test the preview extraction for .CR3 and .NEF.
-		// So, skip this test and run it only manually.
+	t.Run("nef", func(t *testing.T) {
+		// We need an entire RAW file to test the preview extraction. So, skip this test and run it only manually.
 		t.Skip("requires manual setup")
 
-		downloadImage := func(url string, dest string) {
-			r := require.New(t)
+		r := require.New(t)
 
-			resp, err := http.Get(url) //nolint:gosec
-			r.NoError(err)
-			defer resp.Body.Close()
+		// For example, https://www.dpreview.com/sample-galleries/1125065351/nikon-z50ii-review-samples-gallery/0599119243
+		downloadImage(t, "", "img.NEF")
 
-			f, err := os.Create(dest)
-			r.NoError(err)
+		data, calls := extract(t, "img.NEF")
+		r.Equal([]Call{{Fn: "OpenFile"}}, calls)
+		r.NotEmpty(len(data))
+		_ = os.WriteFile("./fixtures/img.NEF.jpeg", data, 0o600)
+	})
 
-			_, err = io.Copy(f, resp.Body)
-			r.NoError(err)
+	t.Run("cr3", func(t *testing.T) {
+		// We need an entire RAW file to test the preview extraction. So, skip this test and run it only manually.
+		t.Skip("requires manual setup")
 
-			err = f.Close()
-			r.NoError(err)
-		}
-		for _, v := range []struct {
-			url  string
-			dest string
-		}{
-			// For example, https://www.dpreview.com/sample-galleries/1125065351/nikon-z50ii-review-samples-gallery/0599119243
-			{
-				url:  "",
-				dest: "./fixtures/img.NEF",
-			},
-			// For example, https://www.dpreview.com/sample-galleries/3994260317/canon-powershot-v1-sample-gallery/4926839669
-			{
-				url:  "",
-				dest: "./fixtures/img.CR3",
-			},
-		} {
-			if v.url != "" {
-				downloadImage(v.url, v.dest)
-			}
-		}
+		r := require.New(t)
 
-		t.Run("nef", func(t *testing.T) {
-			r := require.New(t)
+		// For example, https://www.dpreview.com/sample-galleries/3994260317/canon-powershot-v1-sample-gallery/4926839669
+		downloadImage(t, "", "img.CR3")
 
-			data, calls := extract(t, "img.NEF")
-			r.Equal([]Call{{Fn: "OpenFile"}}, calls)
-			r.NotEmpty(len(data))
-			_ = os.WriteFile("./fixtures/img.NEF.jpeg", data, 0o600)
-		})
-
-		t.Run("cr3", func(t *testing.T) {
-			r := require.New(t)
-
-			data, calls := extract(t, "img.CR3")
-			r.Equal([]Call{{Fn: "OpenFile"}}, calls)
-			r.NotEmpty(len(data))
-			_ = os.WriteFile("./fixtures/img.CR3.jpeg", data, 0o600)
-		})
+		data, calls := extract(t, "img.CR3")
+		r.Equal([]Call{{Fn: "OpenFile"}}, calls)
+		r.NotEmpty(len(data))
+		_ = os.WriteFile("./fixtures/img.CR3.jpeg", data, 0o600)
 	})
 }

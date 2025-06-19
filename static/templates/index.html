@@ -76,7 +76,7 @@
 					<span class="search-icon">
 						{{ embedIcon "search" }}
 					</span>
-					<a href="#" class="g-icon-button search-icon right" title="Manually refresh Search Indexes" onclick="refreshSearchIndexes(event); return false">
+					<a href="#" class="g-icon-button search-icon refresh" title="Manually refresh the search index" onclick="refreshSearchIndex(event); return false">
 						{{ embedIcon "refresh-cw" }}
 					</a>
 				</div>
@@ -301,12 +301,12 @@
 		searchInput.addEventListener("input", search);
 
 		let isSearchIndexRefreshInProgress = false;
-		function refreshSearchIndexes(ev) {
+		function refreshSearchIndex(ev) {
 			if (isSearchIndexRefreshInProgress) {
 				console.warn("search index refresh is already in progress");
 				return;
 			}
-			if (!confirm("The refresh of search indexes can take a while. Start the process?")) {
+			if (!confirm("Refresh of the search index can take a while. Start the process?")) {
 				return;
 			}
 
@@ -315,13 +315,30 @@
 			const target = ev.target;
 
 			// Disable buttons and inputs.
-			target.style["cursor"] = "progress";
-			target.classList.add("disabled");
+			target.closest(".search").classList.add("refreshing");
+			//
+			target.classList.add("disabled", "spinning");
 			//
 			const oldSearchInputPlaceholder = searchInput.placeholder;
 			searchInput.disabled = true;
-			searchInput.placeholder = "Refreshing indexes...";
-			searchInput.style["cursor"] = "progress";
+			searchInput.placeholder = "Refreshing the search index...";
+
+			// Enable buttons and inputs after the full animation cycle.
+			const onAnimationIteration = () => {
+				if (isSearchIndexRefreshInProgress) {
+					return;
+				}
+
+				target.removeEventListener("animationiteration", onAnimationIteration);
+
+				target.closest(".search").classList.remove("refreshing");
+				//
+				target.classList.remove("disabled", "spinning");
+				//
+				searchInput.disabled = false;
+				searchInput.placeholder = oldSearchInputPlaceholder;
+			};
+			target.addEventListener("animationiteration", onAnimationIteration);
 
 			let errorText = "";
 			fetch("/api/search/refresh-index", {
@@ -339,21 +356,13 @@
 					errorText = `${err}`;
 				}).
 				finally(() => {
-					// Reset.
-					target.style["cursor"] = "";
-					target.classList.remove("disabled");
-					//
-					searchInput.disabled = false;
-					searchInput.placeholder = oldSearchInputPlaceholder;
-					searchInput.style["cursor"] = "";
-
 					isSearchIndexRefreshInProgress = false;
 
 					if (!errorText) {
 						return;
 					}
 
-					const msg = `couldn't refresh indexes: ${errorText}`;
+					const msg = `couldn't refresh the search index: ${errorText}`;
 					console.error(msg);
 
 					// TODO: display error on page?
