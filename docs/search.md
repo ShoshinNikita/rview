@@ -4,12 +4,11 @@ By default, `Rview` performs a fuzzy search on filepaths. The fuzziness is achie
 by splitting filepaths and search inputs to normalized words and generating prefixes
 of various length for these words.
 
-But sometimes you need more advanced tools to get relevant results. Fortunately, `Rview`
-has something to offer:
+`Rview` also provides more advanced ways to search for files:
 
-- `"<exact match>"`: Double quotes allow to search for exact matches.
-- `-"<exclude>"`: The minus before double quotes allows to exclude results
-  that match the content inside these double quotes.
+- `"exact match"`, `".jpg"`: Search for exact matches.
+- `-exclude`, `-.png` or `-"exclude with spaces"`: Exclude exact matches, use double quotes
+  to exclude text with spaces.
 
 ## Examples
 
