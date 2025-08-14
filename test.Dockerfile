@@ -1,7 +1,7 @@
 FROM ghcr.io/rclone/rclone:1.70 AS rclone-src
 
 
-FROM golang:1.24-alpine3.21 AS tester
+FROM golang:1.25-alpine3.22 AS tester
 
 WORKDIR /rview
 

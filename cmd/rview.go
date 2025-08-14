@@ -116,15 +116,12 @@ func (r *Rview) Start(onError func()) <-chan struct{} {
 			"search service":  r.searchService,
 			"web server":      r.server,
 		} {
-			wg.Add(1)
-			go func() {
-				defer wg.Done()
-
+			wg.Go(func() {
 				if err := s.Start(); err != nil {
 					rlog.Errorf("%s error: %s", name, err)
 					onError()
 				}
-			}()
+			})
 		}
 		wg.Wait()
 

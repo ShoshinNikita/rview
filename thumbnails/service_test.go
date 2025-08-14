@@ -41,7 +41,9 @@ func TestThumbnailService(t *testing.T) {
 		service := NewThumbnailService(nil, diskCache, cache.NewInMemoryCache(), 2, rview.JpegThumbnails, true)
 		service.useOriginalImageThresholdSize = useOriginalImageThresholdSize
 		service.rclone = rcloneMock{openFileFn: openFileFn}
-		service.resizeFn = resizeFn
+		service.resizeFn = func(_ context.Context, originalFile, cacheFile string, id ThumbnailID, size ThumbnailSize) error {
+			return resizeFn(originalFile, cacheFile, id, size)
+		}
 
 		t.Cleanup(func() {
 			err = service.Shutdown(ctx)

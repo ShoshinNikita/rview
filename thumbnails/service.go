@@ -46,7 +46,7 @@ type ThumbnailService struct {
 	openImageLocks     *sync.Map
 
 	rclone   Rclone
-	resizeFn func(originalFile, cacheFile string, id ThumbnailID, size ThumbnailSize) error
+	resizeFn func(ctx context.Context, originalFile, cacheFile string, id ThumbnailID, size ThumbnailSize) error
 	// useOriginalImageThresholdSize defines the maximum size of an original image that should be
 	// used without resizing. The main purpose of resizing is to reduce image size, and with small
 	// files it is not always possible - after resizing they become just larger.
@@ -88,10 +88,12 @@ type generateThumbnailTask struct {
 }
 
 func CheckDeps() error {
-	if err := exec.Command("vips", "--version").Run(); err != nil {
+	ctx := context.Background()
+
+	if err := exec.CommandContext(ctx, "vips", "--version").Run(); err != nil {
 		return fmt.Errorf("vips is not installed: %w", err)
 	}
-	if err := exec.Command("exiftool", "-ver").Run(); err != nil {
+	if err := exec.CommandContext(ctx, "exiftool", "-ver").Run(); err != nil {
 		return fmt.Errorf("exiftool is not installed: %w", err)
 	}
 	return nil
@@ -143,10 +145,7 @@ func (s *ThumbnailService) startWorkers() {
 
 	var wg sync.WaitGroup
 	for range s.workersCount {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-
+		wg.Go(func() {
 			for task := range s.tasksCh {
 				ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 
@@ -193,7 +192,7 @@ func (s *ThumbnailService) startWorkers() {
 				delete(s.inProgressTasks, task.thumbnailID)
 				s.inProgressTasksMu.Unlock()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 
@@ -259,7 +258,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 	downloadImageTimer.ObserveDuration()
 
 	resizeTimer := prometheus.NewTimer(metrics.ThumbnailsResizeDuration)
-	err = s.resizeFn(tempFile.Name(), cacheFilepath, task.thumbnailID, task.size)
+	err = s.resizeFn(ctx, tempFile.Name(), cacheFilepath, task.thumbnailID, task.size)
 	if err != nil {
 		if err := s.cache.Remove(task.thumbnailID.FileID); err != nil {
 			rlog.Warnf("couldn't remove thumbnail for %s after resize error: %s", task.fileID, err)
@@ -332,7 +331,7 @@ func (s *ThumbnailService) extractPreviewFromRawImage(ctx context.Context, id rv
 		}
 		defer rc.Close()
 
-		cmd := exec.Command("exiftool", "-json", "-PreviewImageStart", "-PreviewImageLength", "-Orientation", "-")
+		cmd := exec.CommandContext(ctx, "exiftool", "-json", "-PreviewImageStart", "-PreviewImageLength", "-Orientation", "-")
 		cmd.Stdin = rc
 		output, err := cmd.Output()
 		if err != nil {
@@ -363,7 +362,7 @@ func (s *ThumbnailService) extractPreviewFromRawImage(ctx context.Context, id rv
 		defer rc.Close()
 
 		// Size and offset of JpgFromRaw can be found only in the html dump. Use -htmlDump0 for the absolute offsets.
-		cmd := exec.Command("exiftool", "-htmlDump0", "-")
+		cmd := exec.CommandContext(ctx, "exiftool", "-htmlDump0", "-")
 		cmd.Stdin = rc
 		output, err := cmd.Output()
 		if err != nil {
@@ -394,7 +393,7 @@ func (s *ThumbnailService) extractPreviewFromRawImage(ctx context.Context, id rv
 			return nil, fmt.Errorf("couldn't open file %q: %w", id, err)
 		}
 
-		cmd := exec.Command("exiftool", "-b", "-json", "-Orientation", "-JpgFromRaw", "-")
+		cmd := exec.CommandContext(ctx, "exiftool", "-b", "-json", "-Orientation", "-JpgFromRaw", "-")
 		cmd.Stdin = rc
 
 		output, err := cmd.Output()
@@ -422,7 +421,7 @@ func (s *ThumbnailService) extractPreviewFromRawImage(ctx context.Context, id rv
 	go func() {
 		defer jpgFromRaw.Close()
 
-		cmd := exec.Command("exiftool", "-Orientation="+orientation, "-") //nolint:gosec
+		cmd := exec.CommandContext(ctx, "exiftool", "-Orientation="+orientation, "-") //nolint:gosec
 		cmd.Stdin = jpgFromRaw
 		cmd.Stdout = w
 		err := cmd.Run()
@@ -486,7 +485,7 @@ func createCacheFileFromReader(r io.Reader, cacheFilepath string, originalSize i
 // than the original ones.
 //
 // See https://www.libvips.org/API/current/Using-vipsthumbnail.html for "vipsthumbnail" docs.
-func resizeWithVips(originalFile, cacheFile string, id ThumbnailID, thumbnailSize ThumbnailSize) error {
+func resizeWithVips(ctx context.Context, originalFile, cacheFile string, id ThumbnailID, thumbnailSize ThumbnailSize) error {
 	output := cacheFile
 	switch t := getImageType(id.FileID); t {
 	// Ignore .heic, .png and etc. because thumbnail id must already have the correct extension.
@@ -518,7 +517,8 @@ func resizeWithVips(originalFile, cacheFile string, id ThumbnailID, thumbnailSiz
 	}
 
 	//nolint:gosec
-	cmd := exec.Command(
+	cmd := exec.CommandContext(
+		ctx,
 		"vipsthumbnail",
 		"--rotate", // auto-rotate
 		originalFile,

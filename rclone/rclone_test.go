@@ -143,7 +143,7 @@ func startRclone(t *testing.T, cfg rview.RcloneConfig) *Rclone {
 		}
 	}()
 	t.Cleanup(func() {
-		err := rclone.Shutdown(context.Background()) //nolint:usetesting
+		err := rclone.Shutdown(context.Background())
 		r.NoError(err)
 	})
 

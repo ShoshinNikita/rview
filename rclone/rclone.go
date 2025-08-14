@@ -190,13 +190,9 @@ func (r *Rclone) Start() error {
 
 	var wg sync.WaitGroup
 	for _, pipe := range pipes {
-		pipe := pipe
-
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			r.redirectRcloneLogs(pipe)
-		}()
+		})
 	}
 
 	err = r.cmd.Wait()
