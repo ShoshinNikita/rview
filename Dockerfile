@@ -12,7 +12,7 @@ RUN make build && go clean -cache && ./bin/rview --version
 
 
 # Download rclone.
-FROM ghcr.io/rclone/rclone:1.70 AS rclone-src
+FROM ghcr.io/rclone/rclone:1.71 AS rclone-src
 
 RUN rclone --version
 

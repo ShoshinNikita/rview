@@ -1,4 +1,4 @@
-FROM ghcr.io/rclone/rclone:1.70 AS rclone-src
+FROM ghcr.io/rclone/rclone:1.71 AS rclone-src
 
 
 FROM golang:1.25-alpine3.22 AS tester
