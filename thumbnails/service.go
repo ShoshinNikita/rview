@@ -697,7 +697,7 @@ func (s *ThumbnailService) newThumbnailID(id rview.FileID, size ThumbnailSize) (
 	}
 
 	return ThumbnailID{
-		FileID: rview.NewFileID(path, id.GetModTime().Unix(), id.GetSize()),
+		FileID: rview.NewFileID(path, id.GetModTime(), id.GetSize()),
 	}, nil
 }
 

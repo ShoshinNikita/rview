@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
@@ -122,11 +123,11 @@ func (c *DiskCache) Remove(id rview.FileID) error {
 // generateFilepath generates a filepath of pattern '<dir>/<YYYY-MM>/t<mod time>_s<size>_<hashed filepath>.<ext>'.
 func (c *DiskCache) generateFilepath(id rview.FileID) string {
 	modTime := id.GetModTime()
-	subdir := modTime.Format("2006-01")
+	subdir := time.Unix(id.GetModTime(), 0).Format("2006-01")
 
 	hash := md5.Sum([]byte(id.GetPath()))
 	name := hex.EncodeToString(hash[:])
-	filename := fmt.Sprintf("t%d_s%d_%s", modTime.Unix(), id.GetSize(), name+id.GetExt())
+	filename := fmt.Sprintf("t%d_s%d_%s", modTime, id.GetSize(), name+id.GetExt())
 
 	return filepath.Join(c.absDir, subdir, filename)
 }

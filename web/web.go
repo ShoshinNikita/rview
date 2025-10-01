@@ -504,7 +504,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", contentType)
 	}
 	// Use mod time as a value for ETag.
-	etag := strconv.Itoa(int(id.GetModTime().Unix()))
+	etag := strconv.Itoa(int(id.GetModTime()))
 	setCacheHeaders(w, 30*24*time.Hour, etag)
 
 	io.Copy(w, rc)
@@ -588,7 +588,7 @@ func fileIDToURL(prefix string, dirURL *url.URL, id rview.FileID) string {
 	fileURL := mustParseURL(prefix).JoinPath(dirURL.String(), url.PathEscape(id.GetName()))
 
 	query := fileURL.Query()
-	query.Set("mod_time", strconv.FormatInt(id.GetModTime().Unix(), 10))
+	query.Set("mod_time", strconv.FormatInt(id.GetModTime(), 10))
 	query.Set("size", strconv.FormatInt(id.GetSize(), 10))
 	fileURL.RawQuery = query.Encode()
 

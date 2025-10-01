@@ -142,7 +142,7 @@ func TestThumbnailService(t *testing.T) {
 
 		// Same path, but different size.
 		{
-			newFileID := rview.NewFileID(fileID.GetPath(), fileID.GetModTime().Unix(), useOriginalImageThresholdSize+2)
+			newFileID := rview.NewFileID(fileID.GetPath(), fileID.GetModTime(), useOriginalImageThresholdSize+2)
 
 			rc, _, err := service.OpenThumbnail(ctx, newFileID, "")
 			r.NoError(err)
@@ -258,7 +258,7 @@ func TestThumbnailService_NewThumbnailID(t *testing.T) {
 		thumbnail, err := service.newThumbnailID(id, tt.size)
 		require.NoError(t, err)
 		assert.Equal(t, tt.wantThumbnail, thumbnail.GetPath())
-		assert.Equal(t, int64(33), thumbnail.GetModTime().Unix())
+		assert.Equal(t, int64(33), thumbnail.GetModTime())
 		assert.Equal(t, int64(15), thumbnail.GetSize())
 	}
 }

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"path"
 	"strings"
-	"time"
 )
 
 type FileID struct {
@@ -47,8 +46,8 @@ func GetFileExt(filepath string) string {
 }
 
 // GetModTime returns the modification time.
-func (id FileID) GetModTime() time.Time {
-	return time.Unix(id.modTime, 0).UTC()
+func (id FileID) GetModTime() int64 {
+	return id.modTime
 }
 
 // GetSize returns the file size

@@ -356,8 +356,8 @@ func checkModTime(id rview.FileID, fileHeaders http.Header) error {
 	if err != nil {
 		return fmt.Errorf("rclone response has invalid Last-Modified header: %w", err)
 	}
-	if !fileModTime.Equal(id.GetModTime()) {
-		return fmt.Errorf("rclone response has different mod time: %q, expected: %q", fileModTime, id.GetModTime())
+	if fileModTime.Unix() != id.GetModTime() {
+		return fmt.Errorf("rclone response has different mod time: %q, expected: %q", fileModTime, time.Unix(id.GetModTime(), 0).UTC())
 	}
 	return nil
 }
