@@ -78,9 +78,13 @@ func TestRclone_SortEntries(t *testing.T) {
 	entries := []DirEntry{
 		{Leaf: "images/", IsDir: true, Size: 0, ModTime: 123},
 		{Leaf: "arts/", IsDir: true, Size: 0, ModTime: 321},
+		{Leaf: "Dark Souls/", IsDir: true, Size: 0, ModTime: 100},
+		{Leaf: "Dark Souls 3/", IsDir: true, Size: 0, ModTime: 100},
 		//
 		{Leaf: "image.png", Size: 100, ModTime: 120},
 		{Leaf: "1.txt", Size: 23, ModTime: 11},
+		{Leaf: "2.txt", Size: 23, ModTime: 11},
+		{Leaf: "12.txt", Size: 23, ModTime: 11},
 		{Leaf: "book.pdf", Size: 234, ModTime: 400},
 		{Leaf: "book copy.pdf", Size: 234, ModTime: 400},
 	}
@@ -103,8 +107,12 @@ func TestRclone_SortEntries(t *testing.T) {
 	t.Run("name", func(t *testing.T) {
 		sortAndCheck(t, sortByName, []string{
 			"arts/",
+			"Dark Souls/",
+			"Dark Souls 3/",
 			"images/",
 			"1.txt",
+			"2.txt",
+			"12.txt",
 			"book copy.pdf",
 			"book.pdf",
 			"image.png",
@@ -113,8 +121,12 @@ func TestRclone_SortEntries(t *testing.T) {
 	t.Run("size", func(t *testing.T) {
 		sortAndCheck(t, sortBySize, []string{
 			"arts/",
+			"Dark Souls/",
+			"Dark Souls 3/",
 			"images/",
 			"1.txt",
+			"2.txt",
+			"12.txt",
 			"image.png",
 			"book copy.pdf",
 			"book.pdf",
@@ -123,6 +135,10 @@ func TestRclone_SortEntries(t *testing.T) {
 	t.Run("modtime", func(t *testing.T) {
 		sortAndCheck(t, sortByTime, []string{
 			"1.txt",
+			"2.txt",
+			"12.txt",
+			"Dark Souls/",
+			"Dark Souls 3/",
 			"image.png",
 			"images/",
 			"arts/",

@@ -28,6 +28,8 @@ import (
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
+	"golang.org/x/text/collate"
+	"golang.org/x/text/language"
 )
 
 //go:embed rclone.gotmpl
@@ -409,6 +411,7 @@ func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string
 		return nil, err
 	}
 
+	// Don't use rclone's sort because we cache directory content.
 	sortFn := map[string]func(a DirEntry, b DirEntry) int{
 		"":             sortByName,
 		"namedirfirst": sortByName,
@@ -500,9 +503,22 @@ func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) 
 	return rcloneInfo, nil
 }
 
+var undCollator = collate.New(language.Und, collate.IgnoreCase, collate.Numeric)
+
 func sortByName(a, b DirEntry) int {
 	if a.IsDir == b.IsDir {
-		return cmp.Compare(strings.ToLower(a.Leaf), strings.ToLower(b.Leaf))
+		aLeaf := a.Leaf
+		bLeaf := b.Leaf
+
+		// Trim trailing '/' because it's not part of the filename. This also ensures
+		// correct dir order - 'test/' should be placed before 'test 1/'.
+		if a.IsDir {
+			aLeaf = strings.TrimSuffix(aLeaf, "/")
+		}
+		if b.IsDir {
+			bLeaf = strings.TrimSuffix(bLeaf, "/")
+		}
+		return undCollator.CompareString(aLeaf, bLeaf)
 	}
 	if a.IsDir {
 		return -1
@@ -513,7 +529,7 @@ func sortByName(a, b DirEntry) int {
 func sortBySize(a, b DirEntry) int {
 	switch {
 	case (a.IsDir && b.IsDir) || (a.Size == b.Size):
-		return cmp.Compare(strings.ToLower(a.Leaf), strings.ToLower(b.Leaf))
+		return sortByName(a, b)
 	case a.IsDir:
 		return -1
 	case b.IsDir:
@@ -524,8 +540,8 @@ func sortBySize(a, b DirEntry) int {
 }
 
 func sortByTime(a, b DirEntry) int {
-	if a.ModTime != b.ModTime {
-		return cmp.Compare(a.ModTime, b.ModTime)
+	if v := cmp.Compare(a.ModTime, b.ModTime); v != 0 {
+		return v
 	}
 	return sortByName(a, b)
 }
