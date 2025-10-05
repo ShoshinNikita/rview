@@ -596,6 +596,9 @@ func (s *ThumbnailService) OpenThumbnail(
 	if getImageType(id) == unsupportedImageType {
 		return nil, "", fmt.Errorf("%w: %q", ErrUnsupportedImageFormat, id.GetExt())
 	}
+	if fileSize := id.GetSize(); fileSize <= 0 {
+		return nil, "", fmt.Errorf("file id has invalid size: %d", fileSize)
+	}
 
 	if size == "" {
 		size = ThumbnailMedium

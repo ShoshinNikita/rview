@@ -15,18 +15,18 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 
 	getTestRcloneInfo := func() *rclone.DirInfo {
 		return &rclone.DirInfo{
+			Dir: "/",
 			Entries: []rclone.DirEntry{
-				{Leaf: "a.txt"},
-				{Leaf: "b.jpg"},
-				{Leaf: "c.png"},
-				{Leaf: "c.bmp"},
-				{Leaf: "d.zip"},
+				{URL: "/a.txt", Leaf: "a.txt"},
+				{URL: "/b.jpg", Leaf: "b.jpg"},
+				{URL: "/c.png", Leaf: "c.png"},
+				{URL: "/c.bmp", Leaf: "c.bmp"},
+				{URL: "/d.zip", Leaf: "d.zip"},
 			},
 		}
 	}
 	resetUnnecessaryFields := func(info *DirInfo) {
 		for i := range info.Entries {
-			info.Entries[i].filepath = ""
 			info.Entries[i].HumanReadableSize = ""
 			info.Entries[i].ModTime = time.Time{}
 			info.Entries[i].HumanReadableModTime = ""
@@ -41,8 +41,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 		thumbnailService := thumbnails.NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails, true)
 		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeThumbnails}, nil, thumbnailService, nil)
 
-		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")
-		r.NoError(err)
+		gotInfo := s.convertRcloneInfo(getTestRcloneInfo())
 		resetUnnecessaryFields(&gotInfo)
 		r.Equal(
 			[]DirEntry{
@@ -76,8 +75,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 
 		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeOriginal}, nil, nil, nil)
 
-		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")
-		r.NoError(err)
+		gotInfo := s.convertRcloneInfo(getTestRcloneInfo())
 		resetUnnecessaryFields(&gotInfo)
 		r.Equal(
 			[]DirEntry{
@@ -109,8 +107,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 
 		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeNone}, nil, nil, nil)
 
-		gotInfo, err := s.convertRcloneInfo(getTestRcloneInfo(), "/")
-		r.NoError(err)
+		gotInfo := s.convertRcloneInfo(getTestRcloneInfo())
 		resetUnnecessaryFields(&gotInfo)
 		r.Equal(
 			[]DirEntry{

@@ -18,7 +18,7 @@ func TestPrefixIndex(t *testing.T) {
 		2: "games/hi-fi rush/1.jpg",
 		3: "games/hi-fi rush/2.jpg",
 		4: "изображения/лето 2022/",
-		5: "gaming/",
+		5: "/gaming/", // only trailing '/'s matter
 	}
 	index := newPrefixIndex(texts[:], 3, 7)
 	r.Equal(
@@ -92,7 +92,7 @@ func TestPrefixIndex(t *testing.T) {
 				{Path: "games/hi-fi rush/1.jpg", Score: 3},
 				{Path: "games/hi-fi rush/2.jpg", Score: 3},
 				{Path: "games/starfield/", Score: 3, IsDir: true},
-				{Path: "gaming/", Score: 1, IsDir: true},
+				{Path: "/gaming/", Score: 1, IsDir: true},
 			},
 			hits,
 		)
@@ -122,7 +122,7 @@ func TestPrefixIndex(t *testing.T) {
 				{Path: "games/hi-fi rush/1.jpg", Score: 3},
 				{Path: "games/hi-fi rush/2.jpg", Score: 3},
 				{Path: "games/starfield/", Score: 3, IsDir: true},
-				{Path: "gaming/", Score: 1, IsDir: true},
+				{Path: "/gaming/", Score: 1, IsDir: true},
 			},
 			hits,
 		)
@@ -190,7 +190,7 @@ func TestPrefixIndex(t *testing.T) {
 		r.Equal(
 			[]Hit{
 				{Path: "games/starfield/", Score: 3, IsDir: true},
-				{Path: "gaming/", Score: 1, IsDir: true},
+				{Path: "/gaming/", Score: 1, IsDir: true},
 			},
 			hits,
 		)

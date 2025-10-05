@@ -20,8 +20,11 @@ func TestService_RefreshIndex(t *testing.T) {
 	rclone := &rcloneStub{
 		GetAllFilesFn: func(context.Context) (dirs, files []string, err error) {
 			files = []string{
-				"hello world.go",
-				"arts/games/1.jpeg",
+				"/hello world.go",
+				"/gaming.txt",
+				"/arts/",
+				"/arts/games/",
+				"/arts/games/1.jpeg",
 			}
 			return dirs, files, nil
 		},
@@ -37,12 +40,18 @@ func TestService_RefreshIndex(t *testing.T) {
 
 	hits, _, err := s.Search(ctx, "games", 5)
 	r.NoError(err)
-	r.NotEmpty(hits)
+	r.Equal(
+		[]Hit{
+			{Path: "/arts/games/", IsDir: true, Score: 3},
+			{Path: "/gaming.txt", IsDir: false, Score: 1},
+		},
+		hits,
+	)
 
 	rclone.GetAllFilesFn = func(context.Context) (dirs, files []string, err error) {
 		files = []string{
-			"hello world.go",
-			"qwerty.txt",
+			"/hello world.go",
+			"/qwerty.txt",
 		}
 		return dirs, files, nil
 	}
@@ -71,11 +80,11 @@ func TestGenerateDocs(t *testing.T) {
 	r.NoError(err)
 
 	files := []string{
-		"animals/cute cat.jpeg",
-		"animals/cat jumps.mp4",
-		"animals/caterpillar.png",
-		"animals/Cat & Dog play.mkv",
-		"dogmas/catalog.zip",
+		"/animals/cute cat.jpeg",
+		"/animals/cat jumps.mp4",
+		"/animals/caterpillar.png",
+		"/animals/Cat & Dog play.mkv",
+		"/dogmas/catalog.zip",
 	}
 	tests := []struct {
 		search string

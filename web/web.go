@@ -15,6 +15,7 @@ import (
 	"net/http/pprof"
 	"net/url"
 	pkgPath "path"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -152,9 +153,7 @@ func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
 
 func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
 	dir := strings.TrimPrefix(r.URL.Path, "/ui")
-	if !strings.HasSuffix(dir, "/") {
-		dir += "/"
-	}
+	dir = misc.EnsureSuffix(dir, "/")
 
 	info, err := s.getDirInfo(r.Context(), dir, r.URL.Query())
 	if err != nil {
@@ -285,12 +284,8 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 	}
 
 	// Dir must start and end with a slash.
-	if !strings.HasPrefix(dir, "/") {
-		dir = "/" + dir
-	}
-	if !strings.HasSuffix(dir, "/") {
-		dir += "/"
-	}
+	dir = misc.EnsurePrefix(dir, "/")
+	dir = misc.EnsureSuffix(dir, "/")
 
 	var isNotFound bool
 
@@ -302,6 +297,7 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 		isNotFound = true
 
 		rcloneInfo = &rclone.DirInfo{
+			Dir: dir,
 			Breadcrumbs: []rclone.DirBreadcrumb{
 				{Text: "/"},   // for link to Home
 				{Text: "???"}, // indicate that something went wrong
@@ -312,65 +308,40 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 		return DirInfo{}, fmt.Errorf("couldn't get rclone info: %w", err)
 	}
 
-	info, err := s.convertRcloneInfo(rcloneInfo, dir)
-	if err != nil {
-		return DirInfo{}, fmt.Errorf("couldn't convert rclone info: %w", err)
-	}
+	info := s.convertRcloneInfo(rcloneInfo)
 
 	info.IsNotFound = isNotFound
 
 	return info, nil
 }
 
-func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo, dir string) (DirInfo, error) {
+func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo) DirInfo {
 	info := DirInfo{
 		BuildInfo: s.cfg.BuildInfo,
 		//
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
-		Dir:   dir,
+		Dir:   rcloneInfo.Dir,
 		// Always encode entries as a slice.
 		Entries: []DirEntry{},
-		//
-		dirURL: mustParseURL("/"),
 	}
 
-	for _, breadcrumb := range rcloneInfo.Breadcrumbs {
-		if breadcrumb.Text == "" {
-			continue
-		}
-
-		// It doesn't make any sense to add another trailing slash (especially, escaped).
-		if breadcrumb.Text != "/" {
-			info.dirURL = info.dirURL.JoinPath(url.PathEscape(breadcrumb.Text))
-		}
-		// All directory urls must end with slash.
-		info.dirURL = info.dirURL.JoinPath("/")
-
-		text := breadcrumb.Text
+	breadcrumbURL := mustParseURL("/ui").JoinPath(rcloneInfo.Dir)
+	for i := len(rcloneInfo.Breadcrumbs) - 1; i >= 0; i-- {
+		text := rcloneInfo.Breadcrumbs[i].Text
 		if text == "/" {
 			text = "Home"
 		}
 
-		uiURL := mustParseURL("/ui").JoinPath(info.dirURL.String()).String()
-
 		info.Breadcrumbs = append(info.Breadcrumbs, DirBreadcrumb{
-			Link: uiURL,
+			Link: misc.EnsureSuffix(breadcrumbURL.String(), "/"),
 			Text: text,
 		})
+		breadcrumbURL = breadcrumbURL.JoinPath("..")
 	}
+	slices.Reverse(info.Breadcrumbs)
 
 	for _, entry := range rcloneInfo.Entries {
-		if entry.Leaf == "" {
-			continue
-		}
-
-		filename, err := url.PathUnescape(pkgPath.Clean(entry.Leaf))
-		if err != nil {
-			return DirInfo{}, fmt.Errorf("invalid url %q: %w", entry.Leaf, err)
-		}
-		filepath := pkgPath.Join(info.Dir, filename)
-
 		var (
 			dirURL, webDirURL string
 			//
@@ -380,15 +351,13 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo, dir string) (DirI
 			canPreview                    bool
 		)
 		if entry.IsDir {
-			escapedFilename := url.PathEscape(filename)
-
-			dirURL = mustParseURL("/api/dir").JoinPath(info.dirURL.String(), escapedFilename, "/").String()
-			webDirURL = mustParseURL("/ui").JoinPath(info.dirURL.String(), escapedFilename, "/").String()
+			dirURL = mustParseURL("/api/dir").JoinPath(entry.URL, "/").String()
+			webDirURL = mustParseURL("/ui").JoinPath(entry.URL, "/").String()
 
 		} else {
-			id := rview.NewFileID(filepath, entry.ModTime, entry.Size)
+			id := rview.NewFileID(entry.URL, entry.ModTime, entry.Size)
 
-			originalFileURL = fileIDToURL("/api/file", info.dirURL, id)
+			originalFileURL = fileIDToURL("/api/file", id)
 			humanReadableSize = misc.FormatFileSize(entry.Size)
 			fileType = rview.GetFileType(id.GetExt())
 
@@ -407,7 +376,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo, dir string) (DirI
 					}
 				case rview.ImagePreviewModeThumbnails:
 					if s.thumbnailService.CanGenerateThumbnail(id) {
-						thumbnailURL = fileIDToURL("/api/thumbnail", info.dirURL, id)
+						thumbnailURL = fileIDToURL("/api/thumbnail", id)
 					}
 				}
 				if thumbnailURL != "" {
@@ -428,10 +397,9 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo, dir string) (DirI
 			}
 		}
 
+		filename := pkgPath.Clean(entry.Leaf)
 		modTime := time.Unix(entry.ModTime, 0).UTC()
 		info.Entries = append(info.Entries, DirEntry{
-			filepath: filepath,
-			//
 			Filename:             filename,
 			IsDir:                entry.IsDir,
 			Size:                 entry.Size,
@@ -454,7 +422,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo, dir string) (DirI
 			info.TotalFileSize += entry.Size
 		}
 	}
-	return info, nil
+	return info
 }
 
 // handleFile proxies the request to Rclone that knows how to handle 'Range' headers and other nuances.
@@ -584,10 +552,10 @@ func (s *Server) handleRefreshIndex(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 
-func fileIDToURL(prefix string, dirURL *url.URL, id rview.FileID) string {
-	fileURL := mustParseURL(prefix).JoinPath(dirURL.String(), url.PathEscape(id.GetName()))
+func fileIDToURL(prefix string, id rview.FileID) string {
+	fileURL := mustParseURL(prefix).JoinPath(id.GetPath())
 
-	query := fileURL.Query()
+	query := url.Values{}
 	query.Set("mod_time", strconv.FormatInt(id.GetModTime(), 10))
 	query.Set("size", strconv.FormatInt(id.GetSize(), 10))
 	fileURL.RawQuery = query.Encode()

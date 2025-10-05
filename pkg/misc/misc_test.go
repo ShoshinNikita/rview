@@ -20,3 +20,19 @@ func TestFormatFileSize(t *testing.T) {
 		require.Equal(t, wantRes, got)
 	}
 }
+
+func TestEnsurePrefix(t *testing.T) {
+	r := require.New(t)
+	r.Equal("/hello", EnsurePrefix("hello", "/"))
+	r.Equal("/hello/", EnsurePrefix("hello/", "/"))
+	r.Equal("/hello", EnsurePrefix("/hello", "/"))
+	r.Equal("x/hello/", EnsurePrefix("/hello/", "x"))
+}
+
+func TestEnsureSuffix(t *testing.T) {
+	r := require.New(t)
+	r.Equal("hello/", EnsureSuffix("hello", "/"))
+	r.Equal("/hello/", EnsureSuffix("/hello", "/"))
+	r.Equal("/hello/", EnsureSuffix("/hello/", "/"))
+	r.Equal("/hello/x", EnsureSuffix("/hello/", "x"))
+}

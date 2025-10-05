@@ -1,7 +1,6 @@
 package web
 
 import (
-	"net/url"
 	"time"
 
 	"github.com/ShoshinNikita/rview/rview"
@@ -26,9 +25,6 @@ type DirInfo struct {
 
 	// IsNotFound indicates whether the requested directory wasn't found.
 	IsNotFound bool `json:"is_not_found"`
-
-	// dirURL is the url of current directory, only for internal use.
-	dirURL *url.URL
 }
 
 type DirBreadcrumb struct {
@@ -39,9 +35,6 @@ type DirBreadcrumb struct {
 }
 
 type DirEntry struct {
-	// filepath is an rclone filepath, only for internal use.
-	filepath string
-
 	// Filename is the unescaped filename of a file.
 	Filename             string         `json:"filename"`
 	IsDir                bool           `json:"is_dir,omitempty"`

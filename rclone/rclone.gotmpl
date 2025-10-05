@@ -1,4 +1,5 @@
 {
+	"dir": "{{ .Name }}",
 	"sort": "{{ .Sort }}",
 	"order": "{{ .Order }}",
 	"breadcrumbs": [
@@ -7,7 +8,7 @@
 			"text": "{{ .Text }}"
 		},
 		{{ end }}
-		{ "_c": "add extra object to fix trailing comma problem" }
+		{ "_c": "extra object to fix trailing comma" }
 	],
 	"entries": [
 		{{ range .Entries }}
@@ -18,6 +19,6 @@
 			"mod_time": {{ .ModTime.Unix }}
 		},
 		{{ end }}
-		{ "_c": "add extra object to fix trailing comma problem" }
+		{ "_c": "extra object to fix trailing comma" }
 	]
 }

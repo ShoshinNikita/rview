@@ -551,24 +551,24 @@ func TestAPI_Search(t *testing.T) {
 
 	dirs, files := search(t, "birds")
 	r.Empty(dirs)
-	r.Equal([]string{"Images/birds-g64b44607c_640.jpg"}, files)
+	r.Equal([]string{"/Images/birds-g64b44607c_640.jpg"}, files)
 
 	dirs, files = search(t, "credits.txt")
 	r.Empty(dirs)
 	r.Equal([]string{
-		"Audio/credits.txt",
-		"Images/credits.txt",
-		"Other/test-thumbnails/credits.txt",
-		"Video/credits.txt",
+		"/Audio/credits.txt",
+		"/Images/credits.txt",
+		"/Other/test-thumbnails/credits.txt",
+		"/Video/credits.txt",
 	}, files)
 
 	dirs, files = search(t, "audio credits.txt")
 	r.Empty(dirs)
-	r.Equal([]string{"Audio/credits.txt"}, files)
+	r.Equal([]string{"/Audio/credits.txt"}, files)
 
 	dirs, files = search(t, "tests")
-	r.Equal([]string{"Other/test-thumbnails/"}, dirs)
-	r.Equal([]string{"test.gif"}, files)
+	r.Equal([]string{"/Other/test-thumbnails/"}, dirs)
+	r.Equal([]string{"/test.gif"}, files)
 }
 
 func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {

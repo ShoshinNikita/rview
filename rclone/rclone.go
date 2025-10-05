@@ -18,6 +18,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	pkgPath "path"
 	"slices"
 	"strconv"
 	"strings"
@@ -26,6 +27,7 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
+	"github.com/ShoshinNikita/rview/pkg/misc"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 	"golang.org/x/text/collate"
@@ -183,7 +185,7 @@ func (r *Rclone) Start() error {
 	}
 	pipes := []io.ReadCloser{stdout, stderr}
 
-	rlog.Infof("start rclone on %q", stripPassword(r.rcloneURL))
+	rlog.Infof("start rclone on %q", r.rcloneURL.Redacted())
 
 	err = r.cmd.Start()
 	if err != nil {
@@ -211,15 +213,6 @@ func (r *Rclone) Start() error {
 	wg.Wait()
 
 	return err
-}
-
-// Copied from het/http/client.go.
-func stripPassword(u *url.URL) string {
-	_, passSet := u.User.Password()
-	if passSet {
-		return strings.Replace(u.String(), u.User.String()+"@", u.User.Username()+":***@", 1)
-	}
-	return u.String()
 }
 
 func (r *Rclone) redirectRcloneLogs(pipe io.Reader) {
@@ -315,9 +308,7 @@ func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *h
 			u := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
 
 			// Rclone requires leading slash.
-			if !strings.HasPrefix(u.Path, "/") {
-				u.Path = "/" + u.Path
-			}
+			u.Path = misc.EnsurePrefix(u.Path, "/")
 
 			// Basic Auth should be passed via headers.
 			if u.User != nil {
@@ -387,6 +378,7 @@ func checkContentRange(id rview.FileID, fileHeaders http.Header) error {
 }
 
 type DirInfo struct {
+	Dir   string `json:"dir"` // full dir path
 	Sort  string `json:"sort"`
 	Order string `json:"order"`
 
@@ -399,7 +391,8 @@ type DirBreadcrumb struct {
 }
 
 type DirEntry struct {
-	Leaf    string `json:"leaf"`
+	URL     string `json:"url"`  // full entry url
+	Leaf    string `json:"leaf"` // entry name
 	IsDir   bool   `json:"is_dir"`
 	Size    int64  `json:"size"`
 	ModTime int64  `json:"mod_time"`
@@ -480,13 +473,24 @@ func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) 
 	metrics.RcloneGetDirInfoDuration.Observe(dur.Seconds())
 	rlog.Debugf("rclone info for %q was loaded in %s", path, dur)
 
+	// Remove artifacts of the template execution.
+	rcloneInfo.Breadcrumbs = slices.DeleteFunc(rcloneInfo.Breadcrumbs, func(v DirBreadcrumb) bool { return v.Text == "" })
+	rcloneInfo.Entries = slices.DeleteFunc(rcloneInfo.Entries, func(v DirEntry) bool { return v.Leaf == "" })
+
 	// We have to unescape response. It is safe because we will either use it for rendering
 	// with Go templates or return it as JSON.
+	rcloneInfo.Dir = html.UnescapeString(rcloneInfo.Dir)
+	rcloneInfo.Dir = misc.EnsureSuffix(rcloneInfo.Dir, "/")
 	for i := range rcloneInfo.Breadcrumbs {
 		rcloneInfo.Breadcrumbs[i].Text = html.UnescapeString(rcloneInfo.Breadcrumbs[i].Text)
 	}
-	for i := range rcloneInfo.Entries {
-		rcloneInfo.Entries[i].Leaf = html.UnescapeString(rcloneInfo.Entries[i].Leaf)
+	for i, v := range rcloneInfo.Entries {
+		v.Leaf = html.UnescapeString(v.Leaf)
+		v.URL = pkgPath.Join(rcloneInfo.Dir, v.Leaf)
+		if v.IsDir {
+			v.URL = misc.EnsureSuffix(v.URL, "/")
+		}
+		rcloneInfo.Entries[i] = v
 	}
 
 	// Rclone can't accurately report dir size. So, just reset it (and replicate behavior of 'rclone serve').
@@ -601,8 +605,10 @@ func (r *Rclone) GetAllFiles(ctx context.Context) (dirs, files []string, err err
 	}
 
 	for _, v := range resp.List {
+		v.Path = misc.EnsurePrefix(v.Path, "/")
+
 		if v.IsDir {
-			dirs = append(dirs, v.Path)
+			dirs = append(dirs, misc.EnsureSuffix(v.Path, "/"))
 		} else {
 			files = append(files, v.Path)
 		}

@@ -10,7 +10,6 @@ import (
 	"math"
 	"os"
 	"slices"
-	"strings"
 	"sync"
 	"time"
 
@@ -227,11 +226,6 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 	dirs, filenames, err := s.rclone.GetAllFiles(ctx)
 	if err != nil {
 		return fmt.Errorf("couldn't get all files from rclone: %w", err)
-	}
-	for i := range dirs {
-		if !strings.HasSuffix(dirs[i], "/") {
-			dirs[i] += "/"
-		}
 	}
 	dirCount = len(dirs)
 	fileCount = len(filenames)

@@ -2,6 +2,7 @@ package misc
 
 import (
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -32,4 +33,18 @@ func FormatFileSize(bytes int64) string {
 
 func FormatModTime(modTime time.Time) string {
 	return modTime.UTC().Format("2006-01-02 15:04:05") + " UTC"
+}
+
+func EnsurePrefix(s, prefix string) string {
+	if strings.HasPrefix(s, prefix) {
+		return s
+	}
+	return prefix + s
+}
+
+func EnsureSuffix(s, suffix string) string {
+	if strings.HasSuffix(s, suffix) {
+		return s
+	}
+	return s + suffix
 }
