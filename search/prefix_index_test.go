@@ -232,6 +232,20 @@ func TestPrefixIndex(t *testing.T) {
 			},
 			hits,
 		)
+		hits, _ = index.Search("a b beautiful", 10)
+		r.Equal(
+			[]Hit{
+				{Path: "a beautiful picture", Score: 5},
+			},
+			hits,
+		)
+		hits, _ = index.Search(`a "beautiful"`, 10)
+		r.Equal(
+			[]Hit{
+				{Path: "a beautiful picture", Score: math.Inf(1)},
+			},
+			hits,
+		)
 	})
 
 	t.Run("unicode", func(t *testing.T) {
@@ -344,8 +358,9 @@ func TestPrefixIndex(t *testing.T) {
 
 func TestNewSearchRequest(t *testing.T) {
 	for _, tt := range []struct {
-		search string
-		want   searchRequest
+		search     string
+		want       searchRequest
+		checkWords bool
 	}{
 		{
 			search: `nothi--n"g to -exclude`,
@@ -401,10 +416,30 @@ func TestNewSearchRequest(t *testing.T) {
 				toExclude: []string{"hello world"},
 			},
 		},
+		{
+			search: `a/aa/aaa/aaaa`,
+			want: searchRequest{
+				words: [][]rune{
+					[]rune("aaa"),
+					[]rune("aaaa"),
+				},
+				extractedWords: []string{"a/aa/aaa/aaaa"},
+			},
+			checkWords: true,
+		},
+		{
+			search: `a b c dd`,
+			want: searchRequest{
+				extractedWords: []string{"a", "b", "c", "dd"},
+			},
+			checkWords: true,
+		},
 	} {
 		t.Run("", func(t *testing.T) {
-			got := newSearchRequest(tt.search)
-			got.words = nil // too tiresome to test
+			got := newSearchRequest(tt.search, 3)
+			if !tt.checkWords {
+				got.words = nil // too tiresome to test
+			}
 
 			assert.Equal(t, tt.want, got)
 		})

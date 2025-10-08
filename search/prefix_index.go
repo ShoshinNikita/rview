@@ -4,6 +4,7 @@ import (
 	"cmp"
 	"encoding/json"
 	"fmt"
+	"iter"
 	"math"
 	"slices"
 	"strings"
@@ -44,7 +45,7 @@ func newPrefixIndex(rawPaths []string, minPrefixLen, maxPrefixLen int) *prefixIn
 		id := uint64(i) //nolint:gosec
 
 		paths[id] = path
-		for _, prefix := range generatePrefixes(path, minPrefixLen, maxPrefixLen) {
+		for prefix := range generatePrefixes(path, minPrefixLen, maxPrefixLen) {
 			prefixes[prefix] = append(prefixes[prefix], id)
 		}
 	}
@@ -103,9 +104,8 @@ type searchHit struct {
 }
 
 func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
-	req := newSearchRequest(search)
+	req := newSearchRequest(search, index.MinPrefixLen)
 	if len(req.words) == 0 && len(req.exactMatches) == 0 && len(req.toExclude) == 0 {
-		// Just in case
 		return nil, 0
 	}
 
@@ -173,8 +173,7 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 	return res, total
 }
 
-// searchByPrefixes searches for prefix matches. If passed "search" contains multiple words,
-// only results that match all these words will be returned.
+// searchByPrefixes checks every word for prefix matches.
 func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 	var (
 		matchCounts        = make(map[uint64]int)
@@ -188,7 +187,7 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 		}
 
 		matches := make(map[uint64]bool)
-		for _, prefix := range generatePrefixes(string(word), index.MinPrefixLen, index.MaxPrefixLen) {
+		for prefix := range generatePrefixes(string(word), index.MinPrefixLen, index.MaxPrefixLen) {
 			for _, id := range index.Prefixes[prefix] {
 				matchCounts[id]++
 
@@ -266,17 +265,20 @@ func compactSearchHits(hits []Hit) []Hit {
 	return res
 }
 
-func generatePrefixes(path string, minLen, maxLen int) (prefixes []string) {
-	words := splitToNormalizedWords(path)
-	for _, word := range words {
-		for i := minLen; i <= maxLen; i++ {
-			if i > len(word) {
-				break
+func generatePrefixes(path string, minLen, maxLen int) iter.Seq[string] {
+	return func(yield func(string) bool) {
+		words := splitToNormalizedWords(path)
+		for _, word := range words {
+			for i := minLen; i <= maxLen; i++ {
+				if i > len(word) {
+					break
+				}
+				if !yield(string(word[:i])) {
+					return
+				}
 			}
-			prefixes = append(prefixes, string(word[:i]))
 		}
 	}
-	return prefixes
 }
 
 type searchRequest struct {
@@ -287,7 +289,7 @@ type searchRequest struct {
 	extractedWords []string // only for testing
 }
 
-func newSearchRequest(search string) (req searchRequest) {
+func newSearchRequest(search string, minWordLen int) (req searchRequest) {
 	search = strings.ToLower(search)
 
 	var (
@@ -367,7 +369,11 @@ func newSearchRequest(search string) (req searchRequest) {
 		case exclude:
 			req.toExclude = append(req.toExclude, word)
 		default:
-			req.words = append(req.words, splitToNormalizedWords(word)...)
+			for _, w := range splitToNormalizedWords(word) {
+				if len(w) >= minWordLen {
+					req.words = append(req.words, w)
+				}
+			}
 
 			if testing.Testing() {
 				req.extractedWords = append(req.extractedWords, word)
