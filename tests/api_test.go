@@ -260,9 +260,20 @@ func TestAPI_GetDirInfo(t *testing.T) {
 					{Link: "/ui/Other/spe%27sial%20%21%20cha%3Cracters/x/", Text: "x"},
 					{Link: "/ui/Other/spe%27sial%20%21%20cha%3Cracters/x/y/", Text: "y"},
 				},
-				FileCount:     2,
+				FileCount:     3,
 				TotalFileSize: 0,
 				Entries: []web.DirEntry{
+					{
+						Filename:             "100%.txt",
+						Size:                 0,
+						HumanReadableSize:    "0 B",
+						ModTime:              mustParseTime(t, "2025-10-08 02:49:00"),
+						HumanReadableModTime: "2025-10-08 02:49:00 UTC",
+						FileType:             rview.FileTypeText,
+						CanPreview:           true,
+						OriginalFileURL:      "/api/file/Other/spe%27sial%20%21%20cha%3Cracters/x/y/100%25.txt?mod_time=1759891740&size=0",
+						IconName:             "document",
+					},
 					{
 						Filename:             "a + b.txt",
 						Size:                 0,

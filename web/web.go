@@ -553,7 +553,7 @@ func (s *Server) handleRefreshIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func fileIDToURL(prefix string, id rview.FileID) string {
-	fileURL := mustParseURL(prefix).JoinPath(id.GetPath())
+	fileURL := mustParseURL(prefix).JoinPath(id.GetEscapedPath())
 
 	query := url.Values{}
 	query.Set("mod_time", strconv.FormatInt(id.GetModTime(), 10))

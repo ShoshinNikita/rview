@@ -2,6 +2,7 @@ package rview
 
 import (
 	"fmt"
+	"net/url"
 	"path"
 	"strings"
 )
@@ -29,6 +30,20 @@ func NewFileID(filepath string, modTime int64, size int64) FileID {
 // GetPath returns full filepath.
 func (id FileID) GetPath() string {
 	return id.path
+}
+
+// GetEscapedPath should be used when building urls with [net/url.JoinPath]
+// (see https://github.com/golang/go/issues/75799).
+func (id FileID) GetEscapedPath() string {
+	var escapedPath strings.Builder
+	for part := range strings.SplitSeq(id.path, "/") {
+		if part == "" {
+			continue
+		}
+		escapedPath.WriteByte('/')
+		escapedPath.WriteString(url.PathEscape(part))
+	}
+	return escapedPath.String()
 }
 
 // GetName returns only filename (last path element).

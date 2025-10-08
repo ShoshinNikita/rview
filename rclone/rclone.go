@@ -251,7 +251,7 @@ func (r *Rclone) Shutdown(ctx context.Context) error {
 // for internal purposes (for example, to download image for resizing). Serving files to users
 // should be done via [Rclone.ProxyFileRequest].
 func (r *Rclone) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, error) {
-	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
+	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetEscapedPath())
 
 	now := time.Now()
 	body, headers, err := r.makeRequest(ctx, "GET", rcloneURL)
@@ -272,7 +272,7 @@ func (r *Rclone) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, 
 }
 
 func (r *Rclone) RequestFileRange(ctx context.Context, id rview.FileID, rangeStart, rangeEnd int) (io.ReadCloser, error) {
-	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
+	rcloneURL := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetEscapedPath())
 	req, err := http.NewRequestWithContext(ctx, "GET", rcloneURL.String(), nil)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't prepare request: %w", err)
@@ -305,7 +305,7 @@ func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *h
 
 	proxy := httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
-			u := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetPath())
+			u := r.rcloneURL.JoinPath("["+r.rcloneTarget+"]", id.GetEscapedPath())
 
 			// Rclone requires leading slash.
 			u.Path = misc.EnsurePrefix(u.Path, "/")
