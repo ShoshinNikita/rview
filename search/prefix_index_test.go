@@ -27,7 +27,7 @@ func TestPrefixIndex(t *testing.T) {
 	}
 	index := newPrefixIndex(entries[:], 3, 7)
 	r.Equal(
-		map[string][]uint64{
+		map[string][]uint32{
 			"hel":   {0},
 			"hell":  {0},
 			"hello": {0},
@@ -151,8 +151,8 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`"games/hi-fi RUSH"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/hi-fi rush/1.jpg", Score: math.Inf(1)},
-				{Path: "/games/hi-fi rush/2.jpg", Score: math.Inf(1)},
+				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hi-fi rush/2.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -160,9 +160,9 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`"games"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/starfield/", Score: math.Inf(1), IsDir: true},
-				{Path: "/games/hi-fi rush/1.jpg", Score: math.Inf(1)},
-				{Path: "/games/hi-fi rush/2.jpg", Score: math.Inf(1)},
+				{Path: "/games/starfield/", Score: float32(math.Inf(1)), IsDir: true},
+				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hi-fi rush/2.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -170,8 +170,8 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`"games" "jpg"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/hi-fi rush/1.jpg", Score: math.Inf(1)},
-				{Path: "/games/hi-fi rush/2.jpg", Score: math.Inf(1)},
+				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hi-fi rush/2.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -179,7 +179,7 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`"games" "jpg" "1"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/hi-fi rush/1.jpg", Score: math.Inf(1)},
+				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -211,8 +211,8 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`"games" -"starfield"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/hi-fi rush/1.jpg", Score: math.Inf(1)},
-				{Path: "/games/hi-fi rush/2.jpg", Score: math.Inf(1)},
+				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hi-fi rush/2.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -220,7 +220,7 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`-"games" -"gaming" -"лето"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/hello !&a! world.go", Score: math.Inf(1)},
+				{Path: "/hello !&a! world.go", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -247,7 +247,7 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`a "beautiful"`, 10)
 		r.Equal(
 			[]Hit{
-				{Path: "a beautiful picture", Score: math.Inf(1)},
+				{Path: "a beautiful picture", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -488,6 +488,14 @@ func TestNewSearchRequest(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestFloat32Inf(t *testing.T) {
+	r := require.New(t)
+
+	f := float32(math.Inf(1))
+	r.True(f > math.MaxFloat32) //nolint:testifylint
+	r.True(math.IsInf(float64(f), 0))
 }
 
 func newDirEntry(p string, size, modTime int64) rclone.DirEntry {

@@ -21,7 +21,7 @@ type Hit struct {
 	Size    int64
 	ModTime int64
 
-	Score float64
+	Score float32
 }
 
 func (h Hit) GetPath() string { return h.Path }
@@ -30,10 +30,10 @@ func (h Hit) GetIsDir() bool  { return h.IsDir }
 type prefixIndex struct {
 	MinPrefixLen int                 `json:"min_prefix_len"`
 	MaxPrefixLen int                 `json:"max_prefix_len"`
-	Entries      map[uint64]dirEntry `json:"entries"`
-	Prefixes     map[string][]uint64 `json:"prefixes"`
+	Entries      map[uint32]dirEntry `json:"entries"`
+	Prefixes     map[string][]uint32 `json:"prefixes"`
 
-	lowerCasedPaths map[uint64]string
+	lowerCasedPaths map[uint32]string
 }
 
 type dirEntry struct {
@@ -45,11 +45,14 @@ type dirEntry struct {
 
 func newPrefixIndex(dirEntries []rclone.DirEntry, minPrefixLen, maxPrefixLen int) *prefixIndex {
 	var (
-		entries  = make(map[uint64]dirEntry, len(dirEntries))
-		prefixes = make(map[string][]uint64)
+		entries  = make(map[uint32]dirEntry, len(dirEntries))
+		prefixes = make(map[string][]uint32)
 	)
+	if l := len(dirEntries); l > math.MaxUint32 {
+		panic(fmt.Errorf("too many dir entries: %d", l))
+	}
 	for i, entry := range dirEntries {
-		id := uint64(i) //nolint:gosec
+		id := uint32(i) //nolint:gosec
 
 		entries[id] = dirEntry{
 			Path:    entry.URL,
@@ -92,7 +95,7 @@ func (index *prefixIndex) UnmarshalJSON(data []byte) error {
 }
 
 func (index *prefixIndex) prepare() {
-	index.lowerCasedPaths = make(map[uint64]string)
+	index.lowerCasedPaths = make(map[uint32]string)
 	for id, path := range index.Entries {
 		index.lowerCasedPaths[id] = strings.ToLower(path.Path)
 	}
@@ -110,9 +113,9 @@ func (index *prefixIndex) Check(wantMin, wantMax int) error {
 }
 
 type searchHit struct {
-	id             uint64
+	id             uint32
+	score          float32
 	lowerCasedPath string
-	score          float64
 }
 
 func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
@@ -129,7 +132,7 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 		// Only exact matches, only excludes, or both - have to check all paths.
 		hitsIter = func(yield func(searchHit) bool) {
 			for id := range index.Entries {
-				if !yield(index.newSearchHit(id, math.Inf(1))) {
+				if !yield(index.newSearchHit(id, float32(math.Inf(1)))) {
 					return
 				}
 			}
@@ -197,8 +200,8 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
 	noopIter := func(yield func(searchHit) bool) {}
 
 	var (
-		matchCounts        = make(map[uint64]int)
-		matchesForAllWords = make(map[uint64]bool)
+		matchCounts        = make(map[uint32]int)
+		matchesForAllWords = make(map[uint32]bool)
 	)
 	for _, word := range words {
 		// If a word length is less than MinPrefixLen, no prefixes will be generated, and
@@ -207,7 +210,7 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
 			continue
 		}
 
-		matches := make(map[uint64]bool)
+		matches := make(map[uint32]bool)
 		for prefix := range generatePrefixes(string(word), index.MinPrefixLen, index.MaxPrefixLen) {
 			for _, id := range index.Prefixes[prefix] {
 				matchCounts[id]++
@@ -241,14 +244,14 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
 
 	return func(yield func(searchHit) bool) {
 		for id := range matchesForAllWords {
-			if !yield(index.newSearchHit(id, float64(matchCounts[id]))) {
+			if !yield(index.newSearchHit(id, float32(matchCounts[id]))) {
 				return
 			}
 		}
 	}
 }
 
-func (index *prefixIndex) newSearchHit(id uint64, score float64) searchHit {
+func (index *prefixIndex) newSearchHit(id uint32, score float32) searchHit {
 	return searchHit{
 		id:             id,
 		lowerCasedPath: index.lowerCasedPaths[id],
