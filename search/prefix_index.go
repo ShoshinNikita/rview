@@ -43,17 +43,13 @@ type dirEntry struct {
 	ModTime int64  `json:"mod_time"`
 }
 
-func newPrefixIndex(dirEntries []rclone.DirEntry, minPrefixLen, maxPrefixLen int) *prefixIndex {
+func newPrefixIndex(dirEntries iter.Seq[rclone.DirEntry], minPrefixLen, maxPrefixLen int) *prefixIndex {
 	var (
-		entries  = make(map[uint32]dirEntry, len(dirEntries))
+		entries  = make(map[uint32]dirEntry)
 		prefixes = make(map[string][]uint32)
 	)
-	if l := len(dirEntries); l > math.MaxUint32 {
-		panic(fmt.Errorf("too many dir entries: %d", l))
-	}
-	for i, entry := range dirEntries {
-		id := uint32(i) //nolint:gosec
-
+	var id uint32
+	for entry := range dirEntries {
 		entries[id] = dirEntry{
 			Path:    entry.URL,
 			IsDir:   entry.IsDir,
@@ -63,6 +59,8 @@ func newPrefixIndex(dirEntries []rclone.DirEntry, minPrefixLen, maxPrefixLen int
 		for prefix := range generatePrefixes(entry.URL, minPrefixLen, maxPrefixLen) {
 			prefixes[prefix] = append(prefixes[prefix], id)
 		}
+
+		id++
 	}
 	for prefix, ids := range prefixes {
 		slices.Sort(ids)

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"iter"
 	"os"
+	"slices"
 	"testing"
 
 	"github.com/ShoshinNikita/rview/rclone"
@@ -19,14 +21,14 @@ func TestService_RefreshIndex(t *testing.T) {
 	r.NoError(err)
 
 	rcloneStub := &rcloneStub{
-		GetAllFilesFn: func(context.Context) ([]rclone.DirEntry, error) {
-			return []rclone.DirEntry{
+		GetAllFilesFn: func(context.Context) (iter.Seq[rclone.DirEntry], error) {
+			return slices.Values([]rclone.DirEntry{
 				newDirEntry("/hello world.go", 0, 0),
 				newDirEntry("/gaming.txt", 0, 0),
 				newDirEntry("/arts/", 0, 0),
 				newDirEntry("/arts/games/", 0, 0),
 				newDirEntry("/arts/games/1.jpeg", 0, 0),
-			}, nil
+			}), nil
 		},
 	}
 	s, err := NewService(rcloneStub, root)
@@ -48,11 +50,11 @@ func TestService_RefreshIndex(t *testing.T) {
 		hits,
 	)
 
-	rcloneStub.GetAllFilesFn = func(context.Context) ([]rclone.DirEntry, error) {
-		return []rclone.DirEntry{
+	rcloneStub.GetAllFilesFn = func(context.Context) (iter.Seq[rclone.DirEntry], error) {
+		return slices.Values([]rclone.DirEntry{
 			newDirEntry("/hello world.go", 0, 0),
 			newDirEntry("/qwerty.txt", 0, 0),
-		}, nil
+		}), nil
 	}
 
 	err = s.RefreshIndex(ctx)
@@ -64,10 +66,10 @@ func TestService_RefreshIndex(t *testing.T) {
 }
 
 type rcloneStub struct {
-	GetAllFilesFn func(context.Context) ([]rclone.DirEntry, error)
+	GetAllFilesFn func(context.Context) (iter.Seq[rclone.DirEntry], error)
 }
 
-func (s rcloneStub) GetAllFiles(ctx context.Context) ([]rclone.DirEntry, error) {
+func (s rcloneStub) GetAllFiles(ctx context.Context) (iter.Seq[rclone.DirEntry], error) {
 	return s.GetAllFilesFn(ctx)
 }
 
@@ -120,7 +122,7 @@ func TestGenerateDocs(t *testing.T) {
 	}
 
 	rclone := &rcloneStub{
-		GetAllFilesFn: func(ctx context.Context) ([]rclone.DirEntry, error) { return entries, nil },
+		GetAllFilesFn: func(ctx context.Context) (iter.Seq[rclone.DirEntry], error) { return slices.Values(entries), nil },
 	}
 	s, err := NewService(rclone, root)
 	r.NoError(err)

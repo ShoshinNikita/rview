@@ -6,6 +6,7 @@ import (
 	"math"
 	"path"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -25,7 +26,7 @@ func TestPrefixIndex(t *testing.T) {
 		4: newDirEntry("/изображения/лето 2022/", 0, 0),
 		5: newDirEntry("/gaming/", 0, 0),
 	}
-	index := newPrefixIndex(entries[:], 3, 7)
+	index := newPrefixIndex(slices.Values(entries[:]), 3, 7)
 	r.Equal(
 		map[string][]uint32{
 			"hel":   {0},
@@ -229,7 +230,10 @@ func TestPrefixIndex(t *testing.T) {
 	t.Run("search with a one-letter word", func(t *testing.T) {
 		r := require.New(t)
 
-		index := newPrefixIndex([]rclone.DirEntry{{URL: "a beautiful picture"}}, 3, 7)
+		entries := []rclone.DirEntry{
+			{URL: "a beautiful picture"},
+		}
+		index := newPrefixIndex(slices.Values(entries), 3, 7)
 		hits, _ := index.Search("a beautiful", 10)
 		r.Equal(
 			[]Hit{
@@ -262,7 +266,7 @@ func TestPrefixIndex(t *testing.T) {
 			newDirEntry("ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", 0, 0), // hello
 			newDirEntry("белый", 0, 0),
 		}
-		index := newPrefixIndex(entries, 3, 7)
+		index := newPrefixIndex(slices.Values(entries), 3, 7)
 
 		// Both searches, with and without accented characters, succeed.
 		hits, _ := index.Search("schuchternes", 10)
@@ -323,7 +327,7 @@ func TestPrefixIndex(t *testing.T) {
 			newDirEntry("/anime/", 0, 0),
 			newDirEntry("/anime/art.jpeg", 0, 0),
 		}
-		index := newPrefixIndex(entries, 3, 7)
+		index := newPrefixIndex(slices.Values(entries), 3, 7)
 
 		hits, _ := index.Search("anim", 10)
 		r.Equal(
@@ -369,7 +373,7 @@ func TestPrefixIndex(t *testing.T) {
 			newDirEntry("/game/gamesaves/2.txt", 0, 0),
 			newDirEntry("/game/gamesaves/3.txt", 0, 0),
 		}
-		index = newPrefixIndex(entries, 3, 7)
+		index = newPrefixIndex(slices.Values(entries), 3, 7)
 		hits, _ = index.Search("games", 10)
 		r.Equal(
 			[]Hit{
@@ -386,7 +390,7 @@ func TestPrefixIndex(t *testing.T) {
 			newDirEntry("/animals/cat.jpeg", 1<<20, 124),
 			newDirEntry("/animals/cute/cats.png", 1<<13, 130),
 		}
-		index := newPrefixIndex(entries, 3, 7)
+		index := newPrefixIndex(slices.Values(entries), 3, 7)
 
 		hits, _ := index.Search("cat", 10)
 		r.Equal(
@@ -529,7 +533,7 @@ func BenchmarkPrefixIndex_Search(b *testing.B) {
 
 	b.Logf("%d entries have been loaded", len(entries))
 
-	index := newPrefixIndex(entries, 3, 10)
+	index := newPrefixIndex(slices.Values(entries), 3, 10)
 
 	run := func(s string) {
 		b.Run(s, func(b *testing.B) {

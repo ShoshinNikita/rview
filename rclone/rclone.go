@@ -13,6 +13,7 @@ import (
 	"html"
 	"io"
 	"io/fs"
+	"iter"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -568,7 +569,7 @@ func (r *Rclone) makeRequest(ctx context.Context, method string, url *url.URL) (
 	return resp.Body, resp.Header, nil
 }
 
-func (r *Rclone) GetAllFiles(ctx context.Context) ([]DirEntry, error) {
+func (r *Rclone) GetAllFiles(ctx context.Context) (iter.Seq[DirEntry], error) {
 	// Pass parameters as a query instead of JSON to be able to forbid access to
 	// other remotes via Nginx (see 'docs/advanced_setup.md').
 
@@ -604,21 +605,24 @@ func (r *Rclone) GetAllFiles(ctx context.Context) ([]DirEntry, error) {
 		return nil, fmt.Errorf("couldn't decode rclone response: %w", err)
 	}
 
-	res := make([]DirEntry, 0, len(resp.List))
-	for _, v := range resp.List {
-		v.Path = misc.EnsurePrefix(v.Path, "/")
-		if v.IsDir {
-			v.Path = misc.EnsureSuffix(v.Path, "/")
-			v.Size = 0 // see [Rclone.getDirInfo]
-		}
+	return func(yield func(DirEntry) bool) {
+		for _, v := range resp.List {
+			v.Path = misc.EnsurePrefix(v.Path, "/")
+			if v.IsDir {
+				v.Path = misc.EnsureSuffix(v.Path, "/")
+				v.Size = 0 // see [Rclone.getDirInfo]
+			}
 
-		res = append(res, DirEntry{
-			URL:     v.Path,
-			Leaf:    pkgPath.Base(v.Path),
-			IsDir:   v.IsDir,
-			Size:    v.Size,
-			ModTime: v.ModTime.Unix(),
-		})
-	}
-	return res, nil
+			entry := DirEntry{
+				URL:     v.Path,
+				Leaf:    pkgPath.Base(v.Path),
+				IsDir:   v.IsDir,
+				Size:    v.Size,
+				ModTime: v.ModTime.Unix(),
+			}
+			if !yield(entry) {
+				return
+			}
+		}
+	}, nil
 }
