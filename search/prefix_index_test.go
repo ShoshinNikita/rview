@@ -2,8 +2,10 @@ package search
 
 import (
 	"encoding/json"
+	"io/fs"
 	"math"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -496,4 +498,43 @@ func newDirEntry(p string, size, modTime int64) rclone.DirEntry {
 		Size:    size,
 		ModTime: modTime,
 	}
+}
+
+func BenchmarkPrefixIndex_Search(b *testing.B) {
+	var entries []rclone.DirEntry
+	err := filepath.WalkDir("..", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		entries = append(entries, rclone.DirEntry{
+			URL:     p,
+			Leaf:    path.Base(p),
+			IsDir:   d.IsDir(),
+			Size:    0,
+			ModTime: 0,
+		})
+		return nil
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.Logf("%d entries have been loaded", len(entries))
+
+	index := newPrefixIndex(entries, 3, 10)
+
+	run := func(s string) {
+		b.Run(s, func(b *testing.B) {
+			for b.Loop() {
+				index.Search(s, 10)
+			}
+		})
+	}
+	run(`vendor`)
+	run(`vendor -github`)
+	run(`"vendor" -github`)
+	run(`"vendor" github google`)
+	run(`rview`)
+	run(`Dockerfile`)
+	run(`"Dockerfile"`)
 }
