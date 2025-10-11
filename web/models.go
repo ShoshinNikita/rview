@@ -71,7 +71,7 @@ type SearchHit struct {
 	IsDir   bool    `json:"is_dir"`
 	Size    int64   `json:"size"`
 	ModTime int64   `json:"mod_time"`
-	Score   float64 `json:"score"`
+	Score   float32 `json:"score"`
 	WebURL  string  `json:"web_url"`
 	Icon    string  `json:"icon"`
 }

@@ -21,7 +21,7 @@ type Hit struct {
 	Size    int64
 	ModTime int64
 
-	Score float64
+	Score float32
 }
 
 func (h Hit) GetPath() string { return h.Path }
@@ -30,10 +30,10 @@ func (h Hit) GetIsDir() bool  { return h.IsDir }
 type prefixIndex struct {
 	MinPrefixLen int                 `json:"min_prefix_len"`
 	MaxPrefixLen int                 `json:"max_prefix_len"`
-	Entries      map[uint64]dirEntry `json:"entries"`
-	Prefixes     map[string][]uint64 `json:"prefixes"`
+	Entries      map[uint32]dirEntry `json:"entries"`
+	Prefixes     map[string][]uint32 `json:"prefixes"`
 
-	lowerCasedPaths map[uint64]string
+	lowerCasedPaths map[uint32]string
 }
 
 type dirEntry struct {
@@ -43,14 +43,13 @@ type dirEntry struct {
 	ModTime int64  `json:"mod_time"`
 }
 
-func newPrefixIndex(dirEntries []rclone.DirEntry, minPrefixLen, maxPrefixLen int) *prefixIndex {
+func newPrefixIndex(dirEntries iter.Seq[rclone.DirEntry], minPrefixLen, maxPrefixLen int) *prefixIndex {
 	var (
-		entries  = make(map[uint64]dirEntry, len(dirEntries))
-		prefixes = make(map[string][]uint64)
+		entries  = make(map[uint32]dirEntry)
+		prefixes = make(map[string][]uint32)
 	)
-	for i, entry := range dirEntries {
-		id := uint64(i) //nolint:gosec
-
+	var id uint32
+	for entry := range dirEntries {
 		entries[id] = dirEntry{
 			Path:    entry.URL,
 			IsDir:   entry.IsDir,
@@ -60,6 +59,8 @@ func newPrefixIndex(dirEntries []rclone.DirEntry, minPrefixLen, maxPrefixLen int
 		for prefix := range generatePrefixes(entry.URL, minPrefixLen, maxPrefixLen) {
 			prefixes[prefix] = append(prefixes[prefix], id)
 		}
+
+		id++
 	}
 	for prefix, ids := range prefixes {
 		slices.Sort(ids)
@@ -92,7 +93,7 @@ func (index *prefixIndex) UnmarshalJSON(data []byte) error {
 }
 
 func (index *prefixIndex) prepare() {
-	index.lowerCasedPaths = make(map[uint64]string)
+	index.lowerCasedPaths = make(map[uint32]string)
 	for id, path := range index.Entries {
 		index.lowerCasedPaths[id] = strings.ToLower(path.Path)
 	}
@@ -110,9 +111,9 @@ func (index *prefixIndex) Check(wantMin, wantMax int) error {
 }
 
 type searchHit struct {
-	id             uint64
+	id             uint32
+	score          float32
 	lowerCasedPath string
-	score          float64
 }
 
 func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
@@ -121,21 +122,24 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 		return nil, 0
 	}
 
-	var hits []searchHit
+	var hitsIter iter.Seq[searchHit]
 	if len(req.words) > 0 {
-		hits = index.searchByPrefixes(req.words)
+		hitsIter = index.searchByPrefixes(req.words)
 
 	} else {
 		// Only exact matches, only excludes, or both - have to check all paths.
-		hits = make([]searchHit, 0, len(index.Entries))
-		for id := range index.Entries {
-			hits = append(hits, index.newSearchHit(id, math.Inf(1)))
+		hitsIter = func(yield func(searchHit) bool) {
+			for id := range index.Entries {
+				if !yield(index.newSearchHit(id, float32(math.Inf(1)))) {
+					return
+				}
+			}
 		}
 	}
 
 	// Filter by exact matches.
 	if len(req.exactMatches) > 0 {
-		hits = slices.DeleteFunc(hits, func(h searchHit) bool {
+		hitsIter = deleteIter(hitsIter, func(h searchHit) bool {
 			for _, exact := range req.exactMatches {
 				if !strings.Contains(h.lowerCasedPath, exact) {
 					return true
@@ -147,7 +151,7 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 
 	// Filter by excludes.
 	if len(req.toExclude) > 0 {
-		hits = slices.DeleteFunc(hits, func(h searchHit) bool {
+		hitsIter = deleteIter(hitsIter, func(h searchHit) bool {
 			for _, word := range req.toExclude {
 				if strings.Contains(h.lowerCasedPath, word) {
 					return true
@@ -157,12 +161,8 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 		})
 	}
 
-	if len(hits) == 0 {
-		return nil, 0
-	}
-
-	res := make([]Hit, 0, len(hits))
-	for _, h := range hits {
+	var res []Hit
+	for h := range hitsIter {
 		entry := index.Entries[h.id]
 		res = append(res, Hit{
 			Path:    entry.Path,
@@ -172,6 +172,10 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 			Score:   h.score,
 		})
 	}
+	if len(res) == 0 {
+		return nil, 0
+	}
+
 	res = compactSearchHits(res)
 	total := len(res)
 
@@ -190,10 +194,12 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 }
 
 // searchByPrefixes checks every word for prefix matches.
-func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
+func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
+	noopIter := func(yield func(searchHit) bool) {}
+
 	var (
-		matchCounts        = make(map[uint64]int)
-		matchesForAllWords = make(map[uint64]bool)
+		matchCounts        = make(map[uint32]int)
+		matchesForAllWords = make(map[uint32]bool)
 	)
 	for _, word := range words {
 		// If a word length is less than MinPrefixLen, no prefixes will be generated, and
@@ -202,7 +208,7 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 			continue
 		}
 
-		matches := make(map[uint64]bool)
+		matches := make(map[uint32]bool)
 		for prefix := range generatePrefixes(string(word), index.MinPrefixLen, index.MaxPrefixLen) {
 			for _, id := range index.Prefixes[prefix] {
 				matchCounts[id]++
@@ -213,7 +219,7 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 
 		// No reason to continue search - all words have to match.
 		if len(matches) == 0 {
-			return nil
+			return noopIter
 		}
 
 		if len(matchesForAllWords) == 0 {
@@ -229,19 +235,21 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) []searchHit {
 				}
 			}
 			if len(matchesForAllWords) == 0 {
-				return nil
+				return noopIter
 			}
 		}
 	}
 
-	hits := make([]searchHit, 0, len(matchesForAllWords))
-	for id := range matchesForAllWords {
-		hits = append(hits, index.newSearchHit(id, float64(matchCounts[id])))
+	return func(yield func(searchHit) bool) {
+		for id := range matchesForAllWords {
+			if !yield(index.newSearchHit(id, float32(matchCounts[id]))) {
+				return
+			}
+		}
 	}
-	return hits
 }
 
-func (index *prefixIndex) newSearchHit(id uint64, score float64) searchHit {
+func (index *prefixIndex) newSearchHit(id uint32, score float32) searchHit {
 	return searchHit{
 		id:             id,
 		lowerCasedPath: index.lowerCasedPaths[id],
@@ -285,8 +293,7 @@ func compactSearchHits(hits []Hit) []Hit {
 
 func generatePrefixes(path string, minLen, maxLen int) iter.Seq[string] {
 	return func(yield func(string) bool) {
-		words := splitToNormalizedWords(path)
-		for _, word := range words {
+		for _, word := range splitToNormalizedWords(path, minLen) {
 			for i := minLen; i <= maxLen; i++ {
 				if i > len(word) {
 					break
@@ -387,11 +394,7 @@ func newSearchRequest(search string, minWordLen int) (req searchRequest) {
 		case exclude:
 			req.toExclude = append(req.toExclude, word)
 		default:
-			for _, w := range splitToNormalizedWords(word) {
-				if len(w) >= minWordLen {
-					req.words = append(req.words, w)
-				}
-			}
+			req.words = append(req.words, splitToNormalizedWords(word, minWordLen)...)
 
 			if testing.Testing() {
 				req.extractedWords = append(req.extractedWords, word)
@@ -401,13 +404,15 @@ func newSearchRequest(search string, minWordLen int) (req searchRequest) {
 	return req
 }
 
-func splitToNormalizedWords(v string) (res [][]rune) {
+func splitToNormalizedWords(v string, minLen int) (res [][]rune) {
 	var (
 		word       []rune
 		appendWord = func() {
-			if len(word) > 0 {
+			if len(word) >= minLen {
 				res = append(res, word)
-				word = []rune{}
+				word = nil
+			} else {
+				word = word[:0] // can reuse slice
 			}
 		}
 	)
@@ -430,4 +435,16 @@ func splitToNormalizedWords(v string) (res [][]rune) {
 	appendWord()
 
 	return res
+}
+
+func deleteIter[T any](seq iter.Seq[T], f func(T) bool) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for v := range seq {
+			if !f(v) {
+				if !yield(v) {
+					return
+				}
+			}
+		}
+	}
 }

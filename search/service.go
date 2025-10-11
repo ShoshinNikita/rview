@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"iter"
 	"math"
 	"os"
 	"sync"
@@ -33,7 +34,7 @@ type Service struct {
 }
 
 type Rclone interface {
-	GetAllFiles(ctx context.Context) ([]rclone.DirEntry, error)
+	GetAllFiles(ctx context.Context) (iter.Seq[rclone.DirEntry], error)
 }
 
 type searchIndex struct {
