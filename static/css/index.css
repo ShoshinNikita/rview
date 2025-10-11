@@ -192,6 +192,11 @@
 
 #sort-selector {
 	padding: 4px 0;
+
+	&:disabled {
+		cursor: help;
+		color: var(--border-color);
+	}
 }
 
 label[for=sort-selector] {

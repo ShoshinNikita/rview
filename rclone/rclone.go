@@ -398,34 +398,33 @@ type DirEntry struct {
 	ModTime int64  `json:"mod_time"`
 }
 
+func (e DirEntry) GetPath() string { return e.Leaf }
+func (e DirEntry) GetIsDir() bool  { return e.IsDir }
+
 func (r *Rclone) GetDirInfo(ctx context.Context, path string, sort, order string) (*DirInfo, error) {
 	info, err := r.getDirInfo(ctx, path)
 	if err != nil {
 		return nil, err
 	}
 
-	// Don't use rclone's sort because we cache directory content.
-	sortFn := map[string]func(a DirEntry, b DirEntry) int{
-		"":             sortByName,
-		"namedirfirst": sortByName,
-		"size":         sortBySize,
-		"time":         sortByTime,
+	// We can't use rclone's sort because we cache directory content.
+	sortFn := map[string]func(a, b DirEntry) int{
+		"namedirfirst": CompareDirEntryByName[DirEntry],
+		"size":         compareDirEntryBySize,
+		"time":         compareDirEntryByTime,
 	}[sort]
-	if sortFn != nil {
-		info.Sort = sort
-		slices.SortFunc(info.Entries, sortFn)
+	if sortFn == nil {
+		sort = "namedirfirst"
+		sortFn = CompareDirEntryByName[DirEntry]
 	}
+	info.Sort = sort
+	slices.SortFunc(info.Entries, sortFn)
 
-	reverse, ok := map[string]bool{
-		"":     false,
-		"asc":  false,
-		"desc": true,
-	}[order]
-	if ok {
-		info.Order = order
-		if reverse {
-			slices.Reverse(info.Entries)
-		}
+	if order == "desc" {
+		info.Order = "desc"
+		slices.Reverse(info.Entries)
+	} else {
+		info.Order = "asc"
 	}
 
 	return info, nil
@@ -489,15 +488,11 @@ func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) 
 		v.URL = pkgPath.Join(rcloneInfo.Dir, v.Leaf)
 		if v.IsDir {
 			v.URL = misc.EnsureSuffix(v.URL, "/")
+
+			// Rclone can't accurately report dir size. So, just reset it (and replicate behavior of 'rclone serve').
+			v.Size = 0
 		}
 		rcloneInfo.Entries[i] = v
-	}
-
-	// Rclone can't accurately report dir size. So, just reset it (and replicate behavior of 'rclone serve').
-	for i := range rcloneInfo.Entries {
-		if rcloneInfo.Entries[i].IsDir {
-			rcloneInfo.Entries[i].Size = 0
-		}
 	}
 
 	if err := saveToCache(rcloneInfo); err != nil {
@@ -509,31 +504,34 @@ func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) 
 
 var undCollator = collate.New(language.Und, collate.IgnoreCase, collate.Numeric)
 
-func sortByName(a, b DirEntry) int {
-	if a.IsDir == b.IsDir {
-		aLeaf := a.Leaf
-		bLeaf := b.Leaf
+func CompareDirEntryByName[T interface {
+	GetPath() string
+	GetIsDir() bool
+}](a, b T) int {
+	if a.GetIsDir() == b.GetIsDir() {
+		aLeaf := a.GetPath()
+		bLeaf := b.GetPath()
 
 		// Trim trailing '/' because it's not part of the filename. This also ensures
 		// correct dir order - 'test/' should be placed before 'test 1/'.
-		if a.IsDir {
+		if a.GetIsDir() {
 			aLeaf = strings.TrimSuffix(aLeaf, "/")
 		}
-		if b.IsDir {
+		if b.GetIsDir() {
 			bLeaf = strings.TrimSuffix(bLeaf, "/")
 		}
 		return undCollator.CompareString(aLeaf, bLeaf)
 	}
-	if a.IsDir {
+	if a.GetIsDir() {
 		return -1
 	}
 	return +1
 }
 
-func sortBySize(a, b DirEntry) int {
+func compareDirEntryBySize(a, b DirEntry) int {
 	switch {
 	case (a.IsDir && b.IsDir) || (a.Size == b.Size):
-		return sortByName(a, b)
+		return CompareDirEntryByName(a, b)
 	case a.IsDir:
 		return -1
 	case b.IsDir:
@@ -543,11 +541,11 @@ func sortBySize(a, b DirEntry) int {
 	}
 }
 
-func sortByTime(a, b DirEntry) int {
+func compareDirEntryByTime(a, b DirEntry) int {
 	if v := cmp.Compare(a.ModTime, b.ModTime); v != 0 {
 		return v
 	}
-	return sortByName(a, b)
+	return CompareDirEntryByName(a, b)
 }
 
 func (r *Rclone) makeRequest(ctx context.Context, method string, url *url.URL) (io.ReadCloser, http.Header, error) {
@@ -570,12 +568,11 @@ func (r *Rclone) makeRequest(ctx context.Context, method string, url *url.URL) (
 	return resp.Body, resp.Header, nil
 }
 
-func (r *Rclone) GetAllFiles(ctx context.Context) (dirs, files []string, err error) {
+func (r *Rclone) GetAllFiles(ctx context.Context) ([]DirEntry, error) {
 	// Pass parameters as a query instead of JSON to be able to forbid access to
 	// other remotes via Nginx (see 'docs/advanced_setup.md').
 
 	opt, _ := json.Marshal(map[string]any{ // error is always nil
-		"noModTime":  true,
 		"noMimeType": true,
 		"recurse":    true,
 	})
@@ -589,29 +586,39 @@ func (r *Rclone) GetAllFiles(ctx context.Context) (dirs, files []string, err err
 
 	body, _, err := r.makeRequest(ctx, "POST", url)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	defer body.Close()
 
+	//nolint:tagliatelle
 	var resp struct {
 		List []struct {
-			Path  string
-			IsDir bool
+			Path    string    `json:"Path"`
+			IsDir   bool      `json:"IsDir"`
+			Size    int64     `json:"Size"`
+			ModTime time.Time `json:"ModTime"`
 		} `json:"list"`
 	}
 	err = json.NewDecoder(body).Decode(&resp)
 	if err != nil {
-		return nil, nil, fmt.Errorf("couldn't decode rclone response: %w", err)
+		return nil, fmt.Errorf("couldn't decode rclone response: %w", err)
 	}
 
+	res := make([]DirEntry, 0, len(resp.List))
 	for _, v := range resp.List {
 		v.Path = misc.EnsurePrefix(v.Path, "/")
-
 		if v.IsDir {
-			dirs = append(dirs, misc.EnsureSuffix(v.Path, "/"))
-		} else {
-			files = append(files, v.Path)
+			v.Path = misc.EnsureSuffix(v.Path, "/")
+			v.Size = 0 // see [Rclone.getDirInfo]
 		}
+
+		res = append(res, DirEntry{
+			URL:     v.Path,
+			Leaf:    pkgPath.Base(v.Path),
+			IsDir:   v.IsDir,
+			Size:    v.Size,
+			ModTime: v.ModTime.Unix(),
+		})
 	}
-	return dirs, files, nil
+	return res, nil
 }

@@ -84,18 +84,26 @@ func startTestRview() {
 		}
 
 		// Wait for components to be ready.
+		var (
+			ready bool
+			now   = time.Now()
+		)
 		for i := range 10 {
 			if i != 0 {
 				time.Sleep(100 * time.Millisecond)
 			}
 
-			resp, err := http.DefaultClient.Get(rviewAPIAddr + "/api/search?search=test")
+			resp, err := http.DefaultClient.Get(rviewAPIAddr + "/api/search?search=test&limit=3")
 			if resp != nil {
 				resp.Body.Close()
 			}
 			if err == nil && resp.StatusCode == 200 {
+				ready = true
 				break
 			}
+		}
+		if !ready {
+			panic(fmt.Errorf("rview is not ready after %s", time.Since(now)))
 		}
 	})
 }
@@ -127,7 +135,9 @@ func TestAPI_GetDirInfo(t *testing.T) {
 		dirInfo := getDirInfo(t, "/", "")
 		r.Equal(
 			web.DirInfo{
-				Dir: "/",
+				Dir:   "/",
+				Sort:  "namedirfirst",
+				Order: "asc",
 				Breadcrumbs: []web.DirBreadcrumb{
 					{Link: "/ui/", Text: "Home"},
 				},
@@ -224,7 +234,9 @@ func TestAPI_GetDirInfo(t *testing.T) {
 		dirInfo = getDirInfo(t, "/Other/a%20&%20b/x/", "")
 		r.Equal(
 			web.DirInfo{
-				Dir: "/Other/a & b/x/",
+				Dir:   "/Other/a & b/x/",
+				Sort:  "namedirfirst",
+				Order: "asc",
 				Breadcrumbs: []web.DirBreadcrumb{
 					{Link: "/ui/", Text: "Home"},
 					{Link: "/ui/Other/", Text: "Other"},
@@ -252,7 +264,9 @@ func TestAPI_GetDirInfo(t *testing.T) {
 		dirInfo = getDirInfo(t, "/Other/spe%27sial%20%21%20cha%3Cracters/x/y/", "")
 		r.Equal(
 			web.DirInfo{
-				Dir: "/Other/spe'sial ! cha<racters/x/y/",
+				Dir:   "/Other/spe'sial ! cha<racters/x/y/",
+				Sort:  "namedirfirst",
+				Order: "asc",
 				Breadcrumbs: []web.DirBreadcrumb{
 					{Link: "/ui/", Text: "Home"},
 					{Link: "/ui/Other/", Text: "Other"},
@@ -312,8 +326,8 @@ func TestAPI_GetDirInfo(t *testing.T) {
 		}
 
 		info := getDirInfo(t, "/Images/", "")
-		r.Equal("", info.Sort)
-		r.Equal("", info.Order)
+		r.Equal("namedirfirst", info.Sort)
+		r.Equal("asc", info.Order)
 		r.Equal(
 			[]string{
 				"Arts",
@@ -340,7 +354,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 		r.Equal(10, canPreviewCount)
 
 		info = getDirInfo(t, "/Images/", "order=desc")
-		r.Equal("", info.Sort)
+		r.Equal("namedirfirst", info.Sort)
 		r.Equal("desc", info.Order)
 		r.Equal(
 			[]string{
@@ -532,7 +546,7 @@ func TestAPI_Thumbnails(t *testing.T) {
 func TestAPI_Search(t *testing.T) {
 	startTestRview()
 
-	search := func(t *testing.T, s string) (dirs, files []string) {
+	search := func(t *testing.T, s string) []web.SearchHit {
 		r := require.New(t)
 
 		status, body, _ := makeRequest(t, "/api/search?limit=10&search="+url.QueryEscape(s))
@@ -541,45 +555,71 @@ func TestAPI_Search(t *testing.T) {
 		var resp web.SearchResponse
 		err := json.Unmarshal(body, &resp)
 		r.NoError(err)
-
-		for _, h := range resp.Hits {
-			if h.IsDir {
-				r.True(strings.HasSuffix(h.WebURL, "/"))
-				r.NotEmpty(h.Icon)
-				dirs = append(dirs, h.Path)
-
-			} else {
-				r.Contains(h.WebURL, "?preview=")
-				r.NotEmpty(h.Icon)
-
-				files = append(files, h.Path)
-			}
-		}
-		return dirs, files
+		r.Len(resp.Hits, resp.Total)
+		return resp.Hits
 	}
 
 	r := require.New(t)
 
-	dirs, files := search(t, "birds")
-	r.Empty(dirs)
-	r.Equal([]string{"/Images/birds-g64b44607c_640.jpg"}, files)
+	got := search(t, "birds")
+	r.Equal(
+		[]web.SearchHit{
+			{
+				Path: "/Images/birds-g64b44607c_640.jpg", Size: 21027, ModTime: 1557901809,
+				Score: 3, WebURL: "/ui/Images/?preview=birds-g64b44607c_640.jpg", Icon: "image",
+			},
+		},
+		got,
+	)
 
-	dirs, files = search(t, "credits.txt")
-	r.Empty(dirs)
-	r.Equal([]string{
-		"/Audio/credits.txt",
-		"/Images/credits.txt",
-		"/Other/test-thumbnails/credits.txt",
-		"/Video/credits.txt",
-	}, files)
+	got = search(t, "credits.txt")
+	r.Equal(
+		[]web.SearchHit{
+			{
+				Path: "/Audio/credits.txt", Size: 350, ModTime: 1660004138,
+				Score: 6, WebURL: "/ui/Audio/?preview=credits.txt", Icon: "document",
+			},
+			{
+				Path: "/Images/credits.txt", Size: 364, ModTime: 1672598160,
+				Score: 6, WebURL: "/ui/Images/?preview=credits.txt", Icon: "document",
+			},
+			{
+				Path: "/Other/test-thumbnails/credits.txt", Size: 99, ModTime: 1662921304,
+				Score: 6, WebURL: "/ui/Other/test-thumbnails/?preview=credits.txt", Icon: "document",
+			},
+			{
+				Path: "/Video/credits.txt", Size: 162, ModTime: 1662637032,
+				Score: 6, WebURL: "/ui/Video/?preview=credits.txt", Icon: "document",
+			},
+		},
+		got,
+	)
 
-	dirs, files = search(t, "audio credits.txt")
-	r.Empty(dirs)
-	r.Equal([]string{"/Audio/credits.txt"}, files)
+	got = search(t, "audio credits.txt")
+	r.Equal(
+		[]web.SearchHit{
+			{
+				Path: "/Audio/credits.txt", Size: 350, ModTime: 1660004138,
+				Score: 9, WebURL: "/ui/Audio/?preview=credits.txt", Icon: "document",
+			},
+		},
+		got,
+	)
 
-	dirs, files = search(t, "tests")
-	r.Equal([]string{"/Other/test-thumbnails/"}, dirs)
-	r.Equal([]string{"/test.gif"}, files)
+	got = search(t, "tests")
+	r.Equal(
+		[]web.SearchHit{
+			{
+				Path: "/Other/test-thumbnails/", IsDir: true, ModTime: 1738790488,
+				Score: 2, WebURL: "/ui/Other/test-thumbnails/", Icon: "folder",
+			},
+			{
+				Path: "/test.gif", Size: 1833, ModTime: 1672585200,
+				Score: 2, WebURL: "/ui/?preview=test.gif", Icon: "image",
+			},
+		},
+		got,
+	)
 }
 
 func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {

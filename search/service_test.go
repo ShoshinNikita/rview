@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,19 +18,18 @@ func TestService_RefreshIndex(t *testing.T) {
 	root, err := os.OpenRoot(t.TempDir())
 	r.NoError(err)
 
-	rclone := &rcloneStub{
-		GetAllFilesFn: func(context.Context) (dirs, files []string, err error) {
-			files = []string{
-				"/hello world.go",
-				"/gaming.txt",
-				"/arts/",
-				"/arts/games/",
-				"/arts/games/1.jpeg",
-			}
-			return dirs, files, nil
+	rcloneStub := &rcloneStub{
+		GetAllFilesFn: func(context.Context) ([]rclone.DirEntry, error) {
+			return []rclone.DirEntry{
+				newDirEntry("/hello world.go", 0, 0),
+				newDirEntry("/gaming.txt", 0, 0),
+				newDirEntry("/arts/", 0, 0),
+				newDirEntry("/arts/games/", 0, 0),
+				newDirEntry("/arts/games/1.jpeg", 0, 0),
+			}, nil
 		},
 	}
-	s, err := NewService(rclone, root)
+	s, err := NewService(rcloneStub, root)
 	r.NoError(err)
 	err = s.Start()
 	r.NoError(err)
@@ -48,12 +48,11 @@ func TestService_RefreshIndex(t *testing.T) {
 		hits,
 	)
 
-	rclone.GetAllFilesFn = func(context.Context) (dirs, files []string, err error) {
-		files = []string{
-			"/hello world.go",
-			"/qwerty.txt",
-		}
-		return dirs, files, nil
+	rcloneStub.GetAllFilesFn = func(context.Context) ([]rclone.DirEntry, error) {
+		return []rclone.DirEntry{
+			newDirEntry("/hello world.go", 0, 0),
+			newDirEntry("/qwerty.txt", 0, 0),
+		}, nil
 	}
 
 	err = s.RefreshIndex(ctx)
@@ -65,10 +64,10 @@ func TestService_RefreshIndex(t *testing.T) {
 }
 
 type rcloneStub struct {
-	GetAllFilesFn func(context.Context) (dirs, files []string, err error)
+	GetAllFilesFn func(context.Context) ([]rclone.DirEntry, error)
 }
 
-func (s rcloneStub) GetAllFiles(ctx context.Context) (dirs, files []string, err error) {
+func (s rcloneStub) GetAllFiles(ctx context.Context) ([]rclone.DirEntry, error) {
 	return s.GetAllFilesFn(ctx)
 }
 
@@ -79,18 +78,16 @@ func TestGenerateDocs(t *testing.T) {
 	root, err := os.OpenRoot(t.TempDir())
 	r.NoError(err)
 
-	files := []string{
-		"/animals/cute cat.jpeg",
-		"/animals/cat jumps.mp4",
-		"/animals/caterpillar.png",
-		"/animals/Cat & Dog play.mkv",
-		"/dogmas/catalog.zip",
+	entries := []rclone.DirEntry{
+		newDirEntry("/animals/cute cat.jpeg", 0, 0),
+		newDirEntry("/animals/cat jumps.mp4", 0, 0),
+		newDirEntry("/animals/caterpillar.png", 0, 0),
+		newDirEntry("/animals/Cat & Dog play.mkv", 0, 0),
+		newDirEntry("/dogmas/catalog.zip", 0, 0),
 	}
 	tests := []struct {
 		search string
 		desc   string
-		dirs   []string
-		files  []string
 	}{
 		{
 			search: `caterpillar`,
@@ -123,7 +120,7 @@ func TestGenerateDocs(t *testing.T) {
 	}
 
 	rclone := &rcloneStub{
-		GetAllFilesFn: func(context.Context) (_, _ []string, err error) { return nil, files, nil },
+		GetAllFilesFn: func(ctx context.Context) ([]rclone.DirEntry, error) { return entries, nil },
 	}
 	s, err := NewService(rclone, root)
 	r.NoError(err)
@@ -137,8 +134,8 @@ func TestGenerateDocs(t *testing.T) {
 	buf := bytes.NewBuffer(nil)
 
 	fmt.Fprint(buf, "**Files:**\n\n")
-	for _, f := range files {
-		fmt.Fprintf(buf, "- `%s`\n", f)
+	for _, f := range entries {
+		fmt.Fprintf(buf, "- `%s`\n", f.URL)
 	}
 
 	fmt.Fprint(buf, "\n**Search Requests:**\n\n")

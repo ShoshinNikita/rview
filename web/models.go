@@ -25,6 +25,9 @@ type DirInfo struct {
 
 	// IsNotFound indicates whether the requested directory wasn't found.
 	IsNotFound bool `json:"is_not_found"`
+
+	// Search contains a search phrase used for the 'Search Results' page.
+	Search string `json:"search"`
 }
 
 type DirBreadcrumb struct {
@@ -58,14 +61,17 @@ type DirEntry struct {
 }
 
 type SearchResponse struct {
-	Hits  []SearchHit `json:"hits"`
-	Total int         `json:"total"`
+	Search string      `json:"search"`
+	Hits   []SearchHit `json:"hits"`
+	Total  int         `json:"total"`
 }
 
 type SearchHit struct {
-	Path   string  `json:"path"`
-	IsDir  bool    `json:"is_dir"`
-	Score  float64 `json:"score"`
-	WebURL string  `json:"web_url"`
-	Icon   string  `json:"icon"`
+	Path    string  `json:"path"`
+	IsDir   bool    `json:"is_dir"`
+	Size    int64   `json:"size"`
+	ModTime int64   `json:"mod_time"`
+	Score   float64 `json:"score"`
+	WebURL  string  `json:"web_url"`
+	Icon    string  `json:"icon"`
 }

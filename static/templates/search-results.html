@@ -16,11 +16,19 @@
 
 	{{ if .Total }}
 	<div class="total">
+		{{ $text := "" }}
 		{{ if eq .Total (len .Hits) }}
-		<span>Showing {{ len .Hits }} of {{ .Total}} matches</span>
+		{{ $text = printf "Found %d matches" .Total }}
 		{{ else }}
-		<span>Showing top {{ len .Hits }} of {{ .Total}} matches</span>
+		{{ $text = printf "Showing top %d of %d matches" (len .Hits) .Total }}
 		{{ end }}
+
+		{{ $limit := 100 }}
+		{{ $previewText := "preview all" }}
+		{{ if gt .Total $limit }}
+		{{ $previewText = printf "preview top %d" $limit}}
+		{{ end }}
+		<span>{{ $text }} (<a data-search-preview-link href="/ui-search?search={{ .Search }}&limit={{ $limit }}">{{ $previewText }}</a>)</span>
 	</div>
 	{{ end }}
 </div>

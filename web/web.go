@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -76,6 +77,7 @@ func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService Thumbna
 		http.Redirect(w, r, "/ui/", http.StatusSeeOther)
 	})
 	mux.HandleFunc("GET /ui/", s.handleUI)
+	mux.HandleFunc("GET /ui-search", s.handlePageWithSearchResults)
 
 	// Static
 	for pattern, fs := range map[string]fs.FS{
@@ -237,6 +239,13 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 					res[k] = v
 				}
 				return res, nil
+			},
+			"formatFilename": func(s string) string {
+				if strings.HasPrefix(s, "/") {
+					// Never wrap filename after leading '/'
+					return "/\u2060" + s[1:]
+				}
+				return s
 			},
 			"formatSize":    misc.FormatFileSize,
 			"formatModTime": misc.FormatModTime,
@@ -479,10 +488,9 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
-	searchValue := r.FormValue("search")
-	minLength := s.searchService.GetMinSearchLength()
-	if len([]rune(searchValue)) < minLength {
-		writeBadRequestError(w, `minimum "search" length is %d characters`, minLength)
+	searchValue, err := s.extractSearch(r)
+	if err != nil {
+		writeBadRequestError(w, "invalid request: %s", err)
 		return
 	}
 	limit, err := strconv.Atoi(r.FormValue("limit"))
@@ -499,8 +507,9 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	resp := SearchResponse{
-		Hits:  make([]SearchHit, 0, len(hits)),
-		Total: total,
+		Search: searchValue,
+		Hits:   make([]SearchHit, 0, len(hits)),
+		Total:  total,
 	}
 	for _, hit := range hits {
 		var webURL string
@@ -519,11 +528,13 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		}
 
 		resp.Hits = append(resp.Hits, SearchHit{
-			Path:   hit.Path,
-			IsDir:  hit.IsDir,
-			Score:  hit.Score,
-			WebURL: webURL,
-			Icon:   static.GetFileIcon(hit.Path, hit.IsDir),
+			Path:    hit.Path,
+			IsDir:   hit.IsDir,
+			ModTime: hit.ModTime,
+			Size:    hit.Size,
+			Score:   hit.Score,
+			WebURL:  webURL,
+			Icon:    static.GetFileIcon(hit.Path, hit.IsDir),
 		})
 	}
 
@@ -538,6 +549,56 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
+
+}
+
+func (s *Server) handlePageWithSearchResults(w http.ResponseWriter, r *http.Request) {
+	searchValue, err := s.extractSearch(r)
+	if err != nil {
+		writeBadRequestError(w, "invalid request: %s", err)
+		return
+	}
+	limit, _ := strconv.Atoi(r.FormValue("limit"))
+	limit = cmp.Or(limit, 100)
+
+	hits, _, err := s.searchService.Search(r.Context(), searchValue, limit)
+	if err != nil {
+		writeInternalServerError(w, "search failed: %s", err)
+		return
+	}
+
+	entries := make([]rclone.DirEntry, 0, len(hits))
+	for _, h := range hits {
+		entries = append(entries, rclone.DirEntry{
+			URL:     h.Path,
+			Leaf:    h.Path, // show full path
+			IsDir:   h.IsDir,
+			Size:    h.Size,
+			ModTime: h.ModTime,
+		})
+	}
+
+	dirInfo := &rclone.DirInfo{
+		Dir: "Search Results",
+		Breadcrumbs: []rclone.DirBreadcrumb{
+			{Text: "/"},
+			{Text: "Search Results"},
+		},
+		Entries: entries,
+	}
+	info := s.convertRcloneInfo(dirInfo)
+	info.Search = searchValue
+
+	s.executeTemplate(w, "index.html", info)
+}
+
+func (s *Server) extractSearch(r *http.Request) (string, error) {
+	search := r.FormValue("search")
+	minLength := s.searchService.GetMinSearchLength()
+	if len([]rune(search)) < minLength {
+		return "", fmt.Errorf(`minimum "search" length is %d characters`, minLength)
+	}
+	return search, nil
 }
 
 func (s *Server) handleRefreshIndex(w http.ResponseWriter, r *http.Request) {

@@ -11,41 +11,53 @@ import (
 	"testing"
 	"unicode"
 
+	"github.com/ShoshinNikita/rview/rclone"
 	"golang.org/x/text/unicode/norm"
 )
 
 type Hit struct {
-	Path  string
-	IsDir bool
+	Path    string
+	IsDir   bool
+	Size    int64
+	ModTime int64
+
 	Score float64
 }
 
-func (h Hit) compare(h1 Hit) int {
-	if h.Score != h1.Score {
-		return -1 * cmp.Compare(h.Score, h1.Score)
-	}
-	return cmp.Compare(h.Path, h1.Path)
-}
+func (h Hit) GetPath() string { return h.Path }
+func (h Hit) GetIsDir() bool  { return h.IsDir }
 
 type prefixIndex struct {
 	MinPrefixLen int                 `json:"min_prefix_len"`
 	MaxPrefixLen int                 `json:"max_prefix_len"`
-	Paths        map[uint64]string   `json:"paths"`
+	Entries      map[uint64]dirEntry `json:"entries"`
 	Prefixes     map[string][]uint64 `json:"prefixes"`
 
 	lowerCasedPaths map[uint64]string
 }
 
-func newPrefixIndex(rawPaths []string, minPrefixLen, maxPrefixLen int) *prefixIndex {
+type dirEntry struct {
+	Path    string `json:"path"`
+	IsDir   bool   `json:"is_dir"`
+	Size    int64  `json:"size"`
+	ModTime int64  `json:"mod_time"`
+}
+
+func newPrefixIndex(dirEntries []rclone.DirEntry, minPrefixLen, maxPrefixLen int) *prefixIndex {
 	var (
-		paths    = make(map[uint64]string, len(rawPaths))
+		entries  = make(map[uint64]dirEntry, len(dirEntries))
 		prefixes = make(map[string][]uint64)
 	)
-	for i, path := range rawPaths {
+	for i, entry := range dirEntries {
 		id := uint64(i) //nolint:gosec
 
-		paths[id] = path
-		for prefix := range generatePrefixes(path, minPrefixLen, maxPrefixLen) {
+		entries[id] = dirEntry{
+			Path:    entry.URL,
+			IsDir:   entry.IsDir,
+			Size:    entry.Size,
+			ModTime: entry.ModTime,
+		}
+		for prefix := range generatePrefixes(entry.URL, minPrefixLen, maxPrefixLen) {
 			prefixes[prefix] = append(prefixes[prefix], id)
 		}
 	}
@@ -57,7 +69,7 @@ func newPrefixIndex(rawPaths []string, minPrefixLen, maxPrefixLen int) *prefixIn
 	index := &prefixIndex{
 		MinPrefixLen: minPrefixLen,
 		MaxPrefixLen: maxPrefixLen,
-		Paths:        paths,
+		Entries:      entries,
 		Prefixes:     prefixes,
 	}
 	index.prepare()
@@ -81,8 +93,8 @@ func (index *prefixIndex) UnmarshalJSON(data []byte) error {
 
 func (index *prefixIndex) prepare() {
 	index.lowerCasedPaths = make(map[uint64]string)
-	for id, path := range index.Paths {
-		index.lowerCasedPaths[id] = strings.ToLower(path)
+	for id, path := range index.Entries {
+		index.lowerCasedPaths[id] = strings.ToLower(path.Path)
 	}
 }
 
@@ -115,8 +127,8 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 
 	} else {
 		// Only exact matches, only excludes, or both - have to check all paths.
-		hits = make([]searchHit, 0, len(index.Paths))
-		for id := range index.Paths {
+		hits = make([]searchHit, 0, len(index.Entries))
+		for id := range index.Entries {
 			hits = append(hits, index.newSearchHit(id, math.Inf(1)))
 		}
 	}
@@ -151,20 +163,24 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 
 	res := make([]Hit, 0, len(hits))
 	for _, h := range hits {
-		path := index.Paths[h.id]
+		entry := index.Entries[h.id]
 		res = append(res, Hit{
-			Path:  path,
-			IsDir: strings.HasSuffix(path, "/"),
-			Score: h.score,
+			Path:    entry.Path,
+			IsDir:   entry.IsDir,
+			Size:    entry.Size,
+			ModTime: entry.ModTime,
+			Score:   h.score,
 		})
 	}
-
-	slices.SortFunc(res, func(a, b Hit) int {
-		return a.compare(b)
-	})
-
 	res = compactSearchHits(res)
 	total := len(res)
+
+	slices.SortFunc(res, func(a, b Hit) int {
+		if v := cmp.Compare(a.Score, b.Score); v != 0 {
+			return -1 * v
+		}
+		return rclone.CompareDirEntryByName(a, b)
+	})
 
 	if len(res) > limit {
 		res = res[:limit]
@@ -240,11 +256,13 @@ func compactSearchHits(hits []Hit) []Hit {
 		return hits
 	}
 
-	// Just in case.
-	isSorted := slices.IsSortedFunc(hits, func(a, b Hit) int { return a.compare(b) })
-	if !isSorted {
-		panic("hits must be sorted")
-	}
+	slices.SortFunc(hits, func(a, b Hit) int {
+		if v := cmp.Compare(a.Score, b.Score); v != 0 {
+			return -1 * v
+		}
+
+		return cmp.Compare(a.Path, b.Path)
+	})
 
 	// There's a very high chance that most of the search hits will be merged into a single
 	// entry. So, don't preallocate the resulting slice.

@@ -72,6 +72,14 @@
 					<span class="g-property-name">Mod Time:</span>
 					<span class="g-property-value g-nowrap" data-type="mod_time"></span>
 				</div>
+				{{ if $.Search }}
+				<a class="g-icon-button open-file-directory-link" title="Open file directory" data-type="original_file_dir" href="#">
+					<span>Open file directory</span>
+					<span class="g-icon-button">
+						{{ embedIcon "external-link" }}
+					</span>
+				</a>
+				{{ end }}
 			</div>
 
 			<div class="g-tooltip-wrapper preview-file-info-mobile">
@@ -93,6 +101,14 @@
 						<span class="g-property-name">Mod Time:</span>
 						<span class="g-property-value g-nowrap" data-type="mod_time"></span>
 					</div>
+					{{ if $.Search }}
+					<a class="g-icon-button open-file-directory-link" title="Open file directory" data-type="original_file_dir" href="#">
+						<span>Open file directory</span>
+						<span class="g-icon-button">
+							{{ embedIcon "external-link" }}
+						</span>
+					</a>
+					{{ end }}
 				</div>
 			</div>
 
@@ -133,7 +149,7 @@
 	const previewWrapper = document.getElementsByClassName("preview-wrapper")[0];
 	const previewContent = document.getElementsByClassName("preview-content")[0];
 	const previewCarousel = document.getElementsByClassName("preview-carousel")[0];
-	const fileInfos = document.querySelectorAll(".preview-side-panel .g-property-value");
+	const fileInfos = document.querySelectorAll(".preview-side-panel [data-type]");
 	const previousPreviewButton = document.querySelector(".switch-preview-button.prev");
 	const nextPreviewButton = document.querySelector(".switch-preview-button.next");
 
@@ -314,6 +330,9 @@
 					break;
 				case "mod_time":
 					fileInfo.innerHTML = entry.human_readable_mod_time;
+					break;
+				case "original_file_dir":
+					fileInfo.href = "/ui" + entry.filename.substring(0, entry.filename.lastIndexOf("/") + 1); // keep trailing '/'
 					break;
 			}
 		}

@@ -9,12 +9,12 @@ import (
 	"io"
 	"math"
 	"os"
-	"slices"
 	"sync"
 	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
+	"github.com/ShoshinNikita/rview/rclone"
 )
 
 type Service struct {
@@ -33,7 +33,7 @@ type Service struct {
 }
 
 type Rclone interface {
-	GetAllFiles(ctx context.Context) (dirs, files []string, err error)
+	GetAllFiles(ctx context.Context) ([]rclone.DirEntry, error)
 }
 
 type searchIndex struct {
@@ -223,16 +223,13 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 		rlog.Infof("search index has been successfully refreshed in %s, dirs: %d, files: %d", dur, dirCount, fileCount)
 	}()
 
-	dirs, filenames, err := s.rclone.GetAllFiles(ctx)
+	dirEntries, err := s.rclone.GetAllFiles(ctx)
 	if err != nil {
 		return fmt.Errorf("couldn't get all files from rclone: %w", err)
 	}
-	dirCount = len(dirs)
-	fileCount = len(filenames)
 
-	allEntries := slices.Concat(filenames, dirs)
 	index := &searchIndex{
-		Index:     newPrefixIndex(allEntries, s.minPrefixLen, s.maxPrefixLen),
+		Index:     newPrefixIndex(dirEntries, s.minPrefixLen, s.maxPrefixLen),
 		CreatedAt: time.Now(),
 	}
 

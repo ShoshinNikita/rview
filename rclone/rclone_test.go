@@ -105,7 +105,7 @@ func TestRclone_SortEntries(t *testing.T) {
 	}
 
 	t.Run("name", func(t *testing.T) {
-		sortAndCheck(t, sortByName, []string{
+		sortAndCheck(t, CompareDirEntryByName, []string{
 			"arts/",
 			"Dark Souls/",
 			"Dark Souls 3/",
@@ -119,7 +119,7 @@ func TestRclone_SortEntries(t *testing.T) {
 		})
 	})
 	t.Run("size", func(t *testing.T) {
-		sortAndCheck(t, sortBySize, []string{
+		sortAndCheck(t, compareDirEntryBySize, []string{
 			"arts/",
 			"Dark Souls/",
 			"Dark Souls 3/",
@@ -133,7 +133,7 @@ func TestRclone_SortEntries(t *testing.T) {
 		})
 	})
 	t.Run("modtime", func(t *testing.T) {
-		sortAndCheck(t, sortByTime, []string{
+		sortAndCheck(t, compareDirEntryByTime, []string{
 			"1.txt",
 			"2.txt",
 			"12.txt",
@@ -164,7 +164,7 @@ func startRclone(t *testing.T, cfg rview.RcloneConfig) *Rclone {
 	})
 
 	for i := range 5 {
-		_, _, err = rclone.GetAllFiles(t.Context())
+		_, err = rclone.GetAllFiles(t.Context())
 		if err == nil {
 			return rclone
 		}

@@ -29,6 +29,6 @@
 			</div>
 		</div>
 
-		<span class="entry-filename">{{ trim $entry.Filename 60 }}</span>
+		<span class="entry-filename">{{ trim (formatFilename $entry.Filename) 60 }}</span>
 	</a>
 </div>

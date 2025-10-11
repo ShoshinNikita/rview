@@ -239,10 +239,10 @@
 
 .preview-file-info {
 	grid-area: file-info;
-}
 
-.preview-file-info>* {
-	margin-bottom: 8px;
+	>* {
+		margin-bottom: 8px;
+	}
 }
 
 .preview-file-info-mobile {
@@ -278,6 +278,22 @@
 
 	&:hover .filename .more-info-icon {
 		color: var(--interactive-color);
+	}
+}
+
+.preview-file-info,
+.preview-file-info-mobile {
+	.open-file-directory-link {
+		display: flex;
+		gap: 4px;
+		margin-top: 8px;
+
+		.g-icon-button {
+			align-self: center;
+			display: inline-block;
+			height: 20px;
+			width: 20px;
+		}
 	}
 }
 

@@ -72,7 +72,7 @@
 
 			<div class="search">
 				<div class="search-input-wrapper">
-					<input class="search-input" type="text" placeholder="Search for files" autocomplete="off">
+					<input class="search-input" type="text" placeholder="Search for files" autocomplete="off" value="{{ .Search }}">
 					<span class="search-icon">
 						{{ embedIcon "search" }}
 					</span>
@@ -99,8 +99,13 @@
 
 				{{ $selectedSort := printf "%s_%s" $sort $order }}
 
-				<!-- Set "selected" during template rendering to avoid flickering -->
-				<select id="sort-selector" title="Sort By">
+				{{ $disabled := "" }}
+				{{ $title := "Sort By" }}
+				{{ if .Search }}
+				{{ $disabled = "disabled"}}
+				{{ $title = "Sorting mode for search results can't be changed" }}
+				{{ end }}
+				<select id="sort-selector" title="{{ $title }}" {{ attr $disabled }}>
 					{{
 					range $value, $text := (dict
 						"namedirfirst_asc"  "Name: A – Z"
@@ -111,6 +116,7 @@
 						"time_desc"         "Time: New – Old"
 					)
 				}}
+					<!-- Set "selected" during template rendering to avoid flickering -->
 					{{ $selected := "" }}
 					{{ if eq $value $selectedSort }}
 					{{ $selected = "selected" }}
@@ -202,6 +208,7 @@
 				abortController.abort();
 			}
 
+			showSearchInfoMessage("Loading...");
 			timeoutId = window.setTimeout(() => {
 				abortController = new AbortController();
 
@@ -369,6 +376,13 @@
 					window.alert("Error: " + msg);
 				});
 		}
+
+		// Open 'Search Results' page on Enter.
+		searchInput.addEventListener("keydown", ev => {
+			if (ev.keyCode === 13) {
+				document.querySelector(".search-results [data-search-preview-link]")?.click();
+			}
+		});
 	</script>
 
 	<!-- Sort Selector -->
