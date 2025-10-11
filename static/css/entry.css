@@ -15,7 +15,7 @@ a.entry {
 	}
 
 	@media(hover: hover) and (pointer: fine) {
-		&:hover {
+		&:hover, &:focus {
 			background-color: var(--hover-background-color);
 			border: var(--hover-border);
 		}
