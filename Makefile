@@ -9,6 +9,7 @@ run: build
 	@ ./bin/rview \
 			--port=${SERVER_PORT} \
 			--dir=_var \
+			--rclone-url=${RCLONE_URL} \
 			--rclone-target=${RCLONE_TARGET} \
 			--image-preview-mode=${IMAGE_PREVIEW_MODE} \
 			--log-level=${LOG_LEVEL} \

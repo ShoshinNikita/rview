@@ -46,10 +46,11 @@ type BuildInfo struct {
 }
 
 type RcloneConfig struct {
-	URL         string
-	Target      string
-	Port        int
-	DirCacheTTL time.Duration
+	URL                string
+	Target             string
+	Port               int
+	DirCacheTTL        time.Duration
+	RequestRealModTime bool
 }
 
 type ImagePreviewMode string
@@ -161,6 +162,13 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 		},
 		"rclone-dir-cache-ttl": {
 			p: &cfg.Rclone.DirCacheTTL, defaultValue: 5 * time.Minute, desc: "Time to cache dir entries for. Set to 0 to disable",
+		},
+		"rclone-request-real-modtime": {
+			p: &cfg.Rclone.RequestRealModTime, defaultValue: false, desc: "" +
+				"By default rclone is launched with the '--use-server-modtime' flag, which\n" +
+				"can significantly reduce response time for some backends (e.g, S3, Swift).\n" +
+				"However, it results in inaccurate mod times. Use this flag to make rclone\n" +
+				"request the actual mod time. Read more: https://rclone.org/docs/#use-server-modtime",
 		},
 		//
 		"image-preview-mode": {

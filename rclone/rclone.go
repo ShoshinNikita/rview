@@ -122,9 +122,7 @@ func NewRclone(cfg rview.RcloneConfig) (_ *Rclone, err error) {
 
 		ctx, cancel := context.WithCancel(context.Background())
 
-		//nolint:gosec
-		cmd = exec.CommandContext(ctx,
-			"rclone",
+		args := []string{
 			"rcd",
 			"--rc-user", user,
 			"--rc-pass", pass,
@@ -132,7 +130,11 @@ func NewRclone(cfg rview.RcloneConfig) (_ *Rclone, err error) {
 			"--rc-addr", host,
 			"--rc-template", f.Name(),
 			"--rc-web-gui-no-open-browser",
-		)
+		}
+		if !cfg.RequestRealModTime {
+			args = append(args, "--use-server-modtime")
+		}
+		cmd = exec.CommandContext(ctx, "rclone", args...) //nolint:gosec
 		stopCmd = cancel
 		rcloneURL = &url.URL{
 			Scheme: "http",

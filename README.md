@@ -114,6 +114,12 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
 
 --rclone-dir-cache-ttl            Time to cache dir entries for. Set to 0 to disable. (default: 5m)
 
+--rclone-request-real-modtime     By default rclone is launched with the '--use-server-modtime' flag,
+                                  which can significantly reduce response time for some backends
+                                  (e.g, S3, Swift). However, it results in inaccurate mod times.
+                                  Use this flag to make rclone request the actual mod time.
+                                  Read more: https://rclone.org/docs/#use-server-modtime
+
 --dir                             Directory for app data: thumbnails and etc. (default: ./var)
 
 --port                            Server port (default: 8080)
