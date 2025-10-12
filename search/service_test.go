@@ -23,11 +23,11 @@ func TestService_RefreshIndex(t *testing.T) {
 	rcloneStub := &rcloneStub{
 		GetAllFilesFn: func(context.Context) (iter.Seq[rclone.DirEntry], error) {
 			return slices.Values([]rclone.DirEntry{
-				newDirEntry("/hello world.go", 0, 0),
-				newDirEntry("/gaming.txt", 0, 0),
-				newDirEntry("/arts/", 0, 0),
-				newDirEntry("/arts/games/", 0, 0),
-				newDirEntry("/arts/games/1.jpeg", 0, 0),
+				newDirEntry("/hello world.go"),
+				newDirEntry("/gaming.txt"),
+				newDirEntry("/arts/"),
+				newDirEntry("/arts/games/"),
+				newDirEntry("/arts/games/1.jpeg"),
 			}), nil
 		},
 	}
@@ -52,8 +52,8 @@ func TestService_RefreshIndex(t *testing.T) {
 
 	rcloneStub.GetAllFilesFn = func(context.Context) (iter.Seq[rclone.DirEntry], error) {
 		return slices.Values([]rclone.DirEntry{
-			newDirEntry("/hello world.go", 0, 0),
-			newDirEntry("/qwerty.txt", 0, 0),
+			newDirEntry("/hello world.go"),
+			newDirEntry("/qwerty.txt"),
 		}), nil
 	}
 
@@ -81,11 +81,11 @@ func TestGenerateDocs(t *testing.T) {
 	r.NoError(err)
 
 	entries := []rclone.DirEntry{
-		newDirEntry("/animals/cute cat.jpeg", 0, 0),
-		newDirEntry("/animals/cat jumps.mp4", 0, 0),
-		newDirEntry("/animals/caterpillar.png", 0, 0),
-		newDirEntry("/animals/Cat & Dog play.mkv", 0, 0),
-		newDirEntry("/dogmas/catalog.zip", 0, 0),
+		newDirEntry("/animals/cute cat.jpeg"),
+		newDirEntry("/animals/cat jumps.mp4"),
+		newDirEntry("/animals/caterpillar.png"),
+		newDirEntry("/animals/Cat & Dog play.mkv"),
+		newDirEntry("/dogmas/catalog.zip"),
 	}
 	tests := []struct {
 		search string

@@ -19,12 +19,12 @@ func TestPrefixIndex(t *testing.T) {
 	r := require.New(t)
 
 	entries := [...]rclone.DirEntry{
-		0: newDirEntry("/hello !&a! world.go", 0, 0),
-		1: newDirEntry("/games/starfield/", 0, 0),
-		2: newDirEntry("/games/hi-fi rush/1.jpg", 0, 0),
-		3: newDirEntry("/games/hi-fi rush/2.jpg", 0, 0),
-		4: newDirEntry("/изображения/лето 2022/", 0, 0),
-		5: newDirEntry("/gaming/", 0, 0),
+		0: newDirEntry("/hello !&a! world.go"),
+		1: newDirEntry("/games/starfield/"),
+		2: newDirEntry("/games/hi-fi rush/1.jpg"),
+		3: newDirEntry("/games/hi-fi rush/2.jpg"),
+		4: newDirEntry("/изображения/лето 2022/"),
+		5: newDirEntry("/gaming/"),
 	}
 	index := newPrefixIndex(slices.Values(entries[:]), 3, 7)
 	r.Equal(
@@ -261,10 +261,10 @@ func TestPrefixIndex(t *testing.T) {
 		r := require.New(t)
 
 		entries := []rclone.DirEntry{
-			newDirEntry("schüchternes Lächeln", 0, 0),
-			newDirEntry("hello world", 0, 0),
-			newDirEntry("ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", 0, 0), // hello
-			newDirEntry("белый", 0, 0),
+			newDirEntry("schüchternes Lächeln"),
+			newDirEntry("hello world"),
+			newDirEntry("ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́"), // hello
+			newDirEntry("белый"),
 		}
 		index := newPrefixIndex(slices.Values(entries), 3, 7)
 
@@ -319,13 +319,13 @@ func TestPrefixIndex(t *testing.T) {
 		r := require.New(t)
 
 		entries := []rclone.DirEntry{
-			newDirEntry("/animals/", 0, 0),
-			newDirEntry("/animals/cats/", 0, 0),
-			newDirEntry("/animals/dogs/", 0, 0),
-			newDirEntry("/animals/dogs/2025/catch/", 0, 0),
-			newDirEntry("/animals/dogs/2025/dog park/", 0, 0),
-			newDirEntry("/anime/", 0, 0),
-			newDirEntry("/anime/art.jpeg", 0, 0),
+			newDirEntry("/animals/"),
+			newDirEntry("/animals/cats/"),
+			newDirEntry("/animals/dogs/"),
+			newDirEntry("/animals/dogs/2025/catch/"),
+			newDirEntry("/animals/dogs/2025/dog park/"),
+			newDirEntry("/anime/"),
+			newDirEntry("/anime/art.jpeg"),
 		}
 		index := newPrefixIndex(slices.Values(entries), 3, 7)
 
@@ -365,13 +365,13 @@ func TestPrefixIndex(t *testing.T) {
 
 		// 2 hits because '/game/' and '/game/gamesaves/' have different scores.
 		entries = []rclone.DirEntry{
-			newDirEntry("/game/", 0, 0),
-			newDirEntry("/game/inputs.txt", 0, 0),
-			newDirEntry("/game/config.txt", 0, 0),
-			newDirEntry("/game/gamesaves/", 0, 0),
-			newDirEntry("/game/gamesaves/1.txt", 0, 0),
-			newDirEntry("/game/gamesaves/2.txt", 0, 0),
-			newDirEntry("/game/gamesaves/3.txt", 0, 0),
+			newDirEntry("/game/"),
+			newDirEntry("/game/inputs.txt"),
+			newDirEntry("/game/config.txt"),
+			newDirEntry("/game/gamesaves/"),
+			newDirEntry("/game/gamesaves/1.txt"),
+			newDirEntry("/game/gamesaves/2.txt"),
+			newDirEntry("/game/gamesaves/3.txt"),
 		}
 		index = newPrefixIndex(slices.Values(entries), 3, 7)
 		hits, _ = index.Search("games", 10)
@@ -385,9 +385,9 @@ func TestPrefixIndex(t *testing.T) {
 
 		// Don't merge 'test.Dockerfile' and 'test.Dockerfile.dockerignore'
 		entries = []rclone.DirEntry{
-			newDirEntry("/Dockerfile", 0, 0),
-			newDirEntry("/test.Dockerfile", 0, 0),
-			newDirEntry("/test.Dockerfile.dockerignore", 0, 0),
+			newDirEntry("/Dockerfile"),
+			newDirEntry("/test.Dockerfile"),
+			newDirEntry("/test.Dockerfile.dockerignore"),
 		}
 		index = newPrefixIndex(slices.Values(entries), 3, 7)
 		hits, _ = index.Search(`"dockerfile"`, 10)
@@ -403,9 +403,9 @@ func TestPrefixIndex(t *testing.T) {
 
 	t.Run("metadata", func(t *testing.T) {
 		entries := []rclone.DirEntry{
-			newDirEntry("/cats/", 0, 123),
-			newDirEntry("/animals/cat.jpeg", 1<<20, 124),
-			newDirEntry("/animals/cute/cats.png", 1<<13, 130),
+			newDirEntryWithMetadata("/cats/", 0, 123),
+			newDirEntryWithMetadata("/animals/cat.jpeg", 1<<20, 124),
+			newDirEntryWithMetadata("/animals/cute/cats.png", 1<<13, 130),
 		}
 		index := newPrefixIndex(slices.Values(entries), 3, 7)
 
@@ -519,7 +519,11 @@ func TestFloat32Inf(t *testing.T) {
 	r.True(math.IsInf(float64(f), 0))
 }
 
-func newDirEntry(p string, size, modTime int64) rclone.DirEntry {
+func newDirEntry(p string) rclone.DirEntry {
+	return newDirEntryWithMetadata(p, 0, 0)
+}
+
+func newDirEntryWithMetadata(p string, size, modTime int64) rclone.DirEntry {
 	return rclone.DirEntry{
 		URL:     p,
 		Leaf:    path.Base(p),

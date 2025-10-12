@@ -45,10 +45,10 @@ type dirEntry struct {
 
 func newPrefixIndex(dirEntries iter.Seq[rclone.DirEntry], minPrefixLen, maxPrefixLen int) *prefixIndex {
 	var (
+		id       uint32
 		entries  = make(map[uint32]dirEntry)
 		prefixes = make(map[string][]uint32)
 	)
-	var id uint32
 	for entry := range dirEntries {
 		entries[id] = dirEntry{
 			Path:    entry.URL,
