@@ -610,7 +610,7 @@ func TestAPI_Search(t *testing.T) {
 	r.Equal(
 		[]web.SearchHit{
 			{
-				Path: "/Other/test-thumbnails/", IsDir: true, ModTime: 1738790488,
+				Path: "/Other/test-thumbnails/", IsDir: true, ModTime: 1662921304,
 				Score: 2, WebURL: "/ui/Other/test-thumbnails/", Icon: "folder",
 			},
 			{
