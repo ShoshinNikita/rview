@@ -283,7 +283,7 @@ func compactSearchHits(hits []Hit) []Hit {
 		}
 
 		last := res[len(res)-1]
-		if hit.Score == last.Score && strings.HasPrefix(hit.Path, last.Path) {
+		if last.IsDir && hit.Score == last.Score && strings.HasPrefix(hit.Path, last.Path) {
 			continue
 		}
 		res = append(res, hit)

@@ -382,6 +382,23 @@ func TestPrefixIndex(t *testing.T) {
 			},
 			hits,
 		)
+
+		// Don't merge 'test.Dockerfile' and 'test.Dockerfile.dockerignore'
+		entries = []rclone.DirEntry{
+			newDirEntry("/Dockerfile", 0, 0),
+			newDirEntry("/test.Dockerfile", 0, 0),
+			newDirEntry("/test.Dockerfile.dockerignore", 0, 0),
+		}
+		index = newPrefixIndex(slices.Values(entries), 3, 7)
+		hits, _ = index.Search(`"dockerfile"`, 10)
+		r.Equal(
+			[]Hit{
+				{Path: "/Dockerfile", Score: float32(math.Inf(1))},
+				{Path: "/test.Dockerfile", Score: float32(math.Inf(1))},
+				{Path: "/test.Dockerfile.dockerignore", Score: float32(math.Inf(1))},
+			},
+			hits,
+		)
 	})
 
 	t.Run("metadata", func(t *testing.T) {
