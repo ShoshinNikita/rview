@@ -149,7 +149,7 @@ func NewRclone(cfg rview.RcloneConfig) (_ *Rclone, err error) {
 		dirCache: newDirCache(cfg.DirCacheTTL),
 		//
 		httpClient: &http.Client{
-			Timeout: 2 * time.Minute,
+			Timeout: 10 * time.Minute,
 		},
 		rcloneURL:    rcloneURL,
 		rcloneTarget: cfg.Target,
