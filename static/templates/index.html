@@ -432,7 +432,7 @@
 				return;
 			}
 			const href = link.getAttribute("href");
-			if (!href || !href.startsWith("/ui/")) {
+			if (!href || !(href.startsWith("/ui/") || href.startsWith("/ui-search"))) {
 				return;
 			}
 			const url = URL.parse(link.href); // 'URL.parse' can parse only absolute urls
@@ -441,8 +441,11 @@
 				return;
 			}
 
+			const [pathParts, keepSearchInput] = url.pathname === "/ui-search"
+				? [["ui", "Search Results"], true]
+				: [url.pathname.split("/"), false];
 			const newBreadcrumbs = [];
-			url.pathname.split("/").forEach(text => {
+			pathParts.forEach(text => {
 				if (!text) {
 					return;
 				}
@@ -466,14 +469,17 @@
 			history.replaceState({ ...history.state, scrollY: window.scrollY }, "");
 
 			// Show spinner and hide the files.
+			closePreview();
 			document.querySelector("#app").classList.add("loading");
 
 			// Add fake breadcrumbs, keep the existing ones to be able to restore them (see 'pageshow' event listener).
 			const breadcrumbs = document.querySelector(".breadcrumbs");
 			breadcrumbs.append(...newBreadcrumbs);
 
-			// Reset search input.
-			searchInput.value = "";
+			// Reset search input if needed.
+			if (!keepSearchInput) {
+				searchInput.value = "";
+			}
 			searchInput.blur();
 
 			// Disable all pointer events to conceal the fact that we are using fake breadcrumbs and the old dir info.
@@ -492,6 +498,9 @@
 			if (history.state?.scrollY) {
 				window.scrollTo(0, history.state.scrollY);
 			}
+
+			// Setting input value via HTML doesn't always work after Go Back - use JS.
+			searchInput.value = "{{ .Search }}";
 		});
 	</script>
 </body>

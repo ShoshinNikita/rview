@@ -281,6 +281,11 @@
 	}
 }
 
+/* Tooltip can stay visible on mobile during page change. Use this rule to hide it */
+.preview-wrapper:not(.opened) .preview-file-info-mobile .g-tooltip {
+	display: none;
+}
+
 .preview-file-info,
 .preview-file-info-mobile {
 	.open-file-directory-link {

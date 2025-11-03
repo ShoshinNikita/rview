@@ -2,7 +2,7 @@
 	"short_name": "Rview",
 	"name": "Rview",
 	"display": "standalone",
-	"start_url": "/ui/",
+	"start_url": "/",
 	"description": "Web-based UI for 'rclone serve'",
 	"orientation": "any",
 	"background_color": "#151a22",
