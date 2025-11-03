@@ -31,8 +31,6 @@ import (
 	"github.com/ShoshinNikita/rview/pkg/misc"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
-	"golang.org/x/text/collate"
-	"golang.org/x/text/language"
 )
 
 //go:embed rclone.gotmpl
@@ -505,8 +503,6 @@ func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) 
 	return rcloneInfo, nil
 }
 
-var undCollator = collate.New(language.Und, collate.IgnoreCase, collate.Numeric)
-
 func CompareDirEntryByName[T interface {
 	GetPath() string
 	GetIsDir() bool
@@ -523,12 +519,63 @@ func CompareDirEntryByName[T interface {
 		if b.GetIsDir() {
 			bLeaf = strings.TrimSuffix(bLeaf, "/")
 		}
-		return undCollator.CompareString(aLeaf, bLeaf)
+		return compareStrings(aLeaf, bLeaf)
 	}
 	if a.GetIsDir() {
 		return -1
 	}
 	return +1
+}
+
+// compareStrings does a natural comparison of two strings.
+//
+// TODO: use 'collate.New(language.Und, collate.IgnoreCase, collate.Numeric)'
+// once [collate.Reorder] will be available - we want to sort '-' after ','.
+func compareStrings(a, b string) int {
+	a = strings.ToLower(a)
+	b = strings.ToLower(b)
+
+	for i, j := 0, 0; i < len(a) && j < len(b); {
+		switch {
+		case isDigit(a[i]) && isDigit(b[j]):
+			x, aLen := extractNumber(a[i:])
+			y, bLen := extractNumber(b[j:])
+			if v := cmp.Compare(x, y); v != 0 {
+				return v // 'a' and 'b' until this moment were equal
+			}
+			i += aLen
+			j += bLen
+
+		case a[i] != b[j]:
+			return strings.Compare(a, b)
+
+		default:
+			i++
+			j++
+		}
+	}
+	if len(a) == len(b) {
+		return 0 // strings are equal
+	}
+	return cmp.Compare(a, b)
+}
+
+func extractNumber(s string) (n int, i int) {
+	var strN string
+	for i := range len(s) {
+		if !isDigit(s[i]) {
+			strN = s[:i]
+			break
+		} else if i == len(s)-1 {
+			strN = s
+		}
+	}
+	n, _ = strconv.Atoi(strN)
+	return n, len(strN)
+}
+
+func isDigit(r byte) bool {
+	return '0' <= r && r <= '9'
 }
 
 func compareDirEntryBySize(a, b DirEntry) int {

@@ -290,16 +290,16 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search("hello", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 3},
 				{Path: "hello world", Score: 3},
+				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 3},
 			},
 			hits,
 		)
 		hits, _ = index.Search("ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 1},
 				{Path: "hello world", Score: 1},
+				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 1},
 			},
 			hits,
 		)

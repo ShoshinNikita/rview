@@ -174,3 +174,44 @@ func startRclone(t *testing.T, cfg rview.RcloneConfig) *Rclone {
 	t.Fatal("rclone is not ready")
 	return nil
 }
+
+func TestCompareStrings(t *testing.T) {
+	check := func(t *testing.T, want []string) {
+		in := slices.Clone(want)
+		for range 10 {
+			rand.Shuffle(len(in), func(i, j int) { in[i], in[j] = in[j], in[i] })
+			slices.SortFunc(in, compareStrings)
+			require.Equal(t, want, in)
+		}
+	}
+
+	t.Run("ignore case", func(t *testing.T) {
+		check(t, []string{"arts", "Dark"})
+	})
+
+	t.Run("natural order", func(t *testing.T) {
+		check(t, []string{
+			"2023-2024, 1",
+			"2024, 2",
+			"2024, 3",
+			"2024, 4",
+			"2024-2025, 1",
+			"2025, 2",
+			"test 1.txt",
+			"test 2.txt",
+			"test 10.txt",
+			"test 15 10000.txt",
+			"test 15 100000.txt",
+			"test 123.txt",
+			"test 123.txt",
+			"test 150.txt",
+			"test 1000 0001 1.txt",
+			"test 1000 00001 2.txt",
+			"w 12444",
+			"w 012445",
+			"w 012460",
+			"y 123a2",
+			"y 123b1",
+		})
+	})
+}
