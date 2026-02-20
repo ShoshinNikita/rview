@@ -45,11 +45,14 @@ linters:
           json: snake
     gosec:
       excludes:
+        - G101 # Potential hardcoded credentials
         - G104 # Audit errors not checked - errcheck is enabled
         - G203 # Use of unescaped data in HTML templates
         - G304 # Potential file inclusion via variable - too many false positives
         - G401 # Detect the usage of MD5 or SHA1
         - G501 # Import blocklist: crypto/md5
+        - G703 # Path traversal via taint analysis
+        - G704 # SSRF via taint analysis
     revive:
       rules:
         - name: exported

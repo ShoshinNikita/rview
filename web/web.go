@@ -469,7 +469,7 @@ func (s *Server) handleThumbnail(w http.ResponseWriter, r *http.Request) {
 	rc, contentType, err := s.thumbnailService.OpenThumbnail(r.Context(), id, size)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
-			writeError(w, http.StatusNotFound, "no thumbnail for %q, size %d, mod time %q", id.GetPath(), id.GetSize(), id.GetModTime())
+			writeError(w, http.StatusNotFound, "no thumbnail for %q, size %d, mod time %d", id.GetPath(), id.GetSize(), id.GetModTime())
 			return
 		}
 		writeBadRequestError(w, "couldn't open thumbnail: %s", err)
