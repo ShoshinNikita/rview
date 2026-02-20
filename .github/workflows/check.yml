@@ -11,13 +11,13 @@ jobs:
     name: Lint code
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-go@v6
         with:
-          go-version: "1.24.*"
-      - uses: golangci/golangci-lint-action@v8
+          go-version: "1.26.*"
+      - uses: golangci/golangci-lint-action@v9.2.0
         with:
-          version: v2.4.0
+          version: v2.10.1
           args: "-v"
 
   test:
@@ -31,6 +31,6 @@ jobs:
     name: Run tests on ${{ matrix.platform }}
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       # Run tests in docker to mimic the production environment.
       - run: make docker-test

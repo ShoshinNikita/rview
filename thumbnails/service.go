@@ -501,7 +501,7 @@ func resizeWithVips(ctx context.Context, originalFile, cacheFile string, id Thum
 		// The file size is consistent across different 'speed' values - ±3%.
 		output += "[Q=65,speed=8,keep=icc]"
 	default:
-		return fmt.Errorf("unsupported thumbnail format: %q", t)
+		return fmt.Errorf("unsupported thumbnail format: %d", t)
 	}
 
 	var size string
