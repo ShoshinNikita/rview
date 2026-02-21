@@ -87,15 +87,13 @@ func TestThumbnailService(t *testing.T) {
 				wg    sync.WaitGroup
 			)
 			for range callCount {
-				wg.Add(1)
-				go func() {
-					defer wg.Done()
+				wg.Go(func() {
 					rc, _, err := service.OpenThumbnail(ctx, fileID, "")
 					resCh <- Res{
 						rc:  rc,
 						err: err,
 					}
-				}()
+				})
 			}
 			wg.Wait()
 			close(resCh)
@@ -471,16 +469,14 @@ func TestThumbnailService_openImage(t *testing.T) {
 		}, 100)
 	)
 	for range 50 {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 
 			data, err := getFile()
 			resCh <- struct {
 				data string
 				err  error
 			}{data, err}
-		}()
+		})
 	}
 	wg.Wait()
 	close(resCh)

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"iter"
+	"maps"
 	"math"
 	"slices"
 	"strings"
@@ -224,9 +225,7 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
 
 		if len(matchesForAllWords) == 0 {
 			// Fill matchesForAllWords on the first match.
-			for k, v := range matches {
-				matchesForAllWords[k] = v
-			}
+			maps.Copy(matchesForAllWords, matches)
 		} else {
 			// All words have to match.
 			for k := range matchesForAllWords {
