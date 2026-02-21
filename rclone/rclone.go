@@ -538,13 +538,13 @@ func compareStrings(a, b string) int {
 	for i, j := 0, 0; i < len(a) && j < len(b); {
 		switch {
 		case isDigit(a[i]) && isDigit(b[j]):
-			x, aLen := extractNumber(a[i:])
-			y, bLen := extractNumber(b[j:])
+			x, xLen := extractNumber(a[i:])
+			y, yLen := extractNumber(b[j:])
 			if v := cmp.Compare(x, y); v != 0 {
 				return v // 'a' and 'b' until this moment were equal
 			}
-			i += aLen
-			j += bLen
+			i += xLen
+			j += yLen
 
 		case a[i] != b[j]:
 			return strings.Compare(a, b)
@@ -554,13 +554,10 @@ func compareStrings(a, b string) int {
 			j++
 		}
 	}
-	if len(a) == len(b) {
-		return 0 // strings are equal
-	}
-	return cmp.Compare(a, b)
+	return cmp.Compare(len(a), len(b)) // strings have the same prefix, can compare just their lengths
 }
 
-func extractNumber(s string) (n int, i int) {
+func extractNumber(s string) (n, size int) {
 	var strN string
 	for i := range len(s) {
 		if !isDigit(s[i]) {

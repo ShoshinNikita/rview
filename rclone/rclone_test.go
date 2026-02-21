@@ -207,6 +207,8 @@ func TestCompareStrings(t *testing.T) {
 			"test 150.txt",
 			"test 1000 0001 1.txt",
 			"test 1000 00001 2.txt",
+			"test 1000 000001 2.txt",
+			"test 1000 001 3.txt",
 			"w 12444",
 			"w 012445",
 			"w 012460",
