@@ -127,10 +127,11 @@
 	</div>
 
 	<ul class="selector card">
+		{{ $index := 0 }}
 		{{ range .Entries }}
 
 		{{ if not .IsDir }}
-		<div id="selector-thumbnail-{{ .Filename }}" class="selector-thumbnail-wrapper">
+		<div id="selector-thumbnail-{{ $index }}" class="selector-thumbnail-wrapper">
 			{{
 				template "entry.html" (dict
 					"Entry" .
@@ -140,6 +141,7 @@
 				)
 			}}
 		</div>
+		{{ $index = add $index 1 }}
 		{{ end }}
 
 		{{ end }}
@@ -169,14 +171,26 @@
 		previewWrapper.style["height"] = `${window.innerHeight}px`;
 	};
 
+	const scrollSelector = (index, instant = false) => {
+		const thumbnailWrapper = document.getElementById(thumbnailIDPrefix + index);
+		const thumbnail = thumbnailWrapper.children[0];
+
+		const arg = { inline: "center", block: "center" };
+		if (instant) {
+			arg.behavior = "instant";
+		}
+		thumbnail.scrollIntoView(arg);
+	};
+
 	window.addEventListener("resize", () => {
 		// Make sure preview has the correct height.
 		updatePreviewWrapperHeight();
 
 		// Sometimes rapid resize or orientation change can cause incorrect scroll position.
 		// So, we manually scroll to the correct preview.
-		if (currentIndex) {
+		if (isPreviewOpened && currentIndex !== null) {
 			document.getElementById(previewElementIDPrefix + currentIndex).scrollIntoView({ behavior: "instant" });
+			scrollSelector(currentIndex, true);
 		}
 	});
 
@@ -259,23 +273,17 @@
 			return false;
 		}
 
-		const oldFilename = currentEntry?.filename;
+		const oldIndex = currentIndex;
 		currentIndex = newIndex;
 		currentEntry = entries[currentIndex];
 
 		const entry = currentEntry;
 
 		// Scroll selector.
-		const thumbnailWrapper = document.getElementById(thumbnailIDPrefix + entry.filename);
-		const thumbnail = thumbnailWrapper.children[0];
-		const selector = thumbnailWrapper.parentElement;
-		const left = thumbnail.offsetLeft - selector.offsetLeft + thumbnail.clientWidth / 2 - selector.clientWidth / 2;
-		const top = thumbnail.offsetTop - selector.offsetTop + thumbnail.clientHeight / 2 - selector.clientHeight / 2;
-		selector.scroll(left, top);
-
-		const previewElement = document.getElementById(previewElementIDPrefix + `${newIndex}`);
+		scrollSelector(currentIndex);
 
 		// Scroll previews.
+		const previewElement = document.getElementById(previewElementIDPrefix + `${newIndex}`);
 		if (scroll) {
 			previewElement.scrollIntoView({ behavior: "instant" });
 		}
@@ -373,10 +381,10 @@
 		downloadButton.download = entry.filename;
 
 		// On the first open current filename is empty.
-		if (oldFilename) {
-			document.getElementById(thumbnailIDPrefix + oldFilename).classList.remove("selected");
+		if (oldIndex !== null) {
+			document.getElementById(thumbnailIDPrefix + oldIndex).classList.remove("selected");
 		}
-		document.getElementById(thumbnailIDPrefix + entry.filename).classList.add("selected");
+		document.getElementById(thumbnailIDPrefix + currentIndex).classList.add("selected");
 
 		// Hide switch preview buttons if necessary.
 		if (currentIndex === 0) {
