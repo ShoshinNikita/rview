@@ -186,7 +186,7 @@
 .switch-preview-button a {
 	align-items: center;
 	/* Use 'color-mix' instead of 'opacity' for correct transition effect. */
-	color: color-mix(in srgb, var(--border-color), #0000 80%);
+	color: color-mix(in srgb, var(--border-color), #0000 90%);
 	display: flex;
 	justify-content: center;
 	height: 100%;
@@ -205,7 +205,7 @@
 
 @media(hover: hover) and (pointer: fine) {
 	.switch-preview-button:hover a {
-		color: color-mix(in srgb, var(--interactive-color), #0000 20%);
+		color: color-mix(in srgb, var(--interactive-color), #0000 30%) !important;
 	}
 
 	.switch-preview-button:hover svg .outline {
@@ -231,14 +231,19 @@
 }
 
 .preview-side-panel {
-	display: flex;
-	flex-direction: column;
-	justify-content: space-between;
+	column-gap: 16px;
+	display: grid;
+	grid-template:
+		"file-info file-info file-info"
+		"x fullscreen-button download-button";
+	grid-template-rows: auto min-content;
 	position: relative;
 }
 
 .preview-file-info {
 	grid-area: file-info;
+	/* Prevent .preview-file-info from overflowing the container */
+	min-width: 0;
 
 	>* {
 		margin-bottom: 8px;
@@ -303,7 +308,8 @@
 }
 
 .preview-close-button,
-.preview-download-button {
+.preview-download-button,
+.preview-fullscreen-button {
 	height: 28px;
 	margin: 0 auto;
 	min-height: 28px;
@@ -319,6 +325,10 @@
 
 .preview-download-button {
 	grid-area: download-button;
+}
+
+.preview-fullscreen-button {
+	grid-area: fullscreen-button;
 }
 
 /*
@@ -358,6 +368,28 @@
 	}
 }
 
+/* Fullscreen mode */
+.preview-wrapper.fullscreen {
+	column-gap: 0;
+	row-gap: 0;
+	padding: 0;
+
+	.preview {
+		grid-template-rows: none;
+		grid-template-columns: auto;
+		row-gap: 0;
+		padding: 4px 0;
+	}
+
+	.preview-side-panel {
+		display: none;
+	}
+
+	.selector {
+		display: none;
+	}
+}
+
 /*
  * @media rules
  */
@@ -378,9 +410,11 @@
 	.preview-side-panel {
 		display: grid;
 		grid-template:
-			"file-info close-button"
-			"file-info download-button";
-		column-gap: 8px;
+			"file-info fullscreen-button close-button"
+			"file-info x download-button";
+		column-gap: 16px;
+		grid-template-columns: auto min-content min-content;
+		justify-content: unset;
 		flex-direction: row;
 	}
 
@@ -391,16 +425,14 @@
 	}
 
 	.preview-close-button,
-	.preview-download-button {
+	.preview-download-button,
+	.preview-fullscreen-button {
 		margin: 0;
+		align-self: center;
 	}
 
 	.preview-close-button {
 		display: block;
-	}
-
-	.preview-download-button {
-		align-self: end;
 	}
 }
 
@@ -425,8 +457,8 @@
 
 	.preview-side-panel {
 		column-gap: 16px;
-		grid-template-columns: auto min-content min-content;
-		grid-template-areas: "file-info-mobile download-button close-button";
+		grid-template-columns: auto min-content min-content min-content;
+		grid-template-areas: "file-info-mobile fullscreen-button download-button close-button";
 		/* Reset 'justify-content: space-between' */
 		justify-content: unset;
 		padding: 0 12px;

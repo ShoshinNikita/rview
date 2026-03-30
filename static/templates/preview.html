@@ -119,6 +119,10 @@
 			<a class="g-icon-button preview-download-button" title="Download the original file" href="" download="">
 				{{ embedIcon "download" }}
 			</a>
+
+			<a class="g-icon-button preview-fullscreen-button" title="Enter fullscreen" onclick="enterFullscreen(); return false">
+				{{ embedIcon "maximize" }}
+			</a>
 		</div>
 	</div>
 
@@ -157,22 +161,34 @@
 	const previewElementIDPrefix = "preview-carousel-element-";
 
 	let isPreviewOpened = false;
+	let isFullscreenTransition = false;
 	let currentIndex = null;
 	let currentEntry = null;
 
-	// Sometimes rapid resize or orientation change can cause incorrect scroll position.
-	// So, we manually scroll to the correct preview.
+	const updatePreviewWrapperHeight = () => {
+		previewWrapper.style["height"] = `${window.innerHeight}px`;
+	};
+
 	window.addEventListener("resize", () => {
-		if (!currentIndex) {
-			return;
+		// Make sure preview has the correct height.
+		updatePreviewWrapperHeight();
+
+		// Sometimes rapid resize or orientation change can cause incorrect scroll position.
+		// So, we manually scroll to the correct preview.
+		if (currentIndex) {
+			document.getElementById(previewElementIDPrefix + currentIndex).scrollIntoView({ behavior: "instant" });
 		}
-		document.getElementById(previewElementIDPrefix + currentIndex).scrollIntoView({ behavior: "instant" });
 	});
 
 	// Update preview on scroll.
 	const observer = new IntersectionObserver(
 		(entries, opts) => {
 			if (!isPreviewOpened) {
+				return;
+			}
+			if (isFullscreenTransition) {
+				// Entering or exiting the fullscreen mode can trigger the observer's callback.
+				// Don't change preview in such cases.
 				return;
 			}
 			for (const entry of entries) {
@@ -203,11 +219,7 @@
 	// https://bugzilla.mozilla.org/show_bug.cgi?id=1663634
 	//
 	// More about mobile browser URL bars: https://github.com/bokand/URLBarSizing.
-	(
-		new ResizeObserver(() => {
-			previewWrapper.style["height"] = `${window.innerHeight}px`;
-		})
-	).observe(document.getElementById("app"));
+	(new ResizeObserver(updatePreviewWrapperHeight)).observe(document.getElementById("app"));
 
 	const stopAnyPlayback = () => {
 		for (const v of document.querySelectorAll(".preview-audio,.preview-video")) {
@@ -413,7 +425,7 @@
 			history.back();
 		}
 
-		previewWrapper.classList.remove("opened");
+		previewWrapper.classList.remove("opened", "fullscreen");
 		document.body.classList.remove("g-noscroll");
 	};
 
@@ -440,6 +452,22 @@
 			history.replaceState(history.state, "", newPath);
 		}
 	};
+
+	const enterFullscreen = () => {
+		isFullscreenTransition = true;
+		previewCarousel.style.opacity = 0; // prevent preview flickering
+
+		document.documentElement.requestFullscreen().
+			then(() => {
+				previewWrapper.classList.add("fullscreen");
+				previewCarousel.style.opacity = '';
+				setTimeout(() => { isFullscreenTransition = false; }, 150);
+			}).
+			catch(() => {
+				previewCarousel.style.opacity = '';
+				isFullscreenTransition = false;
+			});
+	}
 </script>
 
 <!-- Event listeners -->
@@ -473,6 +501,15 @@
 
 		} else if (ev.key === "Escape") {
 			closePreview();
+		}
+	});
+
+	// Exit fullscreen mode.
+	window.addEventListener("fullscreenchange", (ev) => {
+		if (!document.fullscreenElement) {
+			isFullscreenTransition = true;
+			previewWrapper.classList.remove("fullscreen");
+			setTimeout(() => { isFullscreenTransition = false; }, 150);
 		}
 	});
 
