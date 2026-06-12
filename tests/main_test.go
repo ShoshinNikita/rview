@@ -68,7 +68,7 @@ func TestMain(m *testing.M) {
 
 	// Shutdown test rview if needed.
 	if testRview != nil {
-		ctx, _ := context.WithTimeout(context.Background(), 2*time.Second) //nolint:govet
+		ctx, _ := context.WithTimeout(context.Background(), 2*time.Second) //nolint:govet,gosec
 
 		err := testRview.Shutdown(ctx)
 		if err != nil {
