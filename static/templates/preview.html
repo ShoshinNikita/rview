@@ -280,7 +280,7 @@
 		const entry = currentEntry;
 
 		// Scroll selector.
-		scrollSelector(currentIndex);
+		scrollSelector(currentIndex, !isPreviewOpened);
 
 		// Scroll previews.
 		const previewElement = document.getElementById(previewElementIDPrefix + `${newIndex}`);

@@ -336,8 +336,8 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo) DirInfo {
 	}
 
 	breadcrumbURL := mustParseURL("/ui").JoinPath(rcloneInfo.Dir)
-	for i := len(rcloneInfo.Breadcrumbs) - 1; i >= 0; i-- {
-		text := rcloneInfo.Breadcrumbs[i].Text
+	for _, v := range slices.Backward(rcloneInfo.Breadcrumbs) {
+		text := v.Text
 		if text == "/" {
 			text = "Home"
 		}

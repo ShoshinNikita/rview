@@ -25,14 +25,16 @@ docker-build:
 	@ echo "Build docker image..."
 	@ docker build -t rview .
 
-check: build lint test docker-build
+check: build lint test
+
+check-full: build lint test docker-build docker-test
 
 test:
 	@ echo "Run tests..."
-	@ go test -v -count=1 \
+	@ go test -count=1 \
 		-cover -coverprofile=_cover.out -coverpkg=github.com/ShoshinNikita/rview/... \
 		./...
-	@ go tool cover -func=_cover.out
+	@ printf "\nTotal coverage: %s\n" $$(go tool cover -func=_cover.out | grep "total" | grep -oP "\d.*")
 	@ rm _cover.out
 
 docker-test:
@@ -51,4 +53,4 @@ lint:
 		-v $(shell go env GOPATH)/pkg:/go/pkg \
 		-v $(shell pwd):/app \
 		-w /app \
-		golangci/golangci-lint:v2.12.2-alpine golangci-lint run -v --config .golangci.yml
+		golangci/golangci-lint:v2.13.1-alpine golangci-lint run -v --config .golangci.yml

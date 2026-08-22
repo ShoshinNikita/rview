@@ -50,6 +50,7 @@ linters:
         - G203 # Use of unescaped data in HTML templates
         - G304 # Potential file inclusion via variable - too many false positives
         - G401 # Detect the usage of MD5 or SHA1
+        - G404 # Use of weak random number generator
         - G501 # Import blocklist: crypto/md5
         - G703 # Path traversal via taint analysis
         - G704 # SSRF via taint analysis

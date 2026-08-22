@@ -1,7 +1,7 @@
-FROM ghcr.io/rclone/rclone:1.74 AS rclone-src
+FROM ghcr.io/rclone/rclone:1.75 AS rclone-src
 
 
-FROM golang:1.26-alpine3.23 AS tester
+FROM golang:1.27-alpine3.23 AS tester
 
 WORKDIR /rview
 
@@ -11,7 +11,7 @@ ENV XDG_CONFIG_HOME=/config
 COPY --from=rclone-src /usr/local/bin/rclone /usr/local/bin/rclone
 
 # Install dependencies (same as in the main Dockerfile).
-RUN apk add --update --no-cache vips-tools libheif ca-certificates exiftool && \
+RUN apk add --update --no-cache vips-tools libheif ca-certificates exiftool grep && \
 	printf "\n" && \
 	printf "vips version:     " && vips --version && \
 	printf "exiftool version: " && exiftool -ver

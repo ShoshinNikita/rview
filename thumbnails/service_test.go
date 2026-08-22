@@ -285,8 +285,8 @@ func TestThumbnailService_ImageType(t *testing.T) {
 	images := map[string]Image{
 		"small.jpeg": {encodeJPEG(100, 100), 791},
 		"large.jpg":  {encodeJPEG(8000, 2000), 250595},
-		"small.png":  {encodePNG(10, 10), 483},
-		"large.png":  {encodePNG(600, 100), 240272},
+		"small.png":  {encodePNG(10, 10), 480},
+		"large.png":  {encodePNG(600, 100), 240269},
 	}
 
 	checkJPEG := func(t *testing.T, data []byte) {
