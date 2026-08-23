@@ -59,6 +59,11 @@
 
 * {
 	box-sizing: border-box;
+	scrollbar-color: var(--font-color) var(--header-background-color);
+}
+
+html {
+	scrollbar-gutter: stable;
 }
 
 body {
