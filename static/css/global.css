@@ -147,6 +147,10 @@ div.g-loader {
 	position: absolute;
 	top: 50%;
 	width: 40px;
+
+	&.hidden {
+		display: none;
+	}
 }
 
 @keyframes g-loader-spin {

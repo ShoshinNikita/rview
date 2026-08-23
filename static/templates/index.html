@@ -503,6 +503,29 @@
 			searchInput.value = "{{ .Search }}";
 		});
 	</script>
+
+	<!-- Hide loaders outside of the viewport to improve performance in Chromium-based browsers -->
+	<script>
+		{
+			const observer = new IntersectionObserver((entries) => {
+				for (const entry of entries) {
+					const loader = entry.target.querySelector(".g-loader");
+					if (!loader) {
+						continue;
+					}
+
+					if (entry.isIntersecting) {
+						loader.classList.remove("hidden");
+					} else {
+						loader.classList.add("hidden");
+					}
+				}
+			});
+			for (const elem of document.querySelectorAll("*:has(>.g-loader)")) {
+				observer.observe(elem);
+			}
+		}
+	</script>
 </body>
 
 </html>
