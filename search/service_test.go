@@ -33,6 +33,9 @@ func TestService_RefreshIndex(t *testing.T) {
 	}
 	s, err := NewService(rcloneStub, root)
 	r.NoError(err)
+	_, err = s.loadIndexFromFile()
+	r.Error(err)
+
 	err = s.Start()
 	r.NoError(err)
 	defer func() {
@@ -50,6 +53,11 @@ func TestService_RefreshIndex(t *testing.T) {
 		hits,
 	)
 
+	searchIndex, err := s.loadIndexFromFile()
+	r.NoError(err)
+	hits, _ = searchIndex.Index.Search("games", 5)
+	r.Len(hits, 2)
+
 	rcloneStub.GetAllFilesFn = func(context.Context) (iter.Seq[rclone.DirEntry], error) {
 		return slices.Values([]rclone.DirEntry{
 			newDirEntry("/hello world.go"),
@@ -62,6 +70,11 @@ func TestService_RefreshIndex(t *testing.T) {
 
 	hits, _, err = s.Search(ctx, "games", 5)
 	r.NoError(err)
+	r.Empty(hits)
+
+	searchIndex, err = s.loadIndexFromFile()
+	r.NoError(err)
+	hits, _ = searchIndex.Index.Search("games", 5)
 	r.Empty(hits)
 }
 

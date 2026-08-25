@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"iter"
 	"math"
 	"os"
@@ -81,7 +80,7 @@ func (s *Service) Start() (err error) {
 		go s.startBackgroundRefresh()
 	}()
 
-	s.index, err = s.loadIndexFromCache()
+	s.index, err = s.loadIndexFromFile()
 	if err == nil {
 		rlog.Info("search index has been loaded from the file")
 		return nil
@@ -110,7 +109,7 @@ func (s *Service) Start() (err error) {
 	panic("unreachable")
 }
 
-func (s *Service) loadIndexFromCache() (res *searchIndex, err error) {
+func (s *Service) loadIndexFromFile() (res *searchIndex, err error) {
 	rc, err := s.dir.Open(s.filename)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't open file: %w", err)
@@ -236,7 +235,7 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 
 	// Save the index on disk before updating in-memory state to avoid
 	// any inconsistency.
-	err = s.saveIndexToCache(index)
+	err = s.saveIndexToFile(index)
 	if err != nil {
 		return fmt.Errorf("couldn't save new index: %w", err)
 	}
@@ -248,38 +247,34 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 	return nil
 }
 
-func (s *Service) saveIndexToCache(index *searchIndex) error {
-	// Don't store encoded index in memory because it can be very large.
-	r, w := io.Pipe()
-	go func() {
-		gzipWriter := gzip.NewWriter(w)
+func (s *Service) saveIndexToFile(index *searchIndex) error {
+	tmpFilename := s.filename + ".tmp"
 
-		err := json.NewEncoder(gzipWriter).Encode(index)
-		if err != nil {
-			w.CloseWithError(fmt.Errorf("couldn't encode index: %w", err))
-			return
-		}
-		if err := gzipWriter.Close(); err != nil {
-			w.CloseWithError(fmt.Errorf("couldn't close gzip writer: %w", err))
-			return
-		}
-		_ = w.Close()
+	f, err := s.dir.Create(tmpFilename)
+	if err != nil {
+		return fmt.Errorf("couldn't create tmp file: %w", err)
+	}
+	defer func() {
+		_ = f.Close()
+		_ = s.dir.Remove(tmpFilename)
 	}()
 
-	// TODO: write index to tmp file and then rename it (requires go1.25):
-	// https://github.com/golang/go/issues/73041
+	gzipWriter := gzip.NewWriter(f)
 
-	f, err := s.dir.Create(s.filename)
+	err = json.NewEncoder(gzipWriter).Encode(index)
 	if err != nil {
-		return fmt.Errorf("couldn't create file: %w", err)
+		return fmt.Errorf("couldn't encode index: %w", err)
 	}
-	defer f.Close()
-	_, err = io.Copy(f, r)
-	if err != nil {
-		return fmt.Errorf("couldn't write index to file: %w", err)
+	if err := gzipWriter.Close(); err != nil {
+		return fmt.Errorf("couldn't close gzip writer: %w", err)
 	}
 	if err := f.Close(); err != nil {
-		return fmt.Errorf("couldn't close file: %w", err)
+		return fmt.Errorf("couldn't close tmp file: %w", err)
+	}
+
+	err = s.dir.Rename(tmpFilename, s.filename)
+	if err != nil {
+		return fmt.Errorf("couldn't rename tmp file: %w", err)
 	}
 	return nil
 }
