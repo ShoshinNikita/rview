@@ -21,12 +21,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ShoshinNikita/rview/index"
 	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/pkg/misc"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/ShoshinNikita/rview/search"
 	"github.com/ShoshinNikita/rview/static"
 	"github.com/ShoshinNikita/rview/thumbnails"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -39,7 +39,7 @@ type Server struct {
 
 	rclone           *rclone.Rclone
 	thumbnailService ThumbnailService
-	searchService    *search.Service
+	indexService     *index.Service
 
 	iconsFS     fs.FS
 	templatesFS fs.FS
@@ -50,7 +50,7 @@ type ThumbnailService interface {
 	OpenThumbnail(context.Context, rview.FileID, thumbnails.ThumbnailSize) (rc io.ReadCloser, contentType string, err error)
 }
 
-func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService ThumbnailService, searchService *search.Service) (s *Server) {
+func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService ThumbnailService, indexService *index.Service) (s *Server) {
 	if cfg.ReadStaticFilesFromDisk {
 		rlog.Info("static files will be read from disk")
 	}
@@ -60,7 +60,7 @@ func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService Thumbna
 		//
 		rclone:           rclone,
 		thumbnailService: thumbnailService,
-		searchService:    searchService,
+		indexService:     indexService,
 		//
 		iconsFS:     static.NewIconsFS(cfg.ReadStaticFilesFromDisk),
 		templatesFS: static.NewTemplatesFS(cfg.ReadStaticFilesFromDisk),
@@ -298,7 +298,11 @@ func (s *Server) getDirInfo(ctx context.Context, dir string, query url.Values) (
 
 	var isNotFound bool
 
-	rcloneInfo, err := s.rclone.GetDirInfo(ctx, dir, query.Get("sort"), query.Get("order"))
+	sort, order := query.Get("sort"), query.Get("order")
+	if sort == "" && order == "" {
+		sort, order, _ = s.indexService.GetDefaultSort(dir)
+	}
+	rcloneInfo, err := s.rclone.GetDirInfo(ctx, dir, sort, order)
 	if rclone.IsNotFoundError(err) {
 		// It's hard to replicate the logic of "DirInfo" preparation. Therefore, just
 		// set error to nil and init RcloneDirInfo with the predefined values.
@@ -500,7 +504,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 	isUI := r.FormValue("ui") != ""
 
-	hits, total, err := s.searchService.Search(r.Context(), searchValue, limit)
+	hits, total, err := s.indexService.Search(r.Context(), searchValue, limit)
 	if err != nil {
 		writeInternalServerError(w, "search failed: %s", err)
 		return
@@ -561,7 +565,7 @@ func (s *Server) handlePageWithSearchResults(w http.ResponseWriter, r *http.Requ
 	limit, _ := strconv.Atoi(r.FormValue("limit"))
 	limit = cmp.Or(limit, 100)
 
-	hits, _, err := s.searchService.Search(r.Context(), searchValue, limit)
+	hits, _, err := s.indexService.Search(r.Context(), searchValue, limit)
 	if err != nil {
 		writeInternalServerError(w, "search failed: %s", err)
 		return
@@ -594,7 +598,7 @@ func (s *Server) handlePageWithSearchResults(w http.ResponseWriter, r *http.Requ
 
 func (s *Server) extractSearch(r *http.Request) (string, error) {
 	search := r.FormValue("search")
-	minLength := s.searchService.GetMinSearchLength()
+	minLength := s.indexService.GetMinSearchLength()
 	if len([]rune(search)) < minLength {
 		return "", fmt.Errorf(`minimum "search" length is %d characters`, minLength)
 	}
@@ -605,7 +609,7 @@ func (s *Server) handleRefreshIndex(w http.ResponseWriter, r *http.Request) {
 	// Index refresh can take a while, and we don't want to interrupt this process.
 	ctx := context.WithoutCancel(r.Context())
 
-	err := s.searchService.RefreshIndex(ctx)
+	err := s.indexService.RefreshIndex(ctx)
 	if err != nil {
 		writeInternalServerError(w, "couldn't refresh indexes: %s", err)
 		return

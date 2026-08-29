@@ -1,4 +1,4 @@
-package search
+package index
 
 import (
 	"encoding/json"
@@ -18,13 +18,13 @@ import (
 func TestPrefixIndex(t *testing.T) {
 	r := require.New(t)
 
-	entries := [...]rclone.DirEntry{
-		0: newDirEntry("/hello !&a! world.go"),
-		1: newDirEntry("/games/starfield/"),
-		2: newDirEntry("/games/hi-fi rush/1.jpg"),
-		3: newDirEntry("/games/hi-fi rush/2.jpg"),
-		4: newDirEntry("/изображения/лето 2022/"),
-		5: newDirEntry("/gaming/"),
+	entries := [...]*dirEntry{
+		0: {Path: "/hello !&a! world.go"},
+		1: {Path: "/games/starfield/", IsDir: true},
+		2: {Path: "/games/hi-fi rush/1.jpg"},
+		3: {Path: "/games/hi-fi rush/2.jpg"},
+		4: {Path: "/изображения/лето 2022/", IsDir: true},
+		5: {Path: "/gaming/", IsDir: true},
 	}
 	index := newPrefixIndex(slices.Values(entries[:]), 3, 7)
 	r.Equal(
@@ -230,8 +230,8 @@ func TestPrefixIndex(t *testing.T) {
 	t.Run("search with a one-letter word", func(t *testing.T) {
 		r := require.New(t)
 
-		entries := []rclone.DirEntry{
-			{URL: "a beautiful picture"},
+		entries := []*dirEntry{
+			{Path: "a beautiful picture"},
 		}
 		index := newPrefixIndex(slices.Values(entries), 3, 7)
 		hits, _ := index.Search("a beautiful", 10)
@@ -260,11 +260,11 @@ func TestPrefixIndex(t *testing.T) {
 	t.Run("unicode", func(t *testing.T) {
 		r := require.New(t)
 
-		entries := []rclone.DirEntry{
-			newDirEntry("schüchternes Lächeln"),
-			newDirEntry("hello world"),
-			newDirEntry("ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́"), // hello
-			newDirEntry("белый"),
+		entries := []*dirEntry{
+			{Path: "schüchternes Lächeln"},
+			{Path: "hello world"},
+			{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́"}, // hello
+			{Path: "белый"},
 		}
 		index := newPrefixIndex(slices.Values(entries), 3, 7)
 
@@ -318,14 +318,14 @@ func TestPrefixIndex(t *testing.T) {
 	t.Run("compact hits", func(t *testing.T) {
 		r := require.New(t)
 
-		entries := []rclone.DirEntry{
-			newDirEntry("/animals/"),
-			newDirEntry("/animals/cats/"),
-			newDirEntry("/animals/dogs/"),
-			newDirEntry("/animals/dogs/2025/catch/"),
-			newDirEntry("/animals/dogs/2025/dog park/"),
-			newDirEntry("/anime/"),
-			newDirEntry("/anime/art.jpeg"),
+		entries := []*dirEntry{
+			{Path: "/animals/", IsDir: true},
+			{Path: "/animals/cats/", IsDir: true},
+			{Path: "/animals/dogs/", IsDir: true},
+			{Path: "/animals/dogs/2025/catch/", IsDir: true},
+			{Path: "/animals/dogs/2025/dog park/", IsDir: true},
+			{Path: "/anime/", IsDir: true},
+			{Path: "/anime/art.jpeg"},
 		}
 		index := newPrefixIndex(slices.Values(entries), 3, 7)
 
@@ -364,14 +364,14 @@ func TestPrefixIndex(t *testing.T) {
 		)
 
 		// 2 hits because '/game/' and '/game/gamesaves/' have different scores.
-		entries = []rclone.DirEntry{
-			newDirEntry("/game/"),
-			newDirEntry("/game/inputs.txt"),
-			newDirEntry("/game/config.txt"),
-			newDirEntry("/game/gamesaves/"),
-			newDirEntry("/game/gamesaves/1.txt"),
-			newDirEntry("/game/gamesaves/2.txt"),
-			newDirEntry("/game/gamesaves/3.txt"),
+		entries = []*dirEntry{
+			{Path: "/game/", IsDir: true},
+			{Path: "/game/inputs.txt"},
+			{Path: "/game/config.txt"},
+			{Path: "/game/gamesaves/", IsDir: true},
+			{Path: "/game/gamesaves/1.txt"},
+			{Path: "/game/gamesaves/2.txt"},
+			{Path: "/game/gamesaves/3.txt"},
 		}
 		index = newPrefixIndex(slices.Values(entries), 3, 7)
 		hits, _ = index.Search("games", 10)
@@ -384,10 +384,10 @@ func TestPrefixIndex(t *testing.T) {
 		)
 
 		// Don't merge 'test.Dockerfile' and 'test.Dockerfile.dockerignore'
-		entries = []rclone.DirEntry{
-			newDirEntry("/Dockerfile"),
-			newDirEntry("/test.Dockerfile"),
-			newDirEntry("/test.Dockerfile.dockerignore"),
+		entries = []*dirEntry{
+			{Path: "/Dockerfile"},
+			{Path: "/test.Dockerfile"},
+			{Path: "/test.Dockerfile.dockerignore"},
 		}
 		index = newPrefixIndex(slices.Values(entries), 3, 7)
 		hits, _ = index.Search(`"dockerfile"`, 10)
@@ -402,10 +402,10 @@ func TestPrefixIndex(t *testing.T) {
 	})
 
 	t.Run("metadata", func(t *testing.T) {
-		entries := []rclone.DirEntry{
-			newDirEntryWithMetadata("/cats/", 0, 123),
-			newDirEntryWithMetadata("/animals/cat.jpeg", 1<<20, 124),
-			newDirEntryWithMetadata("/animals/cute/cats.png", 1<<13, 130),
+		entries := []*dirEntry{
+			{Path: "/cats/", ModTime: 123, IsDir: true},
+			{Path: "/animals/cat.jpeg", Size: 1 << 20, ModTime: 124},
+			{Path: "/animals/cute/cats.png", Size: 1 << 13, ModTime: 130},
 		}
 		index := newPrefixIndex(slices.Values(entries), 3, 7)
 
@@ -534,14 +534,13 @@ func newDirEntryWithMetadata(p string, size, modTime int64) rclone.DirEntry {
 }
 
 func BenchmarkPrefixIndex_Search(b *testing.B) {
-	var entries []rclone.DirEntry
+	var entries []*dirEntry
 	err := filepath.WalkDir("..", func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		entries = append(entries, rclone.DirEntry{
-			URL:     p,
-			Leaf:    path.Base(p),
+		entries = append(entries, &dirEntry{
+			Path:    p,
 			IsDir:   d.IsDir(),
 			Size:    0,
 			ModTime: 0,

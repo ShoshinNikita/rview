@@ -332,6 +332,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 			[]string{
 				"Arts",
 				"Photos",
+				".rview.yml",
 				"asdfgh.heic",
 				"birds-g64b44607c_640.jpg",
 				"corgi-g4ea377693_640.jpg",
@@ -351,7 +352,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 				canPreviewCount++
 			}
 		}
-		r.Equal(10, canPreviewCount)
+		r.Equal(11, canPreviewCount)
 
 		info = getDirInfo(t, "/Images/", "order=desc")
 		r.Equal("namedirfirst", info.Sort)
@@ -368,6 +369,7 @@ func TestAPI_GetDirInfo(t *testing.T) {
 				"corgi-g4ea377693_640.jpg",
 				"birds-g64b44607c_640.jpg",
 				"asdfgh.heic",
+				".rview.yml",
 				"Photos",
 				"Arts",
 			},
@@ -389,9 +391,27 @@ func TestAPI_GetDirInfo(t *testing.T) {
 				"sky.avif",
 				"qwerty.webp",
 				"credits.txt",
+				".rview.yml",
 				"Photos",
 				"Arts",
 			},
+			extractNames(info),
+		)
+
+		// Check default_sort from .rview.yml
+		info = getDirInfo(t, "/Video/", "")
+		r.Equal("size", info.Sort)
+		r.Equal("desc", info.Order)
+		r.Equal(
+			[]string{"boat-153559.mp4", "traffic-53902.mp4", "credits.txt", ".rview.yml"},
+			extractNames(info),
+		)
+
+		info = getDirInfo(t, "/Video/", "sort=time&order=asc")
+		r.Equal("time", info.Sort)
+		r.Equal("asc", info.Order)
+		r.Equal(
+			[]string{"traffic-53902.mp4", "credits.txt", "boat-153559.mp4", ".rview.yml"},
 			extractNames(info),
 		)
 	})
@@ -606,16 +626,23 @@ func TestAPI_Search(t *testing.T) {
 		got,
 	)
 
-	got = search(t, "tests")
+	// Search by extra search terms from .rview.yml
+	got = search(t, "Efficiency")
 	r.Equal(
 		[]web.SearchHit{
 			{
-				Path: "/Other/test-thumbnails/", IsDir: true, ModTime: 1662921304,
-				Score: 2, WebURL: "/ui/Other/test-thumbnails/", Icon: "folder",
+				Path: "/Images/asdfgh.heic", Size: 5128, ModTime: 1685915679,
+				Score: 8, WebURL: "/ui/Images/?preview=asdfgh.heic", Icon: "image",
 			},
+		},
+		got,
+	)
+	got = search(t, "Pictures")
+	r.Equal(
+		[]web.SearchHit{
 			{
-				Path: "/test.gif", Size: 1833, ModTime: 1672585200,
-				Score: 2, WebURL: "/ui/?preview=test.gif", Icon: "image",
+				Path: "/Images/Photos/", IsDir: true, ModTime: 1672598100,
+				Score: 6, WebURL: "/ui/Images/Photos/", Icon: "folder",
 			},
 		},
 		got,

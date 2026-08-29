@@ -8,11 +8,11 @@ import (
 	"reflect"
 	"sync"
 
+	"github.com/ShoshinNikita/rview/index"
 	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/ShoshinNikita/rview/search"
 	"github.com/ShoshinNikita/rview/thumbnails"
 	"github.com/ShoshinNikita/rview/web"
 )
@@ -24,7 +24,7 @@ type Rview struct {
 	thumbnailCache     *cache.DiskCache
 	originalImageCache *cache.DiskCache
 
-	searchService *search.Service
+	indexService *index.Service
 
 	rcloneInstance *rclone.Rclone
 
@@ -94,14 +94,14 @@ func (r *Rview) Prepare() (err error) {
 		r.thumbnailService = thumbnails.NewNoopThumbnailService()
 	}
 
-	// Search Service
-	r.searchService, err = search.NewService(r.rcloneInstance, dirRoot)
+	// Index Service
+	r.indexService, err = index.NewService(r.rcloneInstance, dirRoot)
 	if err != nil {
-		return fmt.Errorf("couldn't prepare search service: %w", err)
+		return fmt.Errorf("couldn't prepare index service: %w", err)
 	}
 
 	// Web Server
-	r.server = web.NewServer(r.cfg, r.rcloneInstance, r.thumbnailService, r.searchService)
+	r.server = web.NewServer(r.cfg, r.rcloneInstance, r.thumbnailService, r.indexService)
 
 	return nil
 }
@@ -113,7 +113,7 @@ func (r *Rview) Start(onError func()) <-chan struct{} {
 		var wg sync.WaitGroup
 		for name, s := range map[string]interface{ Start() error }{
 			"rclone instance": r.rcloneInstance,
-			"search service":  r.searchService,
+			"index service":   r.indexService,
 			"web server":      r.server,
 		} {
 			wg.Go(func() {
@@ -142,7 +142,7 @@ func (r *Rview) Shutdown(ctx context.Context) error {
 		{"thumbnail service", r.thumbnailService},
 		{"thumbnail cache", r.thumbnailCache},
 		{"original image cache", r.originalImageCache},
-		{"search service", r.searchService},
+		{"index service", r.indexService},
 		{"rclone instance", r.rcloneInstance},
 	} {
 		err := safeShutdown(ctx, v.s)

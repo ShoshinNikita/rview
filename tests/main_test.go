@@ -23,6 +23,7 @@ var TestDataModTimes = map[string]string{
 	"Images/":                         "2023-01-01 18:35:00",
 	"Images/Photos/":                  "2023-01-01 18:35:00",
 	"Images/Arts/":                    "2023-01-01 18:35:00",
+	"Images/.rview.yml":               "2026-08-25 00:00:00",
 	"Images/birds-g64b44607c_640.jpg": "2019-05-15 06:30:09",
 	"Images/corgi-g4ea377693_640.jpg": "2023-01-01 18:35:00",
 	"Images/credits.txt":              "2023-01-01 18:36:00",
@@ -34,6 +35,7 @@ var TestDataModTimes = map[string]string{
 	"Images/sky.avif":                 "2025-01-21 02:45:12",
 	//
 	"Video/":                  "2022-09-08 11:37:02",
+	"Video/.rview.yml":        "2026-08-25 00:00:00",
 	"Video/credits.txt":       "2022-09-08 11:37:12",
 	"Video/traffic-53902.mp4": "2022-09-08 11:37:02",
 	"Video/boat-153559.mp4":   "2023-06-04 11:37:02",

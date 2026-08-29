@@ -5,10 +5,10 @@
 !cache/
 !cmd/
 !config/
+!index/
 !pkg/
 !rclone/
 !rview/
-!search/
 !static/
 !thumbnails/
 !vendor/

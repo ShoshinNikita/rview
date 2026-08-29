@@ -10,6 +10,21 @@ of various length for these words.
 - `-exclude`, `-.png` or `-"exclude with spaces"`: Exclude exact matches, use double quotes
   to exclude text with spaces.
 
+## .rview.yml
+
+You can make searching easier by annotating files with `.rview.yml`.
+Annotations are indexed the same way as filepaths.
+
+```yml
+annotations:
+  ".": docs                   # current directory
+  "*.jpg": images             # all JPGs in the current directory
+  "example/": samples         # directory ./example/
+  "DSC04559.jpg": large image # specific file
+
+default_sort: "size_desc" # change default sort
+```
+
 ## Examples
 
 **Files:**

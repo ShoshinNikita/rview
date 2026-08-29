@@ -1,4 +1,4 @@
-package search
+package index
 
 import (
 	"cmp"
@@ -29,44 +29,49 @@ func (h Hit) GetPath() string { return h.Path }
 func (h Hit) GetIsDir() bool  { return h.IsDir }
 
 type prefixIndex struct {
-	MinPrefixLen int                 `json:"min_prefix_len"`
-	MaxPrefixLen int                 `json:"max_prefix_len"`
-	Entries      map[uint32]dirEntry `json:"entries"`
-	Prefixes     map[string][]uint32 `json:"prefixes"`
+	MinPrefixLen int                     `json:"min_prefix_len"`
+	MaxPrefixLen int                     `json:"max_prefix_len"`
+	Entries      map[uint32]bareDirEntry `json:"entries"`
+	Prefixes     map[string][]uint32     `json:"prefixes"`
 
 	lowerCasedPaths map[uint32]string
 }
 
-type dirEntry struct {
+type bareDirEntry struct {
 	Path    string `json:"path"`
 	IsDir   bool   `json:"is_dir"`
 	Size    int64  `json:"size"`
 	ModTime int64  `json:"mod_time"`
 }
 
-func newPrefixIndex(dirEntries iter.Seq[rclone.DirEntry], minPrefixLen, maxPrefixLen int) *prefixIndex {
+type dirEntry struct {
+	bareDirEntry
+
+	Annotations []string
+}
+
+func newPrefixIndex(dirEntries iter.Seq[*dirEntry], minPrefixLen, maxPrefixLen int) *prefixIndex {
 	var (
-		id       uint32
-		entries  = make(map[uint32]dirEntry)
+		id       = uint32(0)
+		entries  = make(map[uint32]bareDirEntry)
 		prefixes = make(map[string][]uint32)
+		tags     = make(map[string][]uint32)
 	)
 	for entry := range dirEntries {
-		entries[id] = dirEntry{
-			Path:    entry.URL,
-			IsDir:   entry.IsDir,
-			Size:    entry.Size,
-			ModTime: entry.ModTime,
-		}
-		for prefix := range generatePrefixes(entry.URL, minPrefixLen, maxPrefixLen) {
+		entries[id] = entry.bareDirEntry
+		for prefix := range generatePrefixes(entry.Path, minPrefixLen, maxPrefixLen) {
 			prefixes[prefix] = append(prefixes[prefix], id)
+		}
+		for _, c := range entry.Annotations {
+			for prefix := range generatePrefixes(c, minPrefixLen, maxPrefixLen) {
+				prefixes[prefix] = append(prefixes[prefix], id)
+			}
 		}
 
 		id++
 	}
-	for prefix, ids := range prefixes {
-		slices.Sort(ids)
-		prefixes[prefix] = slices.Clone(slices.Compact(ids)) // use slices.Clone because we don't need extra capacity
-	}
+	compactMap(prefixes)
+	compactMap(tags)
 
 	index := &prefixIndex{
 		MinPrefixLen: minPrefixLen,
@@ -77,6 +82,13 @@ func newPrefixIndex(dirEntries iter.Seq[rclone.DirEntry], minPrefixLen, maxPrefi
 	index.prepare()
 
 	return index
+}
+
+func compactMap[K comparable, V cmp.Ordered](m map[K][]V) {
+	for prefix, ids := range m {
+		slices.Sort(ids)
+		m[prefix] = slices.Clone(slices.Compact(ids)) // use slices.Clone because we don't need extra capacity
+	}
 }
 
 func (index *prefixIndex) UnmarshalJSON(data []byte) error {
@@ -291,6 +303,10 @@ func compactSearchHits(hits []Hit) []Hit {
 }
 
 func generatePrefixes(path string, minLen, maxLen int) iter.Seq[string] {
+	if path == "" {
+		return func(yield func(string) bool) {}
+	}
+
 	return func(yield func(string) bool) {
 		for _, word := range splitToNormalizedWords(path, minLen) {
 			for i := minLen; i <= maxLen; i++ {

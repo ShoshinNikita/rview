@@ -172,6 +172,13 @@ var (
 			},
 		},
 	)
+	SearchDirMetaFileWarnings = promauto.NewGauge(
+		prometheus.GaugeOpts{
+			Namespace: namespace,
+			Subsystem: "search",
+			Name:      "dir_meta_file_warnings",
+		},
+	)
 )
 
 // Cache
