@@ -1,12 +1,14 @@
 package cache
 
 import (
+	"cmp"
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/ShoshinNikita/rview/pkg/require"
 )
 
 func TestCleaner_loadAllFilesAndRemove(t *testing.T) {
@@ -38,16 +40,19 @@ func TestCleaner_loadAllFilesAndRemove(t *testing.T) {
 	{
 		files, err := c.loadAllFiles()
 		r.NoError(err)
+		slices.SortFunc(files, func(a, b fileInfo) int {
+			return cmp.Compare(a.path, b.path)
+		})
 
 		for i := range files {
 			files[i].modTime = time.Time{}
 		}
-		r.ElementsMatch(
+		r.Equal(
 			[]fileInfo{
+				{path: filepath.Join(dir, "5.txt"), size: 15},
 				{path: filepath.Join(dir, "a/1.txt"), size: 100},
 				{path: filepath.Join(dir, "a/2.txt"), size: 300},
 				{path: filepath.Join(dir, "a/b/33.txt"), size: 1024},
-				{path: filepath.Join(dir, "5.txt"), size: 15},
 				{path: filepath.Join(dir, "test/test/test/qwerty.txt"), size: 111},
 			},
 			files,
@@ -151,7 +156,11 @@ func TestCleaner_getFilesToRemove(t *testing.T) {
 			for _, f := range got {
 				gotPaths = append(gotPaths, f.path)
 			}
-			require.ElementsMatch(t, tt.wantFilenames, gotPaths)
+			require.New(t).Equal(tt.wantFilenames, gotPaths)
 		})
 	}
+}
+
+func (info fileInfo) Equal(info2 fileInfo) bool {
+	return info == info2
 }

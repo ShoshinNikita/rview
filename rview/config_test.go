@@ -3,7 +3,7 @@ package rview
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/ShoshinNikita/rview/pkg/require"
 )
 
 func TestImagePreviewMode(t *testing.T) {

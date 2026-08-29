@@ -17,9 +17,8 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/cache"
+	"github.com/ShoshinNikita/rview/pkg/require"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestThumbnailService(t *testing.T) {
@@ -30,7 +29,7 @@ func TestThumbnailService(t *testing.T) {
 	const useOriginalImageThresholdSize = 10
 
 	diskCache, err := cache.NewDiskCache("", t.TempDir(), cache.Options{DisableCleaner: true})
-	require.NoError(t, err)
+	require.New(t).NoError(err)
 
 	newService := func(
 		t *testing.T,
@@ -47,7 +46,7 @@ func TestThumbnailService(t *testing.T) {
 
 		t.Cleanup(func() {
 			err = service.Shutdown(ctx)
-			require.NoError(t, err)
+			require.New(t).NoError(err)
 		})
 
 		return service
@@ -175,11 +174,11 @@ func TestThumbnailService(t *testing.T) {
 		fileID := rview.NewFileID("2.jpg", time.Now().Unix(), useOriginalImageThresholdSize+1)
 
 		_, _, err = service.OpenThumbnail(ctx, fileID, "")
-		r.ErrorIs(err, cache.ErrCacheMiss)
+		r.True(errors.Is(err, cache.ErrCacheMiss))
 
 		// Cache file must be removed.
 		_, err := service.cache.Open(fileID)
-		r.ErrorIs(err, cache.ErrCacheMiss)
+		r.True(errors.Is(err, cache.ErrCacheMiss))
 	})
 
 	t.Run("use original file", func(t *testing.T) {
@@ -228,6 +227,8 @@ func TestThumbnailService_CanGenerateThumbnail(t *testing.T) {
 func TestThumbnailService_NewThumbnailID(t *testing.T) {
 	t.Parallel()
 
+	r := require.New(t)
+
 	service := NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails, true)
 
 	for _, tt := range []struct {
@@ -254,10 +255,10 @@ func TestThumbnailService_NewThumbnailID(t *testing.T) {
 	} {
 		id := rview.NewFileID(tt.path, 33, 15)
 		thumbnail, err := service.newThumbnailID(id, tt.size)
-		require.NoError(t, err)
-		assert.Equal(t, tt.wantThumbnail, thumbnail.GetPath())
-		assert.Equal(t, int64(33), thumbnail.GetModTime())
-		assert.Equal(t, int64(15), thumbnail.GetSize())
+		r.NoError(err)
+		r.Equal(tt.wantThumbnail, thumbnail.GetPath())
+		r.Equal(int64(33), thumbnail.GetModTime())
+		r.Equal(int64(15), thumbnail.GetSize())
 	}
 }
 
@@ -268,14 +269,14 @@ func TestThumbnailService_ImageType(t *testing.T) {
 	encodeJPEG := func(w, h int) []byte {
 		buf := bytes.NewBuffer(nil)
 		err := jpeg.Encode(buf, image.NewRGBA(image.Rect(0, 0, w, h)), &jpeg.Options{Quality: 100})
-		require.NoError(t, err)
+		require.New(t).NoError(err)
 		return buf.Bytes()
 	}
 	encodePNG := func(w, h int) []byte {
 		buf := bytes.NewBuffer(nil)
 		enc := png.Encoder{CompressionLevel: png.NoCompression}
 		err := enc.Encode(buf, image.NewRGBA(image.Rect(0, 0, w, h)))
-		require.NoError(t, err)
+		require.New(t).NoError(err)
 		return buf.Bytes()
 	}
 	type Image struct {
@@ -290,13 +291,22 @@ func TestThumbnailService_ImageType(t *testing.T) {
 	}
 
 	checkJPEG := func(t *testing.T, data []byte) {
-		require.True(t, bytes.HasPrefix(data, []byte{0xff, 0xd8, 0xff}), "no jpeg signature")
+		t.Helper()
+
+		// No jpeg signature.
+		require.New(t).True(bytes.HasPrefix(data, []byte{0xff, 0xd8, 0xff}))
 	}
 	checkPNG := func(t *testing.T, data []byte) {
-		require.True(t, bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}), "no png signature")
+		t.Helper()
+
+		// No png signature.
+		require.New(t).True(bytes.HasPrefix(data, []byte{0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a}))
 	}
 	checkAVIF := func(t *testing.T, data []byte) {
-		require.True(t, bytes.Contains(data, []byte("ftypavif")), "no avif signature")
+		t.Helper()
+
+		// No avif signature.
+		require.New(t).True(bytes.Contains(data, []byte("ftypavif")))
 	}
 	type Test struct {
 		file            string
@@ -327,7 +337,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 		},
 	} {
 		diskCache, err := cache.NewDiskCache("", t.TempDir(), cache.Options{DisableCleaner: true})
-		require.NoError(t, err)
+		require.New(t).NoError(err)
 
 		thumbnailsFormat := tt.thumbnailsFormat
 		t.Run(string(tt.thumbnailsFormat), func(t *testing.T) {
@@ -339,7 +349,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 
 					img, ok := images[tt.file]
 					r.True(ok)
-					r.Equal(int(img.size), len(img.rawImage), "wrong image size")
+					r.Equal(int(img.size), len(img.rawImage))
 
 					rclone := rcloneMock{
 						openFileFn: func(context.Context, rview.FileID) (io.ReadCloser, error) {
@@ -366,7 +376,7 @@ func TestThumbnailService_ImageType(t *testing.T) {
 // thumbnails for all supported image types.
 func TestThumbnailService_AllImageTypes(t *testing.T) {
 	diskCache, err := cache.NewDiskCache("", t.TempDir(), cache.Options{DisableCleaner: true})
-	require.NoError(t, err)
+	require.New(t).NoError(err)
 
 	type Test struct {
 		imageType       string
@@ -401,9 +411,9 @@ func TestThumbnailService_AllImageTypes(t *testing.T) {
 				thumbnail, err := io.ReadAll(rc)
 				r.NoError(err)
 				if tt.sameSize {
-					r.Equal(len(thumbnail), len(originalImage), "size of thumbnail and original file should be equal")
+					r.Equal(len(thumbnail), len(originalImage)) // size of thumbnail and original file should be equal
 				} else {
-					r.NotEqual(len(thumbnail), len(originalImage), "size of thumbnail and original file should differ")
+					r.NotEqual(len(thumbnail), len(originalImage)) // size of thumbnail and original file should differ
 				}
 
 				r.Equal(tt.wantContentType, contentType)
@@ -506,7 +516,7 @@ func TestThumbnailService_extractPreviewFromRawImage(t *testing.T) {
 	{
 		buf := bytes.NewBuffer(nil)
 		err := jpeg.Encode(buf, image.NewRGBA(image.Rect(0, 0, 100, 100)), nil)
-		require.NoError(t, err)
+		require.New(t).NoError(err)
 		jpgFromRaw = buf.Bytes()
 	}
 
@@ -534,13 +544,15 @@ func TestThumbnailService_extractPreviewFromRawImage(t *testing.T) {
 	extract := func(t *testing.T, name string) ([]byte, []Call) {
 		t.Helper()
 
+		r := require.New(t)
+
 		calls = nil
 		rc, err := service.extractPreviewFromRawImage(t.Context(), rview.NewFileID(name, 0, 0))
-		require.NoError(t, err)
+		r.NoError(err)
 		defer rc.Close()
 
 		data, err := io.ReadAll(rc)
-		require.NoError(t, err)
+		r.NoError(err)
 
 		return data, calls
 	}
@@ -577,7 +589,7 @@ func TestThumbnailService_extractPreviewFromRawImage(t *testing.T) {
 				},
 				calls,
 			)
-			r.Less(len(jpgFromRaw), len(data)) // size should be large because we embedded 'Orientation' tag
+			r.True(len(jpgFromRaw) < len(data)) // size should be large because we embedded 'Orientation' tag
 		}
 
 		// Horizontal orientation.
@@ -619,7 +631,7 @@ func TestThumbnailService_extractPreviewFromRawImage(t *testing.T) {
 
 		data, calls := extract(t, "img.NEF")
 		r.Equal([]Call{{Fn: "OpenFile"}}, calls)
-		r.NotEmpty(len(data))
+		r.NotEqual(0, len(data))
 		_ = os.WriteFile("./fixtures/img.NEF.jpeg", data, 0o600)
 	})
 
@@ -634,7 +646,7 @@ func TestThumbnailService_extractPreviewFromRawImage(t *testing.T) {
 
 		data, calls := extract(t, "img.CR3")
 		r.Equal([]Call{{Fn: "OpenFile"}}, calls)
-		r.NotEmpty(len(data))
+		r.NotEqual(0, len(data))
 		_ = os.WriteFile("./fixtures/img.CR3.jpeg", data, 0o600)
 	})
 }

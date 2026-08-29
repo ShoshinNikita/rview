@@ -9,8 +9,8 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/ShoshinNikita/rview/pkg/require"
 	"github.com/ShoshinNikita/rview/rclone"
-	"github.com/stretchr/testify/require"
 )
 
 func TestService_RefreshIndex(t *testing.T) {
@@ -70,12 +70,12 @@ func TestService_RefreshIndex(t *testing.T) {
 
 	hits, _, err = s.Search(ctx, "games", 5)
 	r.NoError(err)
-	r.Empty(hits)
+	r.Len(hits, 0)
 
 	searchIndex, err = s.loadIndexFromFile()
 	r.NoError(err)
 	hits, _ = searchIndex.Index.Search("games", 5)
-	r.Empty(hits)
+	r.Len(hits, 0)
 }
 
 type rcloneStub struct {

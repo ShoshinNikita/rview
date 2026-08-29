@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/ShoshinNikita/rview/pkg/require"
 )
 
 func TestSafeShutdown(t *testing.T) {
@@ -19,7 +19,8 @@ func TestSafeShutdown(t *testing.T) {
 	r.NoError(err)
 
 	err = safeShutdown(ctx, new(testShutdowner))
-	r.EqualError(err, "test")
+	r.Error(err)
+	r.Equal(err.Error(), "test")
 }
 
 type testShutdowner struct{}

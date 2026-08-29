@@ -4,10 +4,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/require"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/thumbnails"
-	"github.com/stretchr/testify/require"
 )
 
 func TestServer_convertRcloneInfo(t *testing.T) {

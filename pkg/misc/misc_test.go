@@ -3,7 +3,7 @@ package misc
 import (
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/ShoshinNikita/rview/pkg/require"
 )
 
 func TestFormatFileSize(t *testing.T) {
@@ -17,7 +17,7 @@ func TestFormatFileSize(t *testing.T) {
 		2 << 30:               "2 GiB",
 	} {
 		got := FormatFileSize(size)
-		require.Equal(t, wantRes, got)
+		require.New(t).Equal(wantRes, got)
 	}
 }
 

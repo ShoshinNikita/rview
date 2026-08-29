@@ -20,9 +20,9 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/cmd"
+	"github.com/ShoshinNikita/rview/pkg/require"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/web"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -419,27 +419,27 @@ func TestAPI_GetFile(t *testing.T) {
 	// No mod_time.
 	status, body, _ := makeRequest(t, "/api/file/Video/credits.txt")
 	r.Equal(400, status)
-	r.Contains(string(body), "invalid mod_time")
+	r.Contains(body, "invalid mod_time")
 
 	// No size.
 	status, body, _ = makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637030")
 	r.Equal(400, status)
-	r.Contains(string(body), "invalid size")
+	r.Contains(body, "invalid size")
 
 	// Wrong mod_time.
 	status, body, _ = makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637030&size=162")
 	r.Equal(500, status)
-	r.Contains(string(body), "different mod time")
+	r.Contains(body, "different mod time")
 
 	// Wrong size.
 	status, body, _ = makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637032&size=123")
 	r.Equal(500, status)
-	r.Contains(string(body), "different size")
+	r.Contains(body, "different size")
 
 	// Check Content-Type and body of a text file.
 	status, body, headers := makeRequest(t, "/api/file/Video/credits.txt?mod_time=1662637032&size=162")
 	r.Equal(200, status)
-	r.Contains(string(body), ".mp4")
+	r.Contains(body, ".mp4")
 	r.Equal("text/plain; charset=utf-8", headers.Get("Content-Type"))
 
 	// Check Content-Type of a video.
@@ -518,7 +518,7 @@ func TestAPI_Thumbnails(t *testing.T) {
 	info := getDirInfo(t, "generated", "")
 	r.Len(info.Entries, 3)
 	for _, entry := range info.Entries {
-		r.NotEmpty(entry.ThumbnailURL)
+		r.NotEqual("", entry.ThumbnailURL)
 
 		status, smallRawThumbnail, header := makeRequest(t, entry.ThumbnailURL)
 		r.Equal(200, status)
@@ -532,10 +532,10 @@ func TestAPI_Thumbnails(t *testing.T) {
 		case "small.jpeg":
 			r.Equal(len(smallRawThumbnail), int(entry.Size)) // the original image was small enough
 		case "medium.jpeg":
-			r.Less(len(smallRawThumbnail), int(entry.Size))         // image should be resized
+			r.True(len(smallRawThumbnail) < int(entry.Size))        // image should be resized
 			r.Equal(len(smallRawThumbnail), len(largeRawThumbnail)) // image resolution is small, no difference
 		case "large.jpeg":
-			r.Less(len(smallRawThumbnail), int(entry.Size))            // image should be resized
+			r.True(len(smallRawThumbnail) < int(entry.Size))           // image should be resized
 			r.NotEqual(len(smallRawThumbnail), len(largeRawThumbnail)) // enough image resolution to see the difference
 		default:
 			t.Fatalf("unexpected file %q", entry.Filename)
@@ -625,11 +625,13 @@ func TestAPI_Search(t *testing.T) {
 func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {
 	t.Helper()
 
+	r := require.New(t)
+
 	status, body, _ := makeRequest(t, path.Join("/api/dir", dir)+"/?"+query)
-	require.Equal(t, 200, status)
+	r.Equal(200, status)
 
 	err := json.Unmarshal(body, &res)
-	require.NoError(t, err)
+	r.NoError(err)
 
 	return res
 }
@@ -641,8 +643,10 @@ type requestOptions struct {
 func makeRequest(t *testing.T, path string, opts ...requestOptions) (status int, body []byte, header http.Header) {
 	t.Helper()
 
+	r := require.New(t)
+
 	req, err := http.NewRequestWithContext(t.Context(), "GET", rviewAPIAddr+path, nil)
-	require.NoError(t, err)
+	r.NoError(err)
 	if len(opts) > 0 {
 		if len(opts) > 1 {
 			t.Fatalf("opts can contain only 1 element, got %d", len(opts))
@@ -651,17 +655,17 @@ func makeRequest(t *testing.T, path string, opts ...requestOptions) (status int,
 	}
 
 	resp, err := http.DefaultClient.Do(req)
-	require.NoError(t, err)
+	r.NoError(err)
 	defer resp.Body.Close()
 
 	body, err = io.ReadAll(resp.Body)
-	require.NoError(t, err)
+	r.NoError(err)
 
 	return resp.StatusCode, body, resp.Header
 }
 
 func mustParseTime(t *testing.T, s string) time.Time {
 	res, err := time.Parse(time.DateTime, s)
-	require.NoError(t, err)
+	require.New(t).NoError(err)
 	return res.UTC()
 }

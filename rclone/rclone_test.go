@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/require"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/stretchr/testify/require"
 )
 
 func TestRclone_DirCache(t *testing.T) {
@@ -100,7 +100,7 @@ func TestRclone_SortEntries(t *testing.T) {
 			for _, e := range entries {
 				filenames = append(filenames, e.Leaf)
 			}
-			require.Equal(t, want, filenames)
+			require.New(t).Equal(want, filenames)
 		}
 	}
 
@@ -181,7 +181,7 @@ func TestCompareStrings(t *testing.T) {
 		for range 10 {
 			rand.Shuffle(len(in), func(i, j int) { in[i], in[j] = in[j], in[i] })
 			slices.SortFunc(in, compareStrings)
-			require.Equal(t, want, in)
+			require.New(t).Equal(want, in)
 		}
 	}
 

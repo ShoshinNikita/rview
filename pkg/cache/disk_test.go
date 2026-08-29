@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ShoshinNikita/rview/pkg/require"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDiskCache(t *testing.T) {
@@ -76,7 +76,7 @@ func TestDiskCache_Write(t *testing.T) {
 	err = cache.Write(id, reader)
 	r.Error(err)
 	_, err = cache.Open(id)
-	r.ErrorIs(err, ErrCacheMiss)
+	r.True(errors.Is(err, ErrCacheMiss))
 }
 
 func TestDiskCache_FilesWithSameName(t *testing.T) {
@@ -102,7 +102,7 @@ func checkFile(t *testing.T, cache *DiskCache, id rview.FileID) bool {
 	if errors.Is(err, ErrCacheMiss) {
 		return false
 	}
-	require.NoError(t, err)
+	require.New(t).NoError(err)
 	rc.Close()
 	return true
 }

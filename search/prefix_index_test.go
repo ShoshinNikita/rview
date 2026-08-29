@@ -6,13 +6,13 @@ import (
 	"math"
 	"path"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
 
+	"github.com/ShoshinNikita/rview/pkg/require"
 	"github.com/ShoshinNikita/rview/rclone"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPrefixIndex(t *testing.T) {
@@ -86,7 +86,7 @@ func TestPrefixIndex(t *testing.T) {
 		err = json.Unmarshal(rawIndex, &index)
 		r.NoError(err)
 
-		r.NotEmpty(index.lowerCasedPaths)
+		r.NotEqual(0, len(index.lowerCasedPaths))
 	})
 
 	t.Run("basic search", func(t *testing.T) {
@@ -147,7 +147,7 @@ func TestPrefixIndex(t *testing.T) {
 		r := require.New(t)
 
 		hits, _ := index.Search(`"games/hifi RUSH"`, 5)
-		r.Empty(hits)
+		r.Len(hits, 0)
 
 		hits, _ = index.Search(`"games/hi-fi RUSH"`, 5)
 		r.Equal(
@@ -186,7 +186,7 @@ func TestPrefixIndex(t *testing.T) {
 		)
 
 		hits, _ = index.Search(`"games" "jpg" "1" "2"`, 5)
-		r.Empty(hits)
+		r.Len(hits, 0)
 	})
 
 	t.Run("exclude", func(t *testing.T) {
@@ -282,9 +282,9 @@ func TestPrefixIndex(t *testing.T) {
 
 		// But exact search succeeds only for input with accented characters.
 		hits, _ = index.Search(`"schuchternes"`, 10)
-		r.Empty(hits)
+		r.Len(hits, 0)
 		hits, _ = index.Search(`"schüchternes"`, 10)
-		r.NotEmpty(hits)
+		r.NotEqual(0, len(hits))
 
 		// Other cases.
 		hits, _ = index.Search("hello", 10)
@@ -506,7 +506,7 @@ func TestNewSearchRequest(t *testing.T) {
 				got.words = nil // too tiresome to test
 			}
 
-			assert.Equal(t, tt.want, got)
+			require.New(t).Equal(tt.want, got)
 		})
 	}
 }
@@ -515,7 +515,7 @@ func TestFloat32Inf(t *testing.T) {
 	r := require.New(t)
 
 	f := float32(math.Inf(1))
-	r.True(f > math.MaxFloat32) //nolint:testifylint
+	r.True(f > math.MaxFloat32)
 	r.True(math.IsInf(float64(f), 0))
 }
 
@@ -570,4 +570,8 @@ func BenchmarkPrefixIndex_Search(b *testing.B) {
 	run(`rview`)
 	run(`Dockerfile`)
 	run(`"Dockerfile"`)
+}
+
+func (r searchRequest) Equal(r2 searchRequest) bool {
+	return reflect.DeepEqual(r, r2)
 }

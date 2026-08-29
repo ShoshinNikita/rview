@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/ShoshinNikita/rview/pkg/require"
 )
 
 func TestEmbeddedFileIcons(t *testing.T) {
@@ -30,7 +30,7 @@ func TestEmbeddedFileIcons(t *testing.T) {
 			t.Errorf("couldn't open icon %q", icon)
 		} else {
 			err = f.Close()
-			require.NoError(t, err)
+			require.New(t).NoError(err)
 		}
 	}
 }
@@ -52,7 +52,9 @@ func TestGetFileIcon(t *testing.T) {
 			"x.qwerty":     "file",
 			"0451":         "file",
 		} {
-			require.Equal(t, wantIconPath, GetFileIcon(filename, false), filename)
+			t.Run(filename, func(t *testing.T) {
+				require.New(t).Equal(wantIconPath, GetFileIcon(filename, false))
+			})
 		}
 	})
 
@@ -66,7 +68,9 @@ func TestGetFileIcon(t *testing.T) {
 			"dir":     "folder",
 			"ui":      "folder",
 		} {
-			require.Equal(t, wantIconPath, GetFileIcon(filename, true), filename)
+			t.Run(filename, func(t *testing.T) {
+				require.New(t).Equal(wantIconPath, GetFileIcon(filename, true))
+			})
 		}
 	})
 }
