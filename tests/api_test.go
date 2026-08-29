@@ -626,6 +626,21 @@ func TestAPI_Search(t *testing.T) {
 		got,
 	)
 
+	got = search(t, "tests")
+	r.Equal(
+		[]web.SearchHit{
+			{
+				Path: "/Other/test-thumbnails/", IsDir: true, ModTime: 1662921304,
+				Score: 2, WebURL: "/ui/Other/test-thumbnails/", Icon: "folder",
+			},
+			{
+				Path: "/test.gif", Size: 1833, ModTime: 1672585200,
+				Score: 2, WebURL: "/ui/?preview=test.gif", Icon: "image",
+			},
+		},
+		got,
+	)
+
 	// Search by extra search terms from .rview.yml
 	got = search(t, "Efficiency")
 	r.Equal(

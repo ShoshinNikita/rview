@@ -55,23 +55,24 @@ func newPrefixIndex(dirEntries iter.Seq[*dirEntry], minPrefixLen, maxPrefixLen i
 		id       = uint32(0)
 		entries  = make(map[uint32]bareDirEntry)
 		prefixes = make(map[string][]uint32)
-		tags     = make(map[string][]uint32)
 	)
 	for entry := range dirEntries {
 		entries[id] = entry.bareDirEntry
 		for prefix := range generatePrefixes(entry.Path, minPrefixLen, maxPrefixLen) {
 			prefixes[prefix] = append(prefixes[prefix], id)
 		}
-		for _, c := range entry.Annotations {
-			for prefix := range generatePrefixes(c, minPrefixLen, maxPrefixLen) {
+		for _, a := range entry.Annotations {
+			for prefix := range generatePrefixes(a, minPrefixLen, maxPrefixLen) {
 				prefixes[prefix] = append(prefixes[prefix], id)
 			}
 		}
 
 		id++
 	}
-	compactMap(prefixes)
-	compactMap(tags)
+	for prefix, ids := range prefixes {
+		slices.Sort(ids)
+		prefixes[prefix] = slices.Clone(slices.Compact(ids)) // use slices.Clone because we don't need extra capacity
+	}
 
 	index := &prefixIndex{
 		MinPrefixLen: minPrefixLen,
@@ -82,13 +83,6 @@ func newPrefixIndex(dirEntries iter.Seq[*dirEntry], minPrefixLen, maxPrefixLen i
 	index.prepare()
 
 	return index
-}
-
-func compactMap[K comparable, V cmp.Ordered](m map[K][]V) {
-	for prefix, ids := range m {
-		slices.Sort(ids)
-		m[prefix] = slices.Clone(slices.Compact(ids)) // use slices.Clone because we don't need extra capacity
-	}
 }
 
 func (index *prefixIndex) UnmarshalJSON(data []byte) error {

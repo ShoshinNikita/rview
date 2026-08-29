@@ -45,13 +45,13 @@ type Rclone interface {
 }
 
 type entryIndex struct {
-	Index       *prefixIndex       `json:"index"`
-	DirMetadata map[string]disSort `json:"dir_metadata"`
+	Index       *prefixIndex           `json:"index"`
+	DirMetadata map[string]dirMetadata `json:"dir_metadata"`
 
 	CreatedAt time.Time `json:"created_at"`
 }
 
-type disSort struct {
+type dirMetadata struct {
 	DefaultSort  string `json:"default_sort"`
 	DefaultOrder string `json:"default_order"`
 }
@@ -271,7 +271,7 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 }
 
 func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.Seq[rclone.DirEntry]) (
-	iter.Seq[*dirEntry], map[string]disSort, error,
+	iter.Seq[*dirEntry], map[string]dirMetadata, error,
 ) {
 	var (
 		metaFiles    []rclone.DirEntry
@@ -308,7 +308,7 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 
 	var (
 		warningCount = 0
-		dirSorts     = make(map[string]disSort)
+		dirMeta      = make(map[string]dirMetadata)
 	)
 	for _, e := range metaFiles {
 		id := rview.NewFileID(e.URL, e.ModTime, e.Size)
@@ -328,7 +328,7 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 			"size_asc", "size_desc",
 			"time_asc", "time_desc":
 			defaultSort, defaultOrder, _ := strings.Cut(info.DefaultSort, "_")
-			dirSorts[dir] = disSort{
+			dirMeta[dir] = dirMetadata{
 				DefaultSort:  defaultSort,
 				DefaultOrder: defaultOrder,
 			}
@@ -342,7 +342,7 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 			pattern = strings.TrimSuffix(pattern, "/")
 
 			if strings.Contains(pattern, "/") {
-				info.addWarning("invalid pattern %q: patter can't match files in other directories", pattern)
+				info.addWarning("invalid pattern %q: pattern can't match files in other directories", pattern)
 				continue
 			}
 			_, err := path.Match(pattern, "")
@@ -381,13 +381,13 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 		default:
 			const sep = "\n  - "
 			rlog.Warnf(
-				"attribute file %s has %d warnings: %s",
+				"attribute file %s has %d warnings:%s",
 				e.URL, len(info.warnings), sep+strings.Join(info.warnings, sep),
 			)
 		}
 	}
 
-	metrics.SearchDirMetaFileWarnings.Set(float64(warningCount))
+	metrics.SearchMetaFileWarnings.Set(float64(warningCount))
 
 	resIter := func(yield func(*dirEntry) bool) {
 		for _, dirEntries := range entriesByDir {
@@ -398,7 +398,7 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 			}
 		}
 	}
-	return resIter, dirSorts, nil
+	return resIter, dirMeta, nil
 }
 
 type dirMetaInfo struct {
