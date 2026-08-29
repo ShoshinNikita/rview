@@ -3,10 +3,15 @@ package tests
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"log"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/ShoshinNikita/rview/pkg/require"
 )
 
 // TestDataModTimes contains all files in "testdata" directory and their mod times.
@@ -22,8 +27,11 @@ var TestDataModTimes = map[string]string{
 	//
 	"Images/":                         "2023-01-01 18:35:00",
 	"Images/Photos/":                  "2023-01-01 18:35:00",
+	"Images/Photos/.gitkeep":          "2023-01-01 18:35:00",
 	"Images/Arts/":                    "2023-01-01 18:35:00",
+	"Images/Arts/.gitkeep":            "2023-01-01 18:35:00",
 	"Images/.rview.yml":               "2026-08-25 00:00:00",
+	"Images/asdfgh.heic":              "2023-06-04 21:54:39",
 	"Images/birds-g64b44607c_640.jpg": "2019-05-15 06:30:09",
 	"Images/corgi-g4ea377693_640.jpg": "2023-01-01 18:35:00",
 	"Images/credits.txt":              "2023-01-01 18:36:00",
@@ -82,4 +90,25 @@ func TestMain(m *testing.M) {
 	}
 
 	os.Exit(code)
+}
+
+func TestCheckModTimes(t *testing.T) {
+	r := require.New(t)
+
+	err := filepath.WalkDir("./testdata", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		path = strings.TrimPrefix(path, "testdata/")
+
+		_, ok := TestDataModTimes[path]
+		if !ok {
+			t.Errorf("no mod time for %q", path)
+		}
+		return nil
+	})
+	r.NoError(err)
 }
