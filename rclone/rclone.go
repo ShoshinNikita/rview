@@ -259,7 +259,7 @@ func (r *Rclone) OpenFile(ctx context.Context, id rview.FileID) (io.ReadCloser, 
 	if err != nil {
 		return nil, err
 	}
-	metrics.RcloneGetFileHeadersDuration.Observe(time.Since(now).Seconds())
+	metrics.RcloneGetFileHeadersDuration.UpdateDuration(now)
 
 	if err := checkModTime(id, headers); err != nil {
 		body.Close()
@@ -326,7 +326,7 @@ func (r *Rclone) ProxyFileRequest(id rview.FileID, w http.ResponseWriter, req *h
 				return nil
 			}
 
-			metrics.RcloneGetFileHeadersDuration.Observe(time.Since(now).Seconds())
+			metrics.RcloneGetFileHeadersDuration.UpdateDuration(now)
 
 			if err := checkModTime(id, r.Header); err != nil {
 				return err
@@ -470,7 +470,7 @@ func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) 
 	}
 
 	dur := time.Since(now)
-	metrics.RcloneGetDirInfoDuration.Observe(dur.Seconds())
+	metrics.RcloneGetDirInfoDuration.Update(dur.Seconds())
 	rlog.Debugf("rclone info for %q was loaded in %s", path, dur)
 
 	// Remove artifacts of the template execution.

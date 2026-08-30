@@ -203,7 +203,7 @@ func (s *Service) GetMinSearchLength() int {
 func (s *Service) Search(_ context.Context, search string, limit int) (hits []Hit, total int, _ error) {
 	now := time.Now()
 	defer func() {
-		metrics.SearchDuration.Observe(time.Since(now).Seconds())
+		metrics.SearchDuration.UpdateDuration(now)
 	}()
 
 	s.mu.RLock()
@@ -232,7 +232,7 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 	defer func() {
 		// Monitor duration even for errors.
 		dur := time.Since(now)
-		metrics.SearchRefreshIndexesDuration.Observe(dur.Seconds())
+		metrics.SearchRefreshIndexesDuration.Update(dur.Seconds())
 
 		if finalErr != nil {
 			metrics.SearchRefreshIndexesErrors.Inc()

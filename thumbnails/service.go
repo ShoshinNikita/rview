@@ -21,12 +21,11 @@ import (
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 func init() {
 	for _, size := range []ThumbnailSize{ThumbnailSmall, ThumbnailMedium, ThumbnailLarge} {
-		metrics.ThumbnailsSizeRatio.WithLabelValues(string(size))
+		metrics.ThumbnailsSizeRatio(string(size))
 	}
 }
 
@@ -154,7 +153,7 @@ func (s *ThumbnailService) startWorkers() {
 				dur := time.Since(now)
 
 				if stats.originalSize > 0 {
-					metrics.ThumbnailsOriginalImageSizes.Observe(float64(stats.originalSize))
+					metrics.ThumbnailsOriginalImageSizes.Update(float64(stats.originalSize))
 				}
 
 				switch {
@@ -167,10 +166,10 @@ func (s *ThumbnailService) startWorkers() {
 					rlog.Debugf("use original image for %q, size: %s", task.fileID.GetPath(), toMiB(stats.originalSize))
 
 				default:
-					metrics.ThumbnailsProcessTaskDuration.Observe(dur.Seconds())
-					metrics.ThumbnailsSizeRatio.
-						WithLabelValues(string(task.size)).
-						Observe(float64(stats.originalSize) / float64(stats.thumbnailSize))
+					metrics.ThumbnailsProcessTaskDuration.Update(dur.Seconds())
+					metrics.ThumbnailsSizeRatio(string(task.size)).Update(
+						float64(stats.originalSize) / float64(stats.thumbnailSize),
+					)
 
 					msg := fmt.Sprintf(
 						"%s thumbnail for %q was generated in %s, original size: %s, new size: %s",
@@ -211,7 +210,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		return stats{}, fmt.Errorf("couldn't get path for a thumbnail file: %w", err)
 	}
 
-	downloadImageTimer := prometheus.NewTimer(metrics.ThumbnailsDownloadImageDuration)
+	downloadStart := time.Now()
 	rc, err := s.openImage(ctx, task.fileID)
 	if err != nil {
 		return stats{}, fmt.Errorf("couldn't get image reader: %w", err)
@@ -224,7 +223,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		if err != nil {
 			return stats{}, err
 		}
-		downloadImageTimer.ObserveDuration()
+		metrics.ThumbnailsDownloadImageDuration.UpdateDuration(downloadStart)
 
 		return stats{
 			originalSize:      size,
@@ -255,9 +254,9 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 	if err := tempFile.Close(); err != nil {
 		return stats{}, fmt.Errorf("couldn't close temp file: %w", err)
 	}
-	downloadImageTimer.ObserveDuration()
+	metrics.ThumbnailsDownloadImageDuration.UpdateDuration(downloadStart)
 
-	resizeTimer := prometheus.NewTimer(metrics.ThumbnailsResizeDuration)
+	resizeStart := time.Now()
 	err = s.resizeFn(ctx, tempFile.Name(), cacheFilepath, task.thumbnailID, task.size)
 	if err != nil {
 		if err := s.cache.Remove(task.thumbnailID.FileID); err != nil {
@@ -266,7 +265,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 
 		return stats{}, err
 	}
-	resizeTimer.ObserveDuration()
+	metrics.ThumbnailsResizeDuration.UpdateDuration(resizeStart)
 
 	info, err := os.Stat(cacheFilepath)
 	if err != nil {

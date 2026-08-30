@@ -29,7 +29,7 @@ import (
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
 	"github.com/ShoshinNikita/rview/thumbnails"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/VictoriaMetrics/metrics"
 )
 
 type Server struct {
@@ -102,7 +102,9 @@ func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService Thumbna
 	mux.HandleFunc("POST /api/search/refresh-index", s.handleRefreshIndex)
 
 	// Prometheus Metrics
-	mux.Handle("GET /debug/metrics", promhttp.Handler())
+	mux.HandleFunc("GET /debug/metrics", func(w http.ResponseWriter, r *http.Request) {
+		metrics.WritePrometheus(w, true)
+	})
 
 	// Pprof
 	mux.HandleFunc("GET /debug/pprof/", pprof.Index)

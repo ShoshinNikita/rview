@@ -85,7 +85,7 @@ func (c *Cleaner) cleanup() {
 	for _, f := range allFiles {
 		cacheSize += f.size
 	}
-	metrics.CacheSize.WithLabelValues(c.cacheName).Set(float64(cacheSize))
+	metrics.CacheSize(c.cacheName).Set(float64(cacheSize))
 
 	filesToRemove := c.getFilesToRemove(allFiles)
 	if len(filesToRemove) == 0 {

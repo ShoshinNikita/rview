@@ -2,228 +2,125 @@
 package metrics
 
 import (
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promauto"
-)
+	"fmt"
 
-const namespace = "rview"
+	"github.com/VictoriaMetrics/metrics"
+)
 
 // Web
 var (
-	HTTPResponseStatuses = promauto.NewCounterVec(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "web",
-			Name:      "http_response_statuses_total",
-		},
-		[]string{"status"},
-	)
-	HTTPResponseTime = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "web",
-			Name:      "http_response_time_seconds",
-			Buckets:   []float64{0.1, 0.5, 1, 2, 5, 10, 15, 30},
-		},
-		[]string{"path"},
-	)
+	HTTPResponseStatuses = func(status int) *metrics.Counter {
+		return metrics.GetOrCreateCounter(fmt.Sprintf(`rview_web_http_response_statuses_total{status="%d"}`, status))
+	}
+	HTTPResponseTime = func(path string) *metrics.PrometheusHistogram {
+		return metrics.GetOrCreatePrometheusHistogramExt(
+			fmt.Sprintf(`rview_web_http_response_time_seconds{path=%q}`, path),
+			[]float64{0.1, 0.5, 1, 2, 5, 10, 15, 30},
+		)
+	}
 )
 
 // Rclone
 var (
-	RcloneGetDirInfoDuration = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "rclone",
-			Name:      "get_dir_info_duration_seconds",
-			Buckets:   []float64{0.05, 0.1, 0.2, 0.5, 1, 2, 5},
-		},
+	RcloneGetDirInfoDuration = metrics.NewPrometheusHistogramExt(
+		"rview_rclone_get_dir_info_duration_seconds",
+		[]float64{0.05, 0.1, 0.2, 0.5, 1, 2, 5},
 	)
-	RcloneGetFileHeadersDuration = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "rclone",
-			Name:      "get_file_headers_duration_seconds",
-			Buckets:   []float64{0.05, 0.1, 0.2, 0.5, 1, 2, 5},
-		},
+	RcloneGetFileHeadersDuration = metrics.NewPrometheusHistogramExt(
+		"rview_rclone_get_file_headers_duration_seconds",
+		[]float64{0.05, 0.1, 0.2, 0.5, 1, 2, 5},
 	)
-	RcloneDirsServedFromCache = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "rclone",
-			Name:      "dirs_served_from_cache",
-		},
+	RcloneDirsServedFromCache = metrics.NewCounter(
+		"rview_rclone_dirs_served_from_cache",
 	)
 )
 
 // Thumbnails
 var (
-	ThumbnailsErrors = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "thumbnails",
-			Name:      "errors_total",
+	ThumbnailsErrors             = metrics.NewCounter("rview_thumbnails_errors_total")
+	ThumbnailsOriginalImageUsed  = metrics.NewCounter("rview_thumbnails_original_image_used")
+	ThumbnailsOriginalImageSizes = metrics.NewPrometheusHistogramExt(
+		"rview_thumbnails_original_image_size_bytes",
+		[]float64{
+			124 << 10, // 124 Kib
+			256 << 10, // 256 Kib
+			512 << 10, // 512 Kib
+			1 << 20,   // 1 Mib
+			2 << 20,   // 2 Mib
+			5 << 20,   // 5 Mib
+			10 << 20,  // 10 Mib
+			15 << 20,  // 15 Mib
+			20 << 20,  // 20 Mib
+			30 << 20,  // 30 Mib
 		},
 	)
-	ThumbnailsOriginalImageUsed = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "thumbnails",
-			Name:      "original_image_used",
-		},
+	ThumbnailsDownloadImageDuration = metrics.NewPrometheusHistogramExt(
+		"rview_thumbnails_download_image_duration_seconds",
+		[]float64{0.1, 0.2, 0.35, 0.5, 1, 2, 3.5, 5},
 	)
-	ThumbnailsOriginalImageSizes = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "thumbnails",
-			Name:      "original_image_size_bytes",
-			Buckets: []float64{
-				124 << 10, // 124 Kib
-				256 << 10, // 256 Kib
-				512 << 10, // 512 Kib
-				1 << 20,   // 1 Mib
-				2 << 20,   // 2 Mib
-				5 << 20,   // 5 Mib
-				10 << 20,  // 10 Mib
-				15 << 20,  // 15 Mib
-				20 << 20,  // 20 Mib
-				30 << 20,  // 30 Mib
-			},
-		},
+	ThumbnailsResizeDuration = metrics.NewPrometheusHistogramExt(
+		"rview_thumbnails_resize_duration_seconds",
+		[]float64{0.1, 0.2, 0.35, 0.5, 1, 2, 3.5, 5},
 	)
-	ThumbnailsDownloadImageDuration = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "thumbnails",
-			Name:      "download_image_duration_seconds",
-			Buckets:   []float64{0.1, 0.2, 0.35, 0.5, 1, 2, 3.5, 5},
-		},
+	ThumbnailsProcessTaskDuration = metrics.NewPrometheusHistogramExt(
+		"rview_thumbnails_process_task_duration_seconds",
+		[]float64{0.2, 0.5, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120},
 	)
-	ThumbnailsResizeDuration = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "thumbnails",
-			Name:      "resize_duration_seconds",
-			Buckets:   []float64{0.1, 0.2, 0.35, 0.5, 1, 2, 3.5, 5},
-		},
-	)
-	ThumbnailsProcessTaskDuration = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "thumbnails",
-			Name:      "process_task_duration_seconds",
-			Buckets:   []float64{0.2, 0.5, 1, 2, 5, 10, 15, 30, 45, 60, 90, 120},
-		},
-	)
-	ThumbnailsSizeRatio = promauto.NewHistogramVec(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "thumbnails",
-			Name:      "size_ratio",
-			Buckets:   []float64{0.7, 0.9, 1, 2, 5, 10, 20, 30, 50, 70, 100, 150},
-		},
-		[]string{"thumbnail_size"},
-	)
-	ThumbnailsOriginalImagesUsedFromCache = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "thumbnails",
-			Name:      "original_images_used_from_cache",
-		},
+	ThumbnailsSizeRatio = func(size string) *metrics.PrometheusHistogram {
+		return metrics.GetOrCreatePrometheusHistogramExt(
+			fmt.Sprintf(`rview_thumbnails_size_ratio{thumbnail_size=%q}`, size),
+			[]float64{0.7, 0.9, 1, 2, 5, 10, 20, 30, 50, 70, 100, 150},
+		)
+	}
+	ThumbnailsOriginalImagesUsedFromCache = metrics.NewCounter(
+		"rview_thumbnails_original_images_used_from_cache",
 	)
 )
 
 // Search
 var (
-	SearchDuration = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "search",
-			Name:      "duration_seconds",
-			Buckets: []float64{
-				0.001, // 1ms
-				0.002, // 2ms
-				0.005, // 5ms
-				0.01,  // 10ms
-				0.02,  // 20ms
-			},
+	SearchDuration = metrics.NewPrometheusHistogramExt(
+		"rview_search_duration_seconds",
+		[]float64{
+			0.001, // 1ms
+			0.002, // 2ms
+			0.005, // 5ms
+			0.01,  // 10ms
+			0.02,  // 20ms
 		},
 	)
-	SearchRefreshIndexesErrors = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "search",
-			Name:      "refresh_indexes_errors_total",
+	SearchRefreshIndexesErrors = metrics.NewCounter(
+		"rview_search_refresh_indexes_errors_total",
+	)
+	SearchRefreshIndexesDuration = metrics.NewPrometheusHistogramExt(
+		"rview_search_refresh_indexes_duration_seconds",
+		[]float64{
+			0.5, // 500ms
+			1,   // 1s
+			2,   // 2s
+			5,   // 5s
+			10,  // 10s
+			20,  // 20s
+			30,  // 30s
 		},
 	)
-	SearchRefreshIndexesDuration = promauto.NewHistogram(
-		prometheus.HistogramOpts{
-			Namespace: namespace,
-			Subsystem: "search",
-			Name:      "refresh_indexes_duration_seconds",
-			Buckets: []float64{
-				0.5, // 500ms
-				1,   // 1s
-				2,   // 2s
-				5,   // 5s
-				10,  // 10s
-				20,  // 20s
-				30,  // 30s
-			},
-		},
-	)
-	SearchMetaFileWarnings = promauto.NewGauge(
-		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "search",
-			Name:      "meta_file_warnings",
-		},
-	)
+	SearchMetaFileWarnings = metrics.NewGauge("rview_search_meta_file_warnings", nil)
 )
 
 // Cache
 var (
-	CacheHits = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "cache",
-			Name:      "hits_total",
-		},
-	)
-	CacheMisses = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "cache",
-			Name:      "misses_total",
-		},
-	)
-	CacheErrors = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "cache",
-			Name:      "errors_total",
-		},
-	)
-	CacheSize = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Subsystem: "cache",
-			Name:      "size_bytes",
-		},
-		[]string{"name"},
-	)
-	CacheCleanerErrors = promauto.NewCounter(
-		prometheus.CounterOpts{
-			Namespace: namespace,
-			Subsystem: "cache_cleaner",
-			Name:      "errors_total",
-		},
-	)
+	CacheHits   = metrics.NewCounter("rview_cache_hits_total")
+	CacheMisses = metrics.NewCounter("rview_cache_misses_total")
+	CacheErrors = metrics.NewCounter("rview_cache_errors_total")
+	CacheSize   = func(name string) *metrics.Gauge {
+		return metrics.GetOrCreateGauge(fmt.Sprintf("rview_cache_size_bytes{name=%q}", name), nil)
+	}
+	CacheCleanerErrors = metrics.NewCounter("rview_cache_cleaner_errors_total")
 )
 
 // Init values for common labels.
 func init() {
-	for _, status := range []string{"200", "400", "404", "500"} {
-		HTTPResponseStatuses.With(prometheus.Labels{"status": status}).Add(0)
+	for _, status := range []int{200, 400, 404, 500} {
+		HTTPResponseStatuses(status).Add(0)
 	}
 }

@@ -4,13 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/rlog"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 func loggingMiddleware(h http.Handler) http.Handler {
@@ -48,17 +46,8 @@ func loggingMiddleware(h http.Handler) http.Handler {
 		if rw.requestCanceledByUser {
 			statusCode = 499 // 499 Client Closed Request (Nginx)
 		}
-		metrics.HTTPResponseStatuses.
-			With(prometheus.Labels{
-				"status": strconv.Itoa(statusCode),
-			}).
-			Inc()
-
-		metrics.HTTPResponseTime.
-			With(prometheus.Labels{
-				"path": path,
-			},
-			).Observe(time.Since(now).Seconds())
+		metrics.HTTPResponseStatuses(statusCode).Inc()
+		metrics.HTTPResponseTime(path).UpdateDuration(now)
 	})
 }
 
