@@ -3,7 +3,7 @@ package index
 import (
 	"compress/gzip"
 	"context"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"io"
@@ -136,7 +136,7 @@ func (s *Service) loadIndexFromFile() (res *entryIndex, err error) {
 	}
 	defer gzipReader.Close()
 
-	err = json.NewDecoder(gzipReader).Decode(&res)
+	err = json.UnmarshalRead(gzipReader, &res)
 	if err != nil {
 		return nil, fmt.Errorf("decode error: %w", err)
 	}
@@ -459,7 +459,7 @@ func (s *Service) saveIndexToFile(index *entryIndex) error {
 
 	gzipWriter := gzip.NewWriter(f)
 
-	err = json.NewEncoder(gzipWriter).Encode(index)
+	err = json.MarshalWrite(gzipWriter, index)
 	if err != nil {
 		return fmt.Errorf("couldn't encode index: %w", err)
 	}

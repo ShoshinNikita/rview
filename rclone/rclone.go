@@ -7,7 +7,7 @@ import (
 	"crypto/rand"
 	_ "embed"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"html"
@@ -464,7 +464,7 @@ func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) 
 	defer body.Close()
 
 	var rcloneInfo *DirInfo
-	err = json.NewDecoder(body).Decode(&rcloneInfo)
+	err = json.UnmarshalRead(body, &rcloneInfo)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't decode rclone response: %w", err)
 	}
@@ -646,7 +646,7 @@ func (r *Rclone) GetAllFiles(ctx context.Context) (iter.Seq[DirEntry], error) {
 			ModTime time.Time `json:"ModTime"`
 		} `json:"list"`
 	}
-	err = json.NewDecoder(body).Decode(&resp)
+	err = json.UnmarshalRead(body, &resp)
 	if err != nil {
 		return nil, fmt.Errorf("couldn't decode rclone response: %w", err)
 	}

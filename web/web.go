@@ -6,7 +6,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"fmt"
 	"html/template"
@@ -152,7 +152,7 @@ func (s *Server) handleDir(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(info)
+	_ = json.MarshalWrite(w, info)
 }
 
 func (s *Server) handleUI(w http.ResponseWriter, r *http.Request) {
@@ -554,8 +554,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
-
+	_ = json.MarshalWrite(w, resp)
 }
 
 func (s *Server) handlePageWithSearchResults(w http.ResponseWriter, r *http.Request) {

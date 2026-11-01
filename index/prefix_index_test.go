@@ -1,7 +1,7 @@
 package index
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"io/fs"
 	"math"
 	"path"

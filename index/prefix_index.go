@@ -2,7 +2,7 @@ package index
 
 import (
 	"cmp"
-	"encoding/json"
+	"encoding/json/v2"
 	"fmt"
 	"iter"
 	"maps"

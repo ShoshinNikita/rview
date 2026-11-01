@@ -35,7 +35,6 @@ linters:
       exclude-functions:
         - io.Copy
         - (io.Closer).Close
-        - (*encoding/json.Encoder).Encode
         - (net/http.ResponseWriter).Write
     tagliatelle:
       case:
