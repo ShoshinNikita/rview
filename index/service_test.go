@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"math"
 	"os"
 	"slices"
 	"testing"
@@ -43,7 +44,7 @@ func TestService_RefreshIndex(t *testing.T) {
 					Annotations: map[string]string{
 						".":     "root",
 						"*.txt": "text",
-						"arts":  "pictures",
+						"arts":  "PICTURES",
 						"arts/": "paintings",
 					},
 				})
@@ -72,7 +73,7 @@ func TestService_RefreshIndex(t *testing.T) {
 	r.NoError(err)
 	r.Equal(
 		[]Hit{
-			{Path: "/arts/games/", IsDir: true, Score: 3},
+			{Path: "/arts/games/", IsDir: true, Score: 100},
 			{Path: "/gaming.txt", IsDir: false, Score: 1},
 		},
 		hits,
@@ -81,19 +82,27 @@ func TestService_RefreshIndex(t *testing.T) {
 	// Search by extra search terms.
 	hits, _, err = s.Search(ctx, "pictures", 5)
 	r.NoError(err)
-	r.Equal([]Hit{{Path: "/arts/", IsDir: true, Score: 6}}, hits)
+	r.Equal([]Hit{{Path: "/arts/", IsDir: true, Score: 100}}, hits)
+	//
+	hits, _, err = s.Search(ctx, `"pictures"`, 5)
+	r.NoError(err)
+	r.Equal([]Hit{{Path: "/arts/", IsDir: true, Score: float32(math.Inf(1))}}, hits)
+	//
+	hits, _, err = s.Search(ctx, "arts -pictures", 5)
+	r.NoError(err)
+	r.Equal([]Hit{{Path: "/arts/games/", IsDir: true, Score: 100}}, hits)
 	//
 	hits, _, err = s.Search(ctx, "paintings", 5)
 	r.NoError(err)
-	r.Equal([]Hit{{Path: "/arts/", IsDir: true, Score: 7}}, hits)
+	r.Equal([]Hit{{Path: "/arts/", IsDir: true, Score: 100}}, hits)
 	//
 	hits, _, err = s.Search(ctx, "root", 5)
 	r.NoError(err)
-	r.Equal([]Hit{{Path: "/", IsDir: true, Score: 2}}, hits)
+	r.Equal([]Hit{{Path: "/", IsDir: true, Score: 100}}, hits)
 	//
 	hits, _, err = s.Search(ctx, "text", 5)
 	r.NoError(err)
-	r.Equal([]Hit{{Path: "/gaming.txt", Score: 2}}, hits)
+	r.Equal([]Hit{{Path: "/gaming.txt", Score: 100}}, hits)
 
 	// File should be created.
 	searchIndex, err := s.loadIndexFromFile()

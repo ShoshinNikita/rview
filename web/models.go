@@ -47,6 +47,7 @@ type DirEntry struct {
 	HumanReadableModTime string         `json:"human_readable_mod_time"`
 	FileType             rview.FileType `json:"file_type,omitempty"`
 	CanPreview           bool           `json:"can_preview"`
+	Annotations          []string       `json:"annotations"`
 
 	// DirURL is an info url for the child directory (not empty only for directories).
 	DirURL string `json:"dir_url,omitempty"`

@@ -11,6 +11,7 @@ import (
 	"math"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"sync"
 	"time"
@@ -45,8 +46,9 @@ type Rclone interface {
 }
 
 type entryIndex struct {
-	Index       *prefixIndex           `json:"index"`
-	DirMetadata map[string]dirMetadata `json:"dir_metadata"`
+	Index       *prefixIndex              `json:"index"`
+	DirMetadata map[string]dirMetadata    `json:"dir_metadata"`
+	Annotations map[rview.FileID][]string `json:"annotations"`
 
 	CreatedAt time.Time `json:"created_at"`
 }
@@ -226,6 +228,13 @@ func (s *Service) GetDefaultSort(dir string) (sort, order string, ok bool) {
 	return v.DefaultSort, v.DefaultOrder, ok
 }
 
+func (s *Service) GetAnnotations(id rview.FileID) []string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.index.Annotations[id]
+}
+
 // RefreshIndex requests all files from rclone and creates a new index.
 func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 	now := time.Now()
@@ -245,7 +254,7 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 	if err != nil {
 		return fmt.Errorf("couldn't get all files from rclone: %w", err)
 	}
-	dirEntries, dirMeta, err := s.processRawDirEntries(ctx, rawDirEntries)
+	dirEntries, dirMeta, annotations, err := s.processRawDirEntries(ctx, rawDirEntries)
 	if err != nil {
 		return fmt.Errorf("couldn't process raw dir entries: %w", err)
 	}
@@ -253,6 +262,7 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 	index := &entryIndex{
 		Index:       newPrefixIndex(dirEntries, s.minPrefixLen, s.maxPrefixLen),
 		DirMetadata: dirMeta,
+		Annotations: annotations,
 		CreatedAt:   time.Now(),
 	}
 
@@ -270,8 +280,10 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 	return nil
 }
 
+var metaFileNameRegexp = regexp.MustCompile(`(\..+)?\.rview\.ya?ml`)
+
 func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.Seq[rclone.DirEntry]) (
-	iter.Seq[*dirEntry], map[string]dirMetadata, error,
+	iter.Seq[*dirEntry], map[string]dirMetadata, map[rview.FileID][]string, error,
 ) {
 	var (
 		metaFiles    []rclone.DirEntry
@@ -279,7 +291,7 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 		dirs         = make(map[string]*dirEntry)
 	)
 	for e := range rawDirEntries {
-		if e.Leaf == ".rview.yaml" || e.Leaf == ".rview.yml" {
+		if metaFileNameRegexp.MatchString(e.Leaf) {
 			metaFiles = append(metaFiles, e)
 
 			// Don't index meta files.
@@ -314,7 +326,7 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 		id := rview.NewFileID(e.URL, e.ModTime, e.Size)
 		info, err := s.loadDirMetaInfo(ctx, id)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		dir := path.Dir(e.URL)
@@ -327,6 +339,12 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 		case "namedirfirst_asc", "namedirfirst_desc",
 			"size_asc", "size_desc",
 			"time_asc", "time_desc":
+
+			if _, ok := dirMeta[dir]; ok {
+				info.addWarningf(`skip duplicate "default_sort" from %q`, e.Leaf)
+				break
+			}
+
 			defaultSort, defaultOrder, _ := strings.Cut(info.DefaultSort, "_")
 			dirMeta[dir] = dirMetadata{
 				DefaultSort:  defaultSort,
@@ -334,7 +352,7 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 			}
 
 		default:
-			info.addWarning(`invalid "default_sort": %q`, info.DefaultSort)
+			info.addWarningf(`invalid "default_sort": %q`, info.DefaultSort)
 		}
 
 		for pattern, comment := range info.Annotations {
@@ -342,12 +360,12 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 			pattern = strings.TrimSuffix(pattern, "/")
 
 			if strings.Contains(pattern, "/") {
-				info.addWarning("invalid pattern %q: pattern can't match files in other directories", pattern)
+				info.addWarningf("invalid pattern %q: pattern can't match files in other directories", pattern)
 				continue
 			}
 			_, err := path.Match(pattern, "")
 			if err != nil {
-				info.addWarning("invalid pattern %q: %s", pattern, err)
+				info.addWarningf("invalid pattern %q: %s", pattern, err)
 				continue
 			}
 
@@ -368,7 +386,7 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 				}
 			}
 			if matchCount == 0 {
-				info.addWarning("pattern %q has no matches", pattern)
+				info.addWarningf("pattern %q has no matches", pattern)
 			}
 		}
 
@@ -389,6 +407,18 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 
 	metrics.SearchMetaFileWarnings.Set(float64(warningCount))
 
+	annotations := make(map[rview.FileID][]string)
+	for _, entries := range entriesByDir {
+		for _, e := range entries {
+			if len(e.Annotations) == 0 {
+				continue
+			}
+
+			id := rview.NewFileID(e.Path, e.ModTime, e.Size)
+			annotations[id] = e.Annotations
+		}
+	}
+
 	resIter := func(yield func(*dirEntry) bool) {
 		for _, dirEntries := range entriesByDir {
 			for _, entry := range dirEntries {
@@ -398,7 +428,7 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 			}
 		}
 	}
-	return resIter, dirMeta, nil
+	return resIter, dirMeta, annotations, nil
 }
 
 type dirMetaInfo struct {
@@ -408,7 +438,7 @@ type dirMetaInfo struct {
 	warnings []string
 }
 
-func (info *dirMetaInfo) addWarning(s string, v ...any) {
+func (info *dirMetaInfo) addWarningf(s string, v ...any) {
 	info.warnings = append(info.warnings, fmt.Sprintf(s, v...))
 }
 
@@ -420,7 +450,7 @@ func (s *Service) loadDirMetaInfo(ctx context.Context, id rview.FileID) (info di
 
 	var rawInfo map[string]yaml.RawMessage
 	if err = yaml.NewDecoder(rc).Decode(&rawInfo); err != nil {
-		info.addWarning("couldn't decode file: %s", err)
+		info.addWarningf("couldn't decode file: %s", err)
 	}
 
 	var unknownKeys []string
@@ -435,11 +465,11 @@ func (s *Service) loadDirMetaInfo(ctx context.Context, id rview.FileID) (info di
 			unknownKeys = append(unknownKeys, k)
 		}
 		if err != nil {
-			info.addWarning("couldn't decode %q: %s", k, yaml.FormatError(err, false, false))
+			info.addWarningf("couldn't decode %q: %s", k, yaml.FormatError(err, false, false))
 		}
 	}
 	if len(unknownKeys) > 0 {
-		info.addWarning("unknown keys: %v", unknownKeys)
+		info.addWarningf("unknown keys: %v", unknownKeys)
 	}
 
 	return info, nil

@@ -586,7 +586,7 @@ func TestAPI_Search(t *testing.T) {
 		[]web.SearchHit{
 			{
 				Path: "/Images/birds-g64b44607c_640.jpg", Size: 21027, ModTime: 1557901809,
-				Score: 3, WebURL: "/ui/Images/?preview=birds-g64b44607c_640.jpg", Icon: "image",
+				Score: 100, WebURL: "/ui/Images/?preview=birds-g64b44607c_640.jpg", Icon: "image",
 			},
 		},
 		got,
@@ -597,19 +597,19 @@ func TestAPI_Search(t *testing.T) {
 		[]web.SearchHit{
 			{
 				Path: "/Audio/credits.txt", Size: 350, ModTime: 1660004138,
-				Score: 6, WebURL: "/ui/Audio/?preview=credits.txt", Icon: "document",
+				Score: 200, WebURL: "/ui/Audio/?preview=credits.txt", Icon: "document",
 			},
 			{
 				Path: "/Images/credits.txt", Size: 364, ModTime: 1672598160,
-				Score: 6, WebURL: "/ui/Images/?preview=credits.txt", Icon: "document",
+				Score: 200, WebURL: "/ui/Images/?preview=credits.txt", Icon: "document",
 			},
 			{
 				Path: "/Other/test-thumbnails/credits.txt", Size: 99, ModTime: 1662921304,
-				Score: 6, WebURL: "/ui/Other/test-thumbnails/?preview=credits.txt", Icon: "document",
+				Score: 200, WebURL: "/ui/Other/test-thumbnails/?preview=credits.txt", Icon: "document",
 			},
 			{
 				Path: "/Video/credits.txt", Size: 162, ModTime: 1662637032,
-				Score: 6, WebURL: "/ui/Video/?preview=credits.txt", Icon: "document",
+				Score: 200, WebURL: "/ui/Video/?preview=credits.txt", Icon: "document",
 			},
 		},
 		got,
@@ -620,7 +620,7 @@ func TestAPI_Search(t *testing.T) {
 		[]web.SearchHit{
 			{
 				Path: "/Audio/credits.txt", Size: 350, ModTime: 1660004138,
-				Score: 9, WebURL: "/ui/Audio/?preview=credits.txt", Icon: "document",
+				Score: 300, WebURL: "/ui/Audio/?preview=credits.txt", Icon: "document",
 			},
 		},
 		got,
@@ -647,7 +647,7 @@ func TestAPI_Search(t *testing.T) {
 		[]web.SearchHit{
 			{
 				Path: "/Images/asdfgh.heic", Size: 5128, ModTime: 1685915679,
-				Score: 8, WebURL: "/ui/Images/?preview=asdfgh.heic", Icon: "image",
+				Score: 100, WebURL: "/ui/Images/?preview=asdfgh.heic", Icon: "image",
 			},
 		},
 		got,
@@ -657,7 +657,7 @@ func TestAPI_Search(t *testing.T) {
 		[]web.SearchHit{
 			{
 				Path: "/Images/Photos/", IsDir: true, ModTime: 1672598100,
-				Score: 6, WebURL: "/ui/Images/Photos/", Icon: "folder",
+				Score: 100, WebURL: "/ui/Images/Photos/", Icon: "folder",
 			},
 		},
 		got,
@@ -674,6 +674,11 @@ func getDirInfo(t *testing.T, dir string, query string) (res web.DirInfo) {
 
 	err := json.Unmarshal(body, &res)
 	r.NoError(err)
+	for i := range res.Entries {
+		if len(res.Entries[i].Annotations) == 0 {
+			res.Entries[i].Annotations = nil
+		}
+	}
 
 	return res
 }

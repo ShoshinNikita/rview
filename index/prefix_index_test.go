@@ -3,6 +3,7 @@ package index
 import (
 	"encoding/json/v2"
 	"io/fs"
+	"maps"
 	"math"
 	"path"
 	"path/filepath"
@@ -21,8 +22,8 @@ func TestPrefixIndex(t *testing.T) {
 	entries := [...]*dirEntry{
 		0: {Path: "/hello !&a! world.go"},
 		1: {Path: "/games/starfield/", IsDir: true},
-		2: {Path: "/games/hi-fi rush/1.jpg"},
-		3: {Path: "/games/hi-fi rush/2.jpg"},
+		2: {Path: "/games/hifi rush/1.jpg"},
+		3: {Path: "/games/hifi rush/2.jpg"},
 		4: {Path: "/изображения/лето 2022/", IsDir: true},
 		5: {Path: "/gaming/", IsDir: true},
 	}
@@ -73,6 +74,13 @@ func TestPrefixIndex(t *testing.T) {
 		},
 		index.Prefixes,
 	)
+	r.Equal(
+		[]string{
+			"2022", "games", "gaming", "hello", "hifi", "jpg", "rush",
+			"starfield", "world", "изображения", "лето",
+		},
+		slices.Sorted(maps.Keys(index.Words)),
+	)
 
 	// Test Marshal/Unmarshal first to check that it doesn't affect search.
 	t.Run("unmarshal", func(t *testing.T) {
@@ -95,9 +103,9 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ := index.Search(`games`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/starfield/", Score: 3, IsDir: true},
-				{Path: "/games/hi-fi rush/1.jpg", Score: 3},
-				{Path: "/games/hi-fi rush/2.jpg", Score: 3},
+				{Path: "/games/starfield/", Score: 100, IsDir: true},
+				{Path: "/games/hifi rush/1.jpg", Score: 100},
+				{Path: "/games/hifi rush/2.jpg", Score: 100},
 				{Path: "/gaming/", Score: 1, IsDir: true},
 			},
 			hits,
@@ -111,8 +119,8 @@ func TestPrefixIndex(t *testing.T) {
 		r.Equal(4, total)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/starfield/", Score: 3, IsDir: true},
-				{Path: "/games/hi-fi rush/1.jpg", Score: 3},
+				{Path: "/games/starfield/", Score: 100, IsDir: true},
+				{Path: "/games/hifi rush/1.jpg", Score: 100},
 			},
 			hits,
 		)
@@ -125,9 +133,9 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ := index.Search(`games ru`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/starfield/", Score: 3, IsDir: true},
-				{Path: "/games/hi-fi rush/1.jpg", Score: 3},
-				{Path: "/games/hi-fi rush/2.jpg", Score: 3},
+				{Path: "/games/starfield/", Score: 100, IsDir: true},
+				{Path: "/games/hifi rush/1.jpg", Score: 100},
+				{Path: "/games/hifi rush/2.jpg", Score: 100},
 				{Path: "/gaming/", Score: 1, IsDir: true},
 			},
 			hits,
@@ -136,8 +144,8 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`games rush`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/hi-fi rush/1.jpg", Score: 5},
-				{Path: "/games/hi-fi rush/2.jpg", Score: 5},
+				{Path: "/games/hifi rush/1.jpg", Score: 200},
+				{Path: "/games/hifi rush/2.jpg", Score: 200},
 			},
 			hits,
 		)
@@ -146,14 +154,14 @@ func TestPrefixIndex(t *testing.T) {
 	t.Run("exact match", func(t *testing.T) {
 		r := require.New(t)
 
-		hits, _ := index.Search(`"games/hifi RUSH"`, 5)
+		hits, _ := index.Search(`"games/hi-fi RUSH"`, 5)
 		r.Len(hits, 0)
 
-		hits, _ = index.Search(`"games/hi-fi RUSH"`, 5)
+		hits, _ = index.Search(`"games/hifi RUSH"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
-				{Path: "/games/hi-fi rush/2.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hifi rush/1.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hifi rush/2.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -162,8 +170,8 @@ func TestPrefixIndex(t *testing.T) {
 		r.Equal(
 			[]Hit{
 				{Path: "/games/starfield/", Score: float32(math.Inf(1)), IsDir: true},
-				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
-				{Path: "/games/hi-fi rush/2.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hifi rush/1.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hifi rush/2.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -171,8 +179,8 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`"games" "jpg"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
-				{Path: "/games/hi-fi rush/2.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hifi rush/1.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hifi rush/2.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -180,7 +188,7 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`"games" "jpg" "1"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hifi rush/1.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -192,19 +200,19 @@ func TestPrefixIndex(t *testing.T) {
 	t.Run("exclude", func(t *testing.T) {
 		r := require.New(t)
 
-		hits, _ := index.Search(`games -"hi-fi"`, 5)
+		hits, _ := index.Search(`games -"hifi"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/starfield/", Score: 3, IsDir: true},
+				{Path: "/games/starfield/", Score: 100, IsDir: true},
 				{Path: "/gaming/", Score: 1, IsDir: true},
 			},
 			hits,
 		)
 
-		hits, _ = index.Search(`games -"hi-fi" -"gaming"`, 5)
+		hits, _ = index.Search(`games -"hifi" -"gaming"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/starfield/", Score: 3, IsDir: true},
+				{Path: "/games/starfield/", Score: 100, IsDir: true},
 			},
 			hits,
 		)
@@ -212,8 +220,8 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search(`"games" -"starfield"`, 5)
 		r.Equal(
 			[]Hit{
-				{Path: "/games/hi-fi rush/1.jpg", Score: float32(math.Inf(1))},
-				{Path: "/games/hi-fi rush/2.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hifi rush/1.jpg", Score: float32(math.Inf(1))},
+				{Path: "/games/hifi rush/2.jpg", Score: float32(math.Inf(1))},
 			},
 			hits,
 		)
@@ -237,14 +245,14 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ := index.Search("a beautiful", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "a beautiful picture", Score: 5},
+				{Path: "a beautiful picture", Score: 100},
 			},
 			hits,
 		)
 		hits, _ = index.Search("a b beautiful", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "a beautiful picture", Score: 5},
+				{Path: "a beautiful picture", Score: 100},
 			},
 			hits,
 		)
@@ -271,12 +279,12 @@ func TestPrefixIndex(t *testing.T) {
 		// Both searches, with and without accented characters, succeed.
 		hits, _ := index.Search("schuchternes", 10)
 		r.Equal(
-			[]Hit{{Path: "schüchternes Lächeln", Score: 5}},
+			[]Hit{{Path: "schüchternes Lächeln", Score: 100}},
 			hits,
 		)
 		hits, _ = index.Search("schüchternes", 10)
 		r.Equal(
-			[]Hit{{Path: "schüchternes Lächeln", Score: 5}},
+			[]Hit{{Path: "schüchternes Lächeln", Score: 100}},
 			hits,
 		)
 
@@ -290,8 +298,8 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search("hello", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "hello world", Score: 3},
-				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 3},
+				{Path: "hello world", Score: 100},
+				{Path: "ĥ̷̩e̴͕̯̺͛l̸̨̹͍̈́̍͛ḷ̵̬̗̓ô̴̝̯̈́", Score: 100},
 			},
 			hits,
 		)
@@ -305,12 +313,12 @@ func TestPrefixIndex(t *testing.T) {
 		)
 		hits, _ = index.Search("белыи", 10)
 		r.Equal(
-			[]Hit{{Path: "белый", Score: 3}},
+			[]Hit{{Path: "белый", Score: 100}},
 			hits,
 		)
 		hits, _ = index.Search("бёлый", 10)
 		r.Equal(
-			[]Hit{{Path: "белый", Score: 3}},
+			[]Hit{{Path: "белый", Score: 100}},
 			hits,
 		)
 	})
@@ -341,7 +349,7 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search("anim dogs", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "/animals/dogs/", Score: 4, IsDir: true},
+				{Path: "/animals/dogs/", Score: 102, IsDir: true},
 			},
 			hits,
 		)
@@ -349,7 +357,7 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search("anim cats", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "/animals/cats/", Score: 4, IsDir: true},
+				{Path: "/animals/cats/", Score: 102, IsDir: true},
 				{Path: "/animals/dogs/2025/catch/", Score: 3, IsDir: true},
 			},
 			hits,
@@ -358,7 +366,7 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ = index.Search("anime jpeg", 10)
 		r.Equal(
 			[]Hit{
-				{Path: "/anime/art.jpeg", Score: 5},
+				{Path: "/anime/art.jpeg", Score: 200},
 			},
 			hits,
 		)
@@ -412,8 +420,8 @@ func TestPrefixIndex(t *testing.T) {
 		hits, _ := index.Search("cat", 10)
 		r.Equal(
 			[]Hit{
+				{Path: "/animals/cat.jpeg", Size: 1 << 20, ModTime: 124, Score: 100},
 				{Path: "/cats/", IsDir: true, Size: 0, ModTime: 123, Score: 1},
-				{Path: "/animals/cat.jpeg", Size: 1 << 20, ModTime: 124, Score: 1},
 				{Path: "/animals/cute/cats.png", Size: 1 << 13, ModTime: 130, Score: 1},
 			},
 			hits,

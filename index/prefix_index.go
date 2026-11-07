@@ -5,7 +5,6 @@ import (
 	"encoding/json/v2"
 	"fmt"
 	"iter"
-	"maps"
 	"math"
 	"slices"
 	"strings"
@@ -29,56 +28,66 @@ func (h Hit) GetPath() string { return h.Path }
 func (h Hit) GetIsDir() bool  { return h.IsDir }
 
 type prefixIndex struct {
-	MinPrefixLen int                     `json:"min_prefix_len"`
-	MaxPrefixLen int                     `json:"max_prefix_len"`
-	Entries      map[uint32]bareDirEntry `json:"entries"`
-	Prefixes     map[string][]uint32     `json:"prefixes"`
+	MinPrefixLen int                  `json:"min_prefix_len"`
+	MaxPrefixLen int                  `json:"max_prefix_len"`
+	Entries      map[uint32]*dirEntry `json:"entries"`
+	Prefixes     map[string][]uint32  `json:"prefixes"`
+	Words        map[string][]uint32  `json:"words"`
 
 	lowerCasedPaths map[uint32]string
 }
 
-type bareDirEntry struct {
-	Path    string `json:"path"`
-	IsDir   bool   `json:"is_dir"`
-	Size    int64  `json:"size"`
-	ModTime int64  `json:"mod_time"`
-}
-
 type dirEntry struct {
-	bareDirEntry
-
-	Annotations []string
+	Path        string   `json:"path"`
+	IsDir       bool     `json:"is_dir,omitzero"`
+	Size        int64    `json:"size,omitzero"`
+	ModTime     int64    `json:"mod_time"`
+	Annotations []string `json:"annotations,omitempty"`
 }
 
 func newPrefixIndex(dirEntries iter.Seq[*dirEntry], minPrefixLen, maxPrefixLen int) *prefixIndex {
 	var (
 		id       = uint32(0)
-		entries  = make(map[uint32]bareDirEntry)
+		entries  = make(map[uint32]*dirEntry)
 		prefixes = make(map[string][]uint32)
+		words    = make(map[string][]uint32)
 	)
 	for entry := range dirEntries {
-		entries[id] = entry.bareDirEntry
-		for prefix := range generatePrefixes(entry.Path, minPrefixLen, maxPrefixLen) {
-			prefixes[prefix] = append(prefixes[prefix], id)
+		entries[id] = entry
+		for _, word := range splitToNormalizedWords(entry.Path, minPrefixLen) {
+			words[string(word)] = append(words[string(word)], id)
+
+			for prefix := range generatePrefixes(word, minPrefixLen, maxPrefixLen) {
+				prefixes[prefix] = append(prefixes[prefix], id)
+			}
 		}
 		for _, a := range entry.Annotations {
-			for prefix := range generatePrefixes(a, minPrefixLen, maxPrefixLen) {
-				prefixes[prefix] = append(prefixes[prefix], id)
+			for _, word := range splitToNormalizedWords(a, minPrefixLen) {
+				words[string(word)] = append(words[string(word)], id)
+
+				for prefix := range generatePrefixes(word, minPrefixLen, maxPrefixLen) {
+					prefixes[prefix] = append(prefixes[prefix], id)
+				}
 			}
 		}
 
 		id++
 	}
-	for prefix, ids := range prefixes {
-		slices.Sort(ids)
-		prefixes[prefix] = slices.Clone(slices.Compact(ids)) // use slices.Clone because we don't need extra capacity
+	compact := func(m map[string][]uint32) {
+		for k, v := range m {
+			slices.Sort(v)
+			m[k] = slices.Clone(slices.Compact(v)) // use slices.Clone because we don't need extra capacity
+		}
 	}
+	compact(prefixes)
+	compact(words)
 
 	index := &prefixIndex{
 		MinPrefixLen: minPrefixLen,
 		MaxPrefixLen: maxPrefixLen,
 		Entries:      entries,
 		Prefixes:     prefixes,
+		Words:        words,
 	}
 	index.prepare()
 
@@ -121,6 +130,7 @@ type searchHit struct {
 	id             uint32
 	score          float32
 	lowerCasedPath string
+	entry          *dirEntry
 }
 
 func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
@@ -147,10 +157,17 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 	// Filter by exact matches.
 	if len(req.exactMatches) > 0 {
 		hitsIter = deleteIter(hitsIter, func(h searchHit) bool {
+		LOOP:
 			for _, exact := range req.exactMatches {
-				if !strings.Contains(h.lowerCasedPath, exact) {
-					return true
+				if strings.Contains(h.lowerCasedPath, exact) {
+					continue LOOP
 				}
+				for _, a := range h.entry.Annotations {
+					if strings.Contains(strings.ToLower(a), exact) {
+						continue LOOP
+					}
+				}
+				return true
 			}
 			return false
 		})
@@ -163,6 +180,11 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 				if strings.Contains(h.lowerCasedPath, word) {
 					return true
 				}
+				for _, a := range h.entry.Annotations {
+					if strings.Contains(strings.ToLower(a), word) {
+						return true
+					}
+				}
 			}
 			return false
 		})
@@ -170,12 +192,11 @@ func (index *prefixIndex) Search(search string, limit int) ([]Hit, int) {
 
 	var res []Hit
 	for h := range hitsIter {
-		entry := index.Entries[h.id]
 		res = append(res, Hit{
-			Path:    entry.Path,
-			IsDir:   entry.IsDir,
-			Size:    entry.Size,
-			ModTime: entry.ModTime,
+			Path:    h.entry.Path,
+			IsDir:   h.entry.IsDir,
+			Size:    h.entry.Size,
+			ModTime: h.entry.ModTime,
 			Score:   h.score,
 		})
 	}
@@ -205,7 +226,7 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
 	noopIter := func(yield func(searchHit) bool) {}
 
 	var (
-		matchCounts        = make(map[uint32]int)
+		matchScores        = make(map[uint32]float32)
 		matchesForAllWords = make(map[uint32]bool)
 	)
 	for _, word := range words {
@@ -215,12 +236,20 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
 			continue
 		}
 
-		matches := make(map[uint32]bool)
-		for prefix := range generatePrefixes(string(word), index.MinPrefixLen, index.MaxPrefixLen) {
-			for _, id := range index.Prefixes[prefix] {
-				matchCounts[id]++
+		matches := make(map[uint32]float64)
 
-				matches[id] = true
+		// Prioritize entries with the exact word matches.
+		for _, id := range index.Words[string(word)] {
+			matchScores[id] += 100
+			matches[id] = math.Inf(1)
+		}
+		for prefix := range generatePrefixes(word, index.MinPrefixLen, index.MaxPrefixLen) {
+			for _, id := range index.Prefixes[prefix] {
+				// We already updated scores for the exact word matches.
+				if !math.IsInf(matches[id], 1) {
+					matchScores[id]++
+					matches[id] = 1
+				}
 			}
 		}
 
@@ -231,11 +260,13 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
 
 		if len(matchesForAllWords) == 0 {
 			// Fill matchesForAllWords on the first match.
-			maps.Copy(matchesForAllWords, matches)
+			for k := range matches {
+				matchesForAllWords[k] = true
+			}
 		} else {
 			// All words have to match.
 			for k := range matchesForAllWords {
-				if !matches[k] {
+				if _, ok := matches[k]; !ok {
 					delete(matchesForAllWords, k)
 				}
 			}
@@ -247,7 +278,7 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
 
 	return func(yield func(searchHit) bool) {
 		for id := range matchesForAllWords {
-			if !yield(index.newSearchHit(id, float32(matchCounts[id]))) {
+			if !yield(index.newSearchHit(id, matchScores[id])) {
 				return
 			}
 		}
@@ -255,10 +286,16 @@ func (index *prefixIndex) searchByPrefixes(words [][]rune) iter.Seq[searchHit] {
 }
 
 func (index *prefixIndex) newSearchHit(id uint32, score float32) searchHit {
+	entry, ok := index.Entries[id]
+	if !ok {
+		panic(fmt.Errorf("no entry with id %d", id))
+	}
+
 	return searchHit{
 		id:             id,
 		lowerCasedPath: index.lowerCasedPaths[id],
 		score:          score,
+		entry:          entry,
 	}
 }
 
@@ -296,20 +333,14 @@ func compactSearchHits(hits []Hit) []Hit {
 	return res
 }
 
-func generatePrefixes(path string, minLen, maxLen int) iter.Seq[string] {
-	if path == "" {
-		return func(yield func(string) bool) {}
-	}
-
+func generatePrefixes(word []rune, minLen, maxLen int) iter.Seq[string] {
 	return func(yield func(string) bool) {
-		for _, word := range splitToNormalizedWords(path, minLen) {
-			for i := minLen; i <= maxLen; i++ {
-				if i > len(word) {
-					break
-				}
-				if !yield(string(word[:i])) {
-					return
-				}
+		for i := minLen; i <= maxLen; i++ {
+			if i > len(word) {
+				break
+			}
+			if !yield(string(word[:i])) {
+				return
 			}
 		}
 	}
@@ -433,7 +464,7 @@ func splitToNormalizedWords(v string, minLen int) (res [][]rune) {
 
 	for _, r := range v {
 		switch {
-		case r == '/' || r == '.' || unicode.IsSpace(r):
+		case unicode.IsPunct(r) || unicode.IsSpace(r):
 			appendWord()
 		case '0' <= r && r <= '9':
 			word = append(word, r)

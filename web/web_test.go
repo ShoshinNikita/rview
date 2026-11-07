@@ -1,9 +1,11 @@
 package web
 
 import (
+	"context"
 	"testing"
 	"time"
 
+	"github.com/ShoshinNikita/rview/index"
 	"github.com/ShoshinNikita/rview/pkg/require"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
@@ -35,11 +37,20 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 		}
 	}
 
+	indexService := &indexServiceMock{
+		GetAnnotationsFn: func(id rview.FileID) []string {
+			if id.GetPath() == "/a.txt" {
+				return []string{"text"}
+			}
+			return nil
+		},
+	}
+
 	t.Run("thumbnails mode", func(t *testing.T) {
 		r := require.New(t)
 
 		thumbnailService := thumbnails.NewThumbnailService(nil, nil, nil, 0, rview.JpegThumbnails, true)
-		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeThumbnails}, nil, thumbnailService, nil)
+		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeThumbnails}, nil, thumbnailService, indexService)
 
 		gotInfo := s.convertRcloneInfo(getTestRcloneInfo())
 		resetUnnecessaryFields(&gotInfo)
@@ -47,6 +58,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 			[]DirEntry{
 				{
 					Filename: "a.txt", FileType: rview.FileTypeText, CanPreview: true,
+					Annotations:  []string{"text"},
 					ThumbnailURL: "", // no thumbnail: text file
 				},
 				{
@@ -73,7 +85,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 	t.Run("original mode", func(t *testing.T) {
 		r := require.New(t)
 
-		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeOriginal}, nil, nil, nil)
+		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeOriginal}, nil, nil, indexService)
 
 		gotInfo := s.convertRcloneInfo(getTestRcloneInfo())
 		resetUnnecessaryFields(&gotInfo)
@@ -81,6 +93,7 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 			[]DirEntry{
 				{
 					Filename: "a.txt", FileType: rview.FileTypeText, CanPreview: true,
+					Annotations: []string{"text"},
 				},
 				{
 					Filename: "b.jpg", FileType: rview.FileTypeImage,
@@ -105,13 +118,13 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 	t.Run("no preview mode", func(t *testing.T) {
 		r := require.New(t)
 
-		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeNone}, nil, nil, nil)
+		s := NewServer(rview.Config{ImagePreviewMode: rview.ImagePreviewModeNone}, nil, nil, indexService)
 
 		gotInfo := s.convertRcloneInfo(getTestRcloneInfo())
 		resetUnnecessaryFields(&gotInfo)
 		r.Equal(
 			[]DirEntry{
-				{Filename: "a.txt", FileType: rview.FileTypeText, CanPreview: true},
+				{Filename: "a.txt", FileType: rview.FileTypeText, CanPreview: true, Annotations: []string{"text"}},
 				{Filename: "b.jpg", FileType: rview.FileTypeImage},
 				{Filename: "c.png", FileType: rview.FileTypeImage},
 				{Filename: "c.bmp", FileType: rview.FileTypeImage},
@@ -120,4 +133,32 @@ func TestServer_convertRcloneInfo(t *testing.T) {
 			gotInfo.Entries,
 		)
 	})
+}
+
+type indexServiceMock struct {
+	GetAnnotationsFn     func(rview.FileID) []string
+	GetDefaultSortFn     func(dir string) (sort string, order string, ok bool)
+	GetMinSearchLengthFn func() int
+	RefreshIndexFn       func(context.Context) (finalErr error)
+	SearchFn             func(ctx context.Context, search string, limit int) (hits []index.Hit, total int, err error)
+}
+
+func (i *indexServiceMock) GetAnnotations(id rview.FileID) []string {
+	return i.GetAnnotationsFn(id)
+}
+
+func (i *indexServiceMock) GetDefaultSort(dir string) (sort string, order string, ok bool) {
+	return i.GetDefaultSortFn(dir)
+}
+
+func (i *indexServiceMock) GetMinSearchLength() int {
+	return i.GetMinSearchLengthFn()
+}
+
+func (i *indexServiceMock) RefreshIndex(ctx context.Context) (finalErr error) {
+	return i.RefreshIndexFn(ctx)
+}
+
+func (i *indexServiceMock) Search(ctx context.Context, search string, limit int) (hits []index.Hit, total int, err error) {
+	return i.SearchFn(ctx, search, limit)
 }

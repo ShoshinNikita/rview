@@ -39,7 +39,7 @@ type Server struct {
 
 	rclone           *rclone.Rclone
 	thumbnailService ThumbnailService
-	indexService     *index.Service
+	indexService     IndexService
 
 	iconsFS     fs.FS
 	templatesFS fs.FS
@@ -50,7 +50,15 @@ type ThumbnailService interface {
 	OpenThumbnail(context.Context, rview.FileID, thumbnails.ThumbnailSize) (rc io.ReadCloser, contentType string, err error)
 }
 
-func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService ThumbnailService, indexService *index.Service) (s *Server) {
+type IndexService interface {
+	GetAnnotations(rview.FileID) []string
+	GetDefaultSort(dir string) (sort, order string, ok bool)
+	GetMinSearchLength() int
+	RefreshIndex(context.Context) (finalErr error)
+	Search(ctx context.Context, search string, limit int) (hits []index.Hit, total int, err error)
+}
+
+func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService ThumbnailService, indexService IndexService) (s *Server) {
 	if cfg.ReadStaticFilesFromDisk {
 		rlog.Info("static files will be read from disk")
 	}
@@ -364,6 +372,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo) DirInfo {
 			humanReadableSize             string
 			fileType                      rview.FileType
 			canPreview                    bool
+			annotations                   []string
 		)
 		if entry.IsDir {
 			dirURL = mustParseURL("/api/dir").JoinPath(entry.URL, "/").String()
@@ -410,6 +419,8 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo) DirInfo {
 					canPreview = true
 				}
 			}
+
+			annotations = s.indexService.GetAnnotations(id)
 		}
 
 		filename := pkgPath.Clean(entry.Leaf)
@@ -423,6 +434,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo) DirInfo {
 			HumanReadableModTime: misc.FormatModTime(modTime),
 			FileType:             fileType,
 			CanPreview:           canPreview,
+			Annotations:          annotations,
 			//
 			DirURL:          dirURL,
 			WebDirURL:       webDirURL,

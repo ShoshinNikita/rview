@@ -1,9 +1,13 @@
 package rview
 
 import (
+	"bytes"
+	"encoding/json/jsontext"
 	"fmt"
 	"net/url"
 	"path"
+	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -71,5 +75,75 @@ func (id FileID) GetSize() int64 {
 }
 
 func (id FileID) String() string {
-	return fmt.Sprintf("t%d_s%d_%s", id.modTime, id.size, id.path)
+	return string(id.appendTo(nil, false))
+}
+
+func (id FileID) MarshalText() ([]byte, error) {
+	return id.appendTo(nil, false), nil
+}
+
+var fileIdRegexp = regexp.MustCompile(`^t(\d+)_s(\d+)_(.+)$`)
+
+func (id *FileID) UnmarshalText(text []byte) error {
+	matches := fileIdRegexp.FindSubmatch(text)
+	if len(matches) == 0 {
+		return fmt.Errorf("invalid file id format: %q", text)
+	}
+
+	modTime, err := strconv.ParseInt(string(matches[1]), 10, 64)
+	if err != nil {
+		return fmt.Errorf("couldn't parse mod time: %w", err)
+	}
+	size, err := strconv.ParseInt(string(matches[2]), 10, 64)
+	if err != nil {
+		return fmt.Errorf("couldn't parse size: %w", err)
+	}
+	filepath := string(matches[3])
+
+	*id = FileID{
+		path:    filepath,
+		name:    path.Base(filepath),
+		modTime: modTime,
+		size:    size,
+	}
+	return nil
+}
+
+func (id FileID) MarshalJSONTo(enc *jsontext.Encoder) error {
+	text := id.appendTo(enc.AvailableBuffer(), true)
+	return enc.WriteValue(text)
+}
+
+func (id *FileID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
+	text, err := dec.ReadValue()
+	if err != nil {
+		return err
+	}
+	text = bytes.TrimPrefix(text, []byte(`"`))
+	text = bytes.TrimSuffix(text, []byte(`"`))
+
+	return id.UnmarshalText(text)
+}
+
+func (id *FileID) appendTo(b []byte, quote bool) []byte {
+	buf := bytes.NewBuffer(b)
+
+	if quote {
+		buf.WriteByte('"')
+	}
+	//
+	_ = buf.WriteByte('t')
+	_, _ = fmt.Fprint(buf, id.modTime)
+	//
+	_, _ = buf.WriteString("_s")
+	_, _ = fmt.Fprint(buf, id.size)
+	//
+	_ = buf.WriteByte('_')
+	_, _ = buf.WriteString(id.path)
+	//
+	if quote {
+		buf.WriteByte('"')
+	}
+
+	return buf.Bytes()
 }

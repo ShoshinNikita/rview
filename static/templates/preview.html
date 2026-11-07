@@ -72,6 +72,10 @@
 					<span class="g-property-name">Mod Time:</span>
 					<span class="g-property-value g-nowrap" data-type="mod_time"></span>
 				</div>
+				<div>
+					<span class="g-property-name">Annotations:</span>
+					<span class="g-property-value" data-type="annotations"></span>
+				</div>
 				{{ if $.Search }}
 				<a class="g-icon-button open-file-directory-link" title="Open file directory" data-type="original_file_dir" href="#">
 					<span>Open file directory</span>
@@ -100,6 +104,10 @@
 					<div>
 						<span class="g-property-name">Mod Time:</span>
 						<span class="g-property-value g-nowrap" data-type="mod_time"></span>
+					</div>
+					<div>
+						<span class="g-property-name">Annotations:</span>
+						<span class="g-property-value" data-type="annotations"></span>
 					</div>
 					{{ if $.Search }}
 					<a class="g-icon-button open-file-directory-link" title="Open file directory" data-type="original_file_dir" href="#">
@@ -350,6 +358,9 @@
 					break;
 				case "mod_time":
 					fileInfo.innerHTML = entry.human_readable_mod_time;
+					break;
+				case "annotations":
+					fileInfo.innerHTML = entry.annotations.join("; ") || "n/a";
 					break;
 				case "original_file_dir":
 					fileInfo.href = "/ui" + entry.filename.substring(0, entry.filename.lastIndexOf("/") + 1); // keep trailing '/'
