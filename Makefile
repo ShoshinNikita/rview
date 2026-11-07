@@ -53,4 +53,4 @@ lint:
 		-v $(shell go env GOPATH)/pkg:/go/pkg \
 		-v $(shell pwd):/app \
 		-w /app \
-		golangci/golangci-lint:v2.13.1-alpine golangci-lint run -v --config .golangci.yml
+		golangci/golangci-lint:v2.15.0-alpine@sha256:2ba875b990f1d8501ad4ec19be1ea0701e316ec3a4b764f7b129f62f01318bbf golangci-lint run -v --config .golangci.yml

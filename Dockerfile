@@ -1,5 +1,5 @@
 # Build rview.
-FROM golang:1.27-alpine3.23 AS builder
+FROM golang:1.27.3-alpine3.23@sha256:5d5113301ffcac84e2bfb20c42648803fecaea6789c89bb9b66884e18cbb30a7 AS builder
 
 WORKDIR /rview
 
@@ -12,13 +12,13 @@ RUN make build && go clean -cache && ./bin/rview --version
 
 
 # Download rclone.
-FROM ghcr.io/rclone/rclone:1.75 AS rclone-src
+FROM ghcr.io/rclone/rclone:1.76@sha256:7cbeec24a44f206067597c0368be4de90ae19a64d5113c7d1938bd737a81e466 AS rclone-src
 
 RUN rclone --version
 
 
 # Build the final image. The alpine version should match one in test.Dockerfile.
-FROM alpine:3.23
+FROM alpine:3.23.8@sha256:5c216c9767869f6ec7c4718977601d52f087c5c7bf2fdfb198e403f6b48ec40d
 
 LABEL org.opencontainers.image.title="Rview"
 LABEL org.opencontainers.image.description="Web-based UI for 'rclone serve'"

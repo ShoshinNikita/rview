@@ -1,6 +1,6 @@
 module github.com/ShoshinNikita/rview
 
-go 1.27
+go 1.27.3
 
 require (
 	github.com/VictoriaMetrics/metrics v1.44.0
