@@ -45,6 +45,7 @@ type dirEntry struct {
 	Annotations []string `json:"annotations,omitempty"`
 }
 
+//nolint:unparam
 func newPrefixIndex(dirEntries iter.Seq[*dirEntry], minPrefixLen, maxPrefixLen int) *prefixIndex {
 	var (
 		id       = uint32(0)
@@ -113,17 +114,6 @@ func (index *prefixIndex) prepare() {
 	for id, path := range index.Entries {
 		index.lowerCasedPaths[id] = strings.ToLower(path.Path)
 	}
-}
-
-func (index *prefixIndex) Check(wantMin, wantMax int) error {
-	if index.MinPrefixLen != wantMin || index.MaxPrefixLen != wantMax {
-		return fmt.Errorf(
-			"prefix sizes are different: [%d; %d] (index) != [%d; %d] (expected)",
-			index.MinPrefixLen, index.MaxPrefixLen,
-			wantMin, wantMax,
-		)
-	}
-	return nil
 }
 
 type searchHit struct {

@@ -25,6 +25,12 @@ import (
 	"github.com/ShoshinNikita/rview/rview"
 )
 
+const (
+	Version      = 1
+	MinPrefixLen = 3
+	MaxPrefixLen = 10
+)
+
 type Service struct {
 	rclone Rclone
 	dir    *os.Root
@@ -35,9 +41,7 @@ type Service struct {
 	mu    sync.RWMutex
 	index *entryIndex
 
-	minPrefixLen int
-	maxPrefixLen int
-	filename     string
+	filename string
 }
 
 type Rclone interface {
@@ -46,11 +50,26 @@ type Rclone interface {
 }
 
 type entryIndex struct {
+	Version     int                       `json:"version"`
 	Index       *prefixIndex              `json:"index"`
 	DirMetadata map[string]dirMetadata    `json:"dir_metadata"`
 	Annotations map[rview.FileID][]string `json:"annotations"`
 
 	CreatedAt time.Time `json:"created_at"`
+}
+
+func (i *entryIndex) Check() error {
+	if i.Version != Version {
+		return fmt.Errorf("different index version: %d (index) != %d (expected)", i.Version, Version)
+	}
+	if i.Index.MinPrefixLen != MinPrefixLen || i.Index.MaxPrefixLen != MaxPrefixLen {
+		return fmt.Errorf(
+			"prefix sizes are different: [%d; %d] (index) != [%d; %d] (expected)",
+			i.Index.MinPrefixLen, i.Index.MaxPrefixLen,
+			MinPrefixLen, MaxPrefixLen,
+		)
+	}
+	return nil
 }
 
 type dirMetadata struct {
@@ -59,11 +78,6 @@ type dirMetadata struct {
 }
 
 func NewService(rclone Rclone, dirRoot *os.Root) (*Service, error) {
-	const (
-		minPrefixLen = 3
-		maxPrefixLen = 10
-	)
-
 	err := dirRoot.Mkdir("search", 0700)
 	if err != nil && !errors.Is(err, os.ErrExist) {
 		return nil, fmt.Errorf("couldn't create 'search' subdirectory: %w", err)
@@ -80,9 +94,7 @@ func NewService(rclone Rclone, dirRoot *os.Root) (*Service, error) {
 		stopCh:    make(chan struct{}),
 		stoppedCh: make(chan struct{}),
 		//
-		minPrefixLen: minPrefixLen,
-		maxPrefixLen: maxPrefixLen,
-		filename:     "search_index.json.gz",
+		filename: "search_index.json.gz",
 	}, nil
 }
 
@@ -149,7 +161,7 @@ func (s *Service) loadIndexFromFile() (res *entryIndex, err error) {
 	if res == nil || res.Index == nil {
 		return nil, errors.New("index is not ready")
 	}
-	if err := res.Index.Check(s.minPrefixLen, s.maxPrefixLen); err != nil {
+	if err := res.Check(); err != nil {
 		return nil, err
 	}
 	return res, nil
@@ -199,7 +211,7 @@ func (s *Service) Shutdown(ctx context.Context) error {
 }
 
 func (s *Service) GetMinSearchLength() int {
-	return s.minPrefixLen
+	return MinPrefixLen
 }
 
 func (s *Service) Search(_ context.Context, search string, limit int) (hits []Hit, total int, _ error) {
@@ -260,7 +272,8 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 	}
 
 	index := &entryIndex{
-		Index:       newPrefixIndex(dirEntries, s.minPrefixLen, s.maxPrefixLen),
+		Version:     Version,
+		Index:       newPrefixIndex(dirEntries, MinPrefixLen, MaxPrefixLen),
 		DirMetadata: dirMeta,
 		Annotations: annotations,
 		CreatedAt:   time.Now(),
