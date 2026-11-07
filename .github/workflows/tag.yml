@@ -4,10 +4,12 @@ on:
   workflow_dispatch:
     inputs:
       tag_to_pull:
+        type: string
         description: Image tag to pull
         required: true
         default: main
       tag_to_push:
+        type: string
         description: Image tag to push
         required: true
 
@@ -18,6 +20,8 @@ jobs:
     env:
       image_to_pull: ghcr.io/shoshinnikita/rview:${{ github.event.inputs.tag_to_pull }}
       image_to_push: ghcr.io/shoshinnikita/rview:${{ github.event.inputs.tag_to_push }}
+    permissions:
+      packages: write
     steps:
       - name: Login to GHCR
         uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # 4.8.0
