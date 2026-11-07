@@ -31,7 +31,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Login to GHCR
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # 4.8.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -64,10 +64,11 @@ jobs:
         env:
           DOCKER_BUILD_RECORD_RETENTION_DAYS: 1
       - name: Export image digest
+        env:
+          DIGEST: ${{ steps.build.outputs.digest }}
         run: |
           mkdir -p /tmp/digests
-          digest="${{ steps.build.outputs.digest }}"
-          touch "/tmp/digests/${digest#sha256:}"
+          touch "/tmp/digests/${DIGEST#sha256:}"
       - name: Upload image digest
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -91,7 +92,7 @@ jobs:
           pattern: digest-*
           merge-multiple: true
       - name: Login to GHCR
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # 4.8.0
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -115,7 +116,7 @@ jobs:
 
   cleanup:
     name: Clean up old untagged docker images
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-slim
     needs: create-manifest
     if: github.ref_name == 'main'
     permissions:
