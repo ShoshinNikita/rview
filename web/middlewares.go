@@ -3,12 +3,12 @@ package web
 import (
 	"bytes"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 )
 
 func loggingMiddleware(h http.Handler) http.Handler {
@@ -39,7 +39,7 @@ func loggingMiddleware(h http.Handler) http.Handler {
 		h.ServeHTTP(rw, r)
 
 		if !rw.requestCanceledByUser && rw.errMsg.Len() > 0 {
-			rlog.Errorf(`request "%s %s" failed with code %d: %s`, r.Method, r.URL.Path, rw.statusCode, rw.errMsg.String())
+			slog.Error("request failed", "path", r.Method+" "+r.URL.Path, "code", rw.statusCode, "err", rw.errMsg.String())
 		}
 
 		statusCode := rw.statusCode

@@ -2,38 +2,10 @@ package misc
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
-	"time"
 )
-
-var sizeSuffixes = [...]string{"B", "KiB", "MiB", "GiB", "TiB", "PiB"}
-
-func FormatFileSize(bytes int64) string {
-	size := float64(bytes)
-
-	var suffixIndex int
-	for size/1024 > 1 {
-		size /= 1024
-		suffixIndex++
-	}
-
-	res := []rune(fmt.Sprintf("%.2f", size))
-	for i := len(res) - 1; i >= 0; i-- {
-		if res[i] != '0' {
-			if res[i] == '.' {
-				i--
-			}
-			res = res[:i+1]
-			break
-		}
-	}
-
-	return string(res) + " " + sizeSuffixes[suffixIndex]
-}
-
-func FormatModTime(modTime time.Time) string {
-	return modTime.UTC().Format("2006-01-02 15:04:05") + " UTC"
-}
 
 func EnsurePrefix(s, prefix string) string {
 	if strings.HasPrefix(s, prefix) {
@@ -47,4 +19,25 @@ func EnsureSuffix(s, suffix string) string {
 		return s
 	}
 	return s + suffix
+}
+
+func FormatSize(bytes int64) string {
+	sign := ""
+	if bytes < 0 {
+		sign = "-"
+	}
+
+	bytesF := math.Abs(float64(bytes))
+	for _, v := range []struct {
+		div    float64
+		suffix string
+	}{
+		{1 << 20, "M"},
+		{1 << 10, "K"},
+	} {
+		if bytesF >= v.div {
+			return sign + fmt.Sprintf("%.1f", bytesF/v.div) + v.suffix
+		}
+	}
+	return sign + strconv.FormatInt(bytes, 10) + "B"
 }

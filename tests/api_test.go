@@ -60,8 +60,8 @@ func startTestRview() {
 		rcloneAddr := fmt.Sprintf("http://localhost:%d", cfg.Rclone.Port)
 
 		testRview = cmd.NewRview(cfg)
-		if err := testRview.Prepare(); err != nil {
-			panic(fmt.Errorf("couldn't prepare rview: %w", err))
+		if err := testRview.Init(); err != nil {
+			panic(fmt.Errorf("couldn't init rview: %w", err))
 		}
 
 		testRviewDone = testRview.Start(func() {

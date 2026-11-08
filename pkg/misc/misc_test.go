@@ -6,21 +6,6 @@ import (
 	"github.com/ShoshinNikita/rview/pkg/require"
 )
 
-func TestFormatFileSize(t *testing.T) {
-	for size, wantRes := range map[int64]string{
-		8:                     "8 B",
-		1 << 15:               "32 KiB",
-		1 << 20:               "1024 KiB",
-		3 << 20:               "3 MiB",
-		3<<20 + 1<<19:         "3.5 MiB",
-		3<<20 + 1<<19 + 1<<18: "3.75 MiB",
-		2 << 30:               "2 GiB",
-	} {
-		got := FormatFileSize(size)
-		require.New(t).Equal(wantRes, got)
-	}
-}
-
 func TestEnsurePrefix(t *testing.T) {
 	r := require.New(t)
 	r.Equal("/hello", EnsurePrefix("hello", "/"))
@@ -35,4 +20,16 @@ func TestEnsureSuffix(t *testing.T) {
 	r.Equal("/hello/", EnsureSuffix("/hello", "/"))
 	r.Equal("/hello/", EnsureSuffix("/hello/", "/"))
 	r.Equal("/hello/x", EnsureSuffix("/hello/", "x"))
+}
+
+func TestFormatSize(t *testing.T) {
+	r := require.New(t)
+
+	r.Equal("0B", FormatSize(0))
+	r.Equal("1B", FormatSize(1))
+	r.Equal("1023B", FormatSize(1023))
+	r.Equal("1.0K", FormatSize(1024))
+	r.Equal("2.3K", FormatSize(2400))
+	r.Equal("1.5M", FormatSize(1548576))
+	r.Equal("-1.5M", FormatSize(-1548576))
 }

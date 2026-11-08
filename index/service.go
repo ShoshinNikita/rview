@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"iter"
+	"log/slog"
 	"math"
 	"os"
 	"path"
@@ -20,7 +21,6 @@ import (
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/misc"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
 )
@@ -110,29 +110,28 @@ func (s *Service) Start() (err error) {
 
 	s.index, err = s.loadIndexFromFile()
 	if err == nil {
-		rlog.Info("search index has been loaded from the file")
+		slog.Info("search index has been loaded from the file")
 		return nil
 	}
 
-	rlog.Infof("prepare new index: couldn't load index from the file: %s", err)
+	slog.Info("prepare new index: couldn't load index from the file", "reason", err)
 
 	// The first few requests can fail with error "connection refused" because
 	// rclone is still starting.
-	for i := 1; true; i++ {
+	for try := 1; true; try++ {
 		err = s.RefreshIndex(context.Background())
 		if err == nil {
 			return nil
 		}
 
-		err = fmt.Errorf("couldn't prepare search index, try %d: %w", i, err)
-		if i > 5 {
-			return err
+		if try > 5 {
+			return fmt.Errorf("couldn't prepare search index: %w", err)
 		}
 
-		rlog.Debug(err)
+		slog.Debug("couldn't prepare search index", "try", try, "err", err)
 
 		// Exponential Backoff: 100ms -> 200ms -> 400ms -> 800ms -> 1.4s (https://exponentialbackoffcalculator.com)
-		time.Sleep(100 * time.Millisecond * time.Duration(math.Pow(1.7, float64(i))))
+		time.Sleep(100 * time.Millisecond * time.Duration(math.Pow(1.7, float64(try))))
 	}
 	panic("unreachable")
 }
@@ -193,7 +192,7 @@ func (s *Service) startBackgroundRefresh() {
 
 			err := s.RefreshIndex(context.Background())
 			if err != nil {
-				rlog.Errorf("couldn't refresh search index: %s", err)
+				slog.Error("couldn't refresh search index", "err", err)
 			}
 		}
 	}
@@ -259,7 +258,7 @@ func (s *Service) RefreshIndex(ctx context.Context) (finalErr error) {
 			metrics.SearchRefreshIndexesErrors.Inc()
 			return
 		}
-		rlog.Infof("search index has been successfully refreshed in %s", dur)
+		slog.Info("search index has been successfully refreshed", "dur", dur)
 	}()
 
 	rawDirEntries, err := s.rclone.GetAllFiles(ctx)
@@ -404,17 +403,8 @@ func (s *Service) processRawDirEntries(ctx context.Context, rawDirEntries iter.S
 		}
 
 		warningCount += len(info.warnings)
-		switch len(info.warnings) {
-		case 0:
-			// No warnings.
-		case 1:
-			rlog.Warnf("attribute file %s has 1 warning: %s", e.URL, info.warnings[0])
-		default:
-			const sep = "\n  - "
-			rlog.Warnf(
-				"attribute file %s has %d warnings:%s",
-				e.URL, len(info.warnings), sep+strings.Join(info.warnings, sep),
-			)
+		for _, w := range info.warnings {
+			slog.Warn("warning in meta file", "file", e.URL, "warning", w)
 		}
 	}
 

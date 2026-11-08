@@ -125,7 +125,7 @@ func (id *FileID) UnmarshalJSONFrom(dec *jsontext.Decoder) error {
 	return id.UnmarshalText(text)
 }
 
-func (id *FileID) appendTo(b []byte, quote bool) []byte {
+func (id FileID) appendTo(b []byte, quote bool) []byte {
 	buf := bytes.NewBuffer(b)
 
 	if quote {

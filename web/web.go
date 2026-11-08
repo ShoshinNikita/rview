@@ -12,6 +12,7 @@ import (
 	"html/template"
 	"io"
 	"io/fs"
+	"log/slog"
 	"net/http"
 	"net/http/pprof"
 	"net/url"
@@ -24,7 +25,6 @@ import (
 	"github.com/ShoshinNikita/rview/index"
 	"github.com/ShoshinNikita/rview/pkg/cache"
 	"github.com/ShoshinNikita/rview/pkg/misc"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/static"
@@ -60,7 +60,7 @@ type IndexService interface {
 
 func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService ThumbnailService, indexService IndexService) (s *Server) {
 	if cfg.ReadStaticFilesFromDisk {
-		rlog.Info("static files will be read from disk")
+		slog.Info("static files will be read from disk")
 	}
 
 	s = &Server{
@@ -133,7 +133,7 @@ func NewServer(cfg rview.Config, rclone *rclone.Rclone, thumbnailService Thumbna
 }
 
 func (s *Server) Start() error {
-	rlog.Infof(`start web server on "http://localhost:%d"`, s.cfg.ServerPort)
+	slog.Info("start web server", "addr", fmt.Sprintf("http://0.0.0.0:%d", s.cfg.ServerPort))
 
 	err := s.httpServer.ListenAndServe()
 	if err != nil && !errors.Is(err, http.ErrServerClosed) {
@@ -257,8 +257,8 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 				}
 				return s
 			},
-			"formatSize":    misc.FormatFileSize,
-			"formatModTime": misc.FormatModTime,
+			"formatSize":    FormatFileSize,
+			"formatModTime": FormatModTime,
 		}).
 		ParseFS(s.templatesFS, "index.html", "preview.html", "footer.html", "search-results.html", "entry.html")
 	if err != nil {
@@ -382,7 +382,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo) DirInfo {
 			id := rview.NewFileID(entry.URL, entry.ModTime, entry.Size)
 
 			originalFileURL = fileIDToURL("/api/file", id)
-			humanReadableSize = misc.FormatFileSize(entry.Size)
+			humanReadableSize = FormatFileSize(entry.Size)
 			fileType = rview.GetFileType(id.GetExt())
 
 			switch fileType {
@@ -431,7 +431,7 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo) DirInfo {
 			Size:                 entry.Size,
 			HumanReadableSize:    humanReadableSize,
 			ModTime:              modTime,
-			HumanReadableModTime: misc.FormatModTime(modTime),
+			HumanReadableModTime: FormatModTime(modTime),
 			FileType:             fileType,
 			CanPreview:           canPreview,
 			Annotations:          annotations,

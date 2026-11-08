@@ -8,12 +8,12 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 )
 
@@ -97,7 +97,7 @@ func (c *DiskCache) Write(id rview.FileID, r io.Reader) error {
 
 		if failed {
 			if err := os.Remove(f.Name()); err != nil {
-				rlog.Warnf("couldn't clean up cache file after error: %s", err)
+				slog.Warn("couldn't clean up cache file after error", "err", err)
 			}
 		}
 	}()

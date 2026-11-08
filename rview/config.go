@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -14,8 +15,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 )
 
 type Config struct {
@@ -36,7 +35,8 @@ type Config struct {
 
 	// Debug options
 
-	LogLevel                rlog.Level
+	LogLevel                slog.Level
+	LogFormat               LogFormat
 	ReadStaticFilesFromDisk bool
 }
 
@@ -69,6 +69,23 @@ func (m *ImagePreviewMode) UnmarshalText(text []byte) error {
 	*m = ImagePreviewMode(text)
 
 	return checkEnum(*m, ImagePreviewModeNone, ImagePreviewModeOriginal, ImagePreviewModeThumbnails)
+}
+
+type LogFormat string
+
+const (
+	LogFormatText LogFormat = "text"
+	LogFormatJSON LogFormat = "json"
+)
+
+func (m LogFormat) MarshalText() (text []byte, err error) {
+	return []byte(m), nil
+}
+
+func (m *LogFormat) UnmarshalText(text []byte) error {
+	*m = LogFormat(text)
+
+	return checkEnum(*m, LogFormatText, LogFormatJSON)
 }
 
 type ThumbnailsFormat string
@@ -204,7 +221,10 @@ func (cfg *Config) getFlagParams() map[string]flagParams {
 		},
 		//
 		"log-level": {
-			p: &cfg.LogLevel, defaultValue: rlog.LevelInfo, desc: "Set the minimal log level. One of: debug, info, warn, error",
+			p: &cfg.LogLevel, defaultValue: slog.LevelInfo, desc: "Set the minimal log level. One of: debug, info, warn, error",
+		},
+		"log-format": {
+			p: &cfg.LogFormat, defaultValue: LogFormatText, desc: "Set the log format. One of: text, json",
 		},
 		"read-static-files-from-disk": {
 			p: &cfg.ReadStaticFilesFromDisk, defaultValue: false, desc: "Read static files directly from disk",

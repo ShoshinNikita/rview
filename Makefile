@@ -13,6 +13,7 @@ run: build
 			--rclone-target=${RCLONE_TARGET} \
 			--image-preview-mode=${IMAGE_PREVIEW_MODE} \
 			--log-level=${LOG_LEVEL} \
+			--log-format=${LOG_FORMAT} \
 			--thumbnails-format=${THUMBNAILS_FORMAT} \
 			--thumbnails-process-raw-files=${THUMBNAILS_PROCESS_RAW_FILES} \
 			--read-static-files-from-disk

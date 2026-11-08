@@ -83,6 +83,6 @@ func (r *Require) Contains[A, B string | []byte](s A, substr B) {
 	r.t.Helper()
 
 	if !strings.Contains(string(s), string(substr)) {
-		r.t.Fatalf("%q doesn't contains %q", s, substr)
+		r.t.Fatalf("%q doesn't contain %q", s, substr)
 	}
 }

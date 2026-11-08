@@ -150,6 +150,8 @@ Check out the live demo [here](https://rview.0x5f3759df.stream), credentials for
 --log-level                       Set the minimal log level. One of: debug, info (default),
                                   warn, error
 
+--log-format                      Set the log format. One of: text (default), json
+
 --version                         Print version and exit
 ```
 

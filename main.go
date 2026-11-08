@@ -2,26 +2,36 @@ package main
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"github.com/ShoshinNikita/rview/cmd"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 )
 
 func main() {
 	cfg, err := rview.ParseConfig()
 	if err != nil {
-		rlog.Errorf("invalid config: %s", err)
+		slog.Error("invalid config", "err", err)
 		os.Exit(1)
 	}
-	rlog.SetLevel(cfg.LogLevel)
 
-	cfg.BuildInfo.Print()
-	cfg.Print()
+	switch cfg.LogFormat {
+	case rview.LogFormatJSON:
+		logOpts := &slog.HandlerOptions{
+			Level: cfg.LogLevel,
+		}
+		slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stderr, logOpts)))
+		slog.Info("rview version", "commit_hash", cfg.BuildInfo.ShortGitHash, "commit_time", cfg.BuildInfo.CommitTime)
+
+	default:
+		slog.SetLogLoggerLevel(cfg.LogLevel)
+		cfg.BuildInfo.Print()
+		cfg.Print()
+	}
 
 	rview := cmd.NewRview(cfg)
 
@@ -34,21 +44,21 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 
-		rlog.Info("shutdown rview...")
+		slog.Info("shutdown rview")
 		if err := rview.Shutdown(ctx); err != nil {
-			rlog.Error(err)
+			slog.Error("shutdown failed", "err", err)
 		}
 
 		if startFinished != nil {
 			<-startFinished
 		}
 
-		rlog.Info("exit")
+		slog.Info("exit")
 		os.Exit(exitCode)
 	}()
 
-	if err := rview.Prepare(); err != nil {
-		rlog.Error(err)
+	if err := rview.Init(); err != nil {
+		slog.Error("initialization failed", "err", err)
 		exitCode = 1
 		return
 	}

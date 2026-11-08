@@ -14,12 +14,14 @@ import (
 	"io"
 	"io/fs"
 	"iter"
+	"log/slog"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"os"
 	"os/exec"
 	pkgPath "path"
+	"regexp"
 	"slices"
 	"strconv"
 	"strings"
@@ -29,7 +31,6 @@ import (
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/misc"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rview"
 )
 
@@ -186,7 +187,7 @@ func (r *Rclone) Start() error {
 	}
 	pipes := []io.ReadCloser{stdout, stderr}
 
-	rlog.Infof("start rclone on %q", r.rcloneURL.Redacted())
+	slog.Info("start rclone", "addr", r.rcloneURL.Redacted())
 
 	err = r.cmd.Start()
 	if err != nil {
@@ -216,20 +217,23 @@ func (r *Rclone) Start() error {
 	return err
 }
 
+var logTimeRegexp = regexp.MustCompile(`^\d{4}/\d\d/\d\d \d\d:\d\d:\d\d `)
+
 func (r *Rclone) redirectRcloneLogs(pipe io.Reader) {
 	s := bufio.NewScanner(pipe)
 	for s.Scan() {
 		text := s.Text()
+		text = logTimeRegexp.ReplaceAllString(text, "")
 
 		// Skip errors caused by request cancellation.
 		if strings.Contains(text, "Didn't finish writing GET request") || strings.Contains(text, "context canceled") {
 			continue
 		}
 
-		rlog.Infof("[RCLONE]: %s", text)
+		slog.Info("[RCLONE]: " + text)
 	}
 	if err := s.Err(); err != nil && !errors.Is(err, fs.ErrClosed) {
-		rlog.Errorf("couldn't read rclone logs: %s", err)
+		slog.Error("couldn't read rclone logs", "err", err)
 	}
 }
 
@@ -471,7 +475,7 @@ func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) 
 
 	dur := time.Since(now)
 	metrics.RcloneGetDirInfoDuration.Update(dur.Seconds())
-	rlog.Debugf("rclone info for %q was loaded in %s", path, dur)
+	slog.Debug("load dir info", "path", path, "dur", dur)
 
 	// Remove artifacts of the template execution.
 	rcloneInfo.Breadcrumbs = slices.DeleteFunc(rcloneInfo.Breadcrumbs, func(v DirBreadcrumb) bool { return v.Text == "" })

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
 	"github.com/ShoshinNikita/rview/pkg/misc"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 )
 
 // Cleaner controls the total size of the cache.
@@ -69,14 +69,16 @@ func (c *Cleaner) startCleanupProcess() {
 }
 
 func (c *Cleaner) cleanup() {
+	slog := slog.With("cache", c.cacheName)
+
 	allFiles, err := c.loadAllFiles()
 	if err != nil {
-		logf := rlog.Errorf
+		logFn := slog.Error
 		if errors.Is(err, fs.ErrNotExist) {
-			logf = rlog.Warnf
+			logFn = slog.Warn
 		}
 		metrics.CacheCleanerErrors.Inc()
-		logf("couldn't load files to clean from cache %q: %s", c.cacheName, err)
+		logFn("couldn't load files to clean from cache", "err", err)
 		return
 	}
 
@@ -89,19 +91,19 @@ func (c *Cleaner) cleanup() {
 
 	filesToRemove := c.getFilesToRemove(allFiles)
 	if len(filesToRemove) == 0 {
-		rlog.Debugf("no files to remove from cache %q", c.cacheName)
+		slog.Debug("no files to remove from cache")
 		return
 	}
 
 	removedFiles, cleanedSpace, errs := c.removeFiles(filesToRemove)
 	for _, err := range errs {
 		metrics.CacheCleanerErrors.Inc()
-		rlog.Error(err)
+		slog.Error("cleanup error", "err", err)
 	}
 	if removedFiles > 0 {
-		rlog.Infof(
-			"%d files have been removed from cache %q for a total of %s freed, got %d errors",
-			removedFiles, c.cacheName, misc.FormatFileSize(cleanedSpace), len(errs),
+		slog.Info(
+			"cleanup finished", "removed_files", removedFiles,
+			"freed_space", misc.FormatSize(cleanedSpace),
 		)
 	}
 }

@@ -3,6 +3,7 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,7 +11,6 @@ import (
 
 	"github.com/ShoshinNikita/rview/index"
 	"github.com/ShoshinNikita/rview/pkg/cache"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
 	"github.com/ShoshinNikita/rview/rclone"
 	"github.com/ShoshinNikita/rview/rview"
 	"github.com/ShoshinNikita/rview/thumbnails"
@@ -43,7 +43,7 @@ func NewRview(cfg rview.Config) *Rview {
 	}
 }
 
-func (r *Rview) Prepare() (err error) {
+func (r *Rview) Init() (err error) {
 	if err := os.MkdirAll(r.cfg.Dir, 0700); err != nil {
 		return fmt.Errorf("couldn't create app data dir %q: %w", r.cfg.Dir, err)
 	}
@@ -89,7 +89,7 @@ func (r *Rview) Prepare() (err error) {
 		)
 
 	} else {
-		rlog.Debug("thumbnail service is disabled")
+		slog.Debug("thumbnail service is disabled")
 
 		r.thumbnailService = thumbnails.NewNoopThumbnailService()
 	}
@@ -118,7 +118,7 @@ func (r *Rview) Start(onError func()) <-chan struct{} {
 		} {
 			wg.Go(func() {
 				if err := s.Start(); err != nil {
-					rlog.Errorf("%s error: %s", name, err)
+					slog.Error("start error", "component", name, "err", err)
 					onError()
 				}
 			})
@@ -147,7 +147,7 @@ func (r *Rview) Shutdown(ctx context.Context) error {
 	} {
 		err := safeShutdown(ctx, v.s)
 		if err != nil {
-			rlog.Errorf("couldn't gracefully shutdown %s: %s", v.name, err)
+			slog.Error("graceful shutdown failed", "component", v.name, "err", err)
 		}
 	}
 	if failed > 0 {

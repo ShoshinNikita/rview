@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime"
 	"os"
 	"os/exec"
@@ -19,7 +20,7 @@ import (
 	"time"
 
 	"github.com/ShoshinNikita/rview/pkg/metrics"
-	"github.com/ShoshinNikita/rview/pkg/rlog"
+	"github.com/ShoshinNikita/rview/pkg/misc"
 	"github.com/ShoshinNikita/rview/rview"
 )
 
@@ -138,10 +139,6 @@ func (s *ThumbnailService) GenerateThumbnailsForSmallFiles() {
 }
 
 func (s *ThumbnailService) startWorkers() {
-	toMiB := func(v int64) string {
-		return fmt.Sprintf("%.3f MiB", float64(v)/(1<<20))
-	}
-
 	var wg sync.WaitGroup
 	for range s.workersCount {
 		wg.Go(func() {
@@ -159,11 +156,14 @@ func (s *ThumbnailService) startWorkers() {
 				switch {
 				case err != nil:
 					metrics.ThumbnailsErrors.Inc()
-					rlog.Errorf("couldn't process task for %q: %s", task.fileID.GetPath(), err)
+					slog.Error("couldn't process task", "file", task.fileID.GetPath(), "err", err)
 
 				case stats.originalImageUsed:
 					metrics.ThumbnailsOriginalImageUsed.Inc()
-					rlog.Debugf("use original image for %q, size: %s", task.fileID.GetPath(), toMiB(stats.originalSize))
+					slog.Debug(
+						"use original image", "file", task.fileID.GetPath(),
+						"size", misc.FormatSize(stats.originalSize),
+					)
 
 				default:
 					metrics.ThumbnailsProcessTaskDuration.Update(dur.Seconds())
@@ -171,18 +171,11 @@ func (s *ThumbnailService) startWorkers() {
 						float64(stats.originalSize) / float64(stats.thumbnailSize),
 					)
 
-					msg := fmt.Sprintf(
-						"%s thumbnail for %q was generated in %s, original size: %s, new size: %s",
-						task.size, task.fileID.GetPath(), dur, toMiB(stats.originalSize), toMiB(stats.thumbnailSize),
+					slog.Debug(
+						"thumbnail generated", "file", task.fileID.GetPath(), "size", task.size, "dur", dur,
+						"image_size", misc.FormatSize(stats.originalSize),
+						"thumbnail_size", misc.FormatSize(stats.thumbnailSize),
 					)
-
-					const reportThreshold = 10 << 10 // 10 Kib
-
-					if diff := stats.thumbnailSize - stats.originalSize; diff > reportThreshold {
-						rlog.Warnf("thumbnail is greater than the original file by %s: %s", toMiB(diff), msg)
-					} else {
-						rlog.Debug(msg)
-					}
 				}
 
 				cancel()
@@ -240,7 +233,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 		_ = tempFile.Close()
 
 		if err := os.Remove(tempFile.Name()); err != nil {
-			rlog.Errorf("couldn't remove temp image file: %s", err)
+			slog.Error("couldn't remove temp image file", "err", err)
 		}
 	}()
 
@@ -260,7 +253,7 @@ func (s *ThumbnailService) processTask(ctx context.Context, task generateThumbna
 	err = s.resizeFn(ctx, tempFile.Name(), cacheFilepath, task.thumbnailID, task.size)
 	if err != nil {
 		if err := s.cache.Remove(task.thumbnailID.FileID); err != nil {
-			rlog.Warnf("couldn't remove thumbnail for %s after resize error: %s", task.fileID, err)
+			slog.Warn("couldn't remove thumbnail after resize error", "file", task.fileID.GetPath(), "err", err)
 		}
 
 		return stats{}, err
@@ -531,7 +524,7 @@ func resizeWithVips(ctx context.Context, originalFile, cacheFile string, id Thum
 		return fmt.Errorf("couldn't resize image: %w, stderr: %q", err, stderr.String())
 	}
 	if stderr.Len() > 0 {
-		rlog.Infof("vips stderr for %q: %q", id, stderr.String())
+		slog.Info("vips stderr is not empty", "file", id.GetPath(), "stderr", stderr.String())
 	}
 	return nil
 }
