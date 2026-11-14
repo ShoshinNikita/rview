@@ -17,9 +17,9 @@ import (
 
 type Hit struct {
 	Path    string
-	IsDir   bool
 	Size    int64
 	ModTime int64
+	IsDir   bool
 
 	Score float32
 }
@@ -117,7 +117,6 @@ func (index *prefixIndex) prepare() {
 }
 
 type searchHit struct {
-	id             uint32
 	score          float32
 	lowerCasedPath string
 	entry          *dirEntry
@@ -282,7 +281,6 @@ func (index *prefixIndex) newSearchHit(id uint32, score float32) searchHit {
 	}
 
 	return searchHit{
-		id:             id,
 		lowerCasedPath: index.lowerCasedPaths[id],
 		score:          score,
 		entry:          entry,

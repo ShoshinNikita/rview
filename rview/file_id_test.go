@@ -1,7 +1,7 @@
 package rview
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"testing"
 
 	"github.com/ShoshinNikita/rview/pkg/require"

@@ -278,9 +278,7 @@ func (s *Server) executeTemplate(w http.ResponseWriter, name string, data any) {
 }
 
 func (s *Server) embedIcon(pack static.IconPack, name string) (template.HTML, error) {
-	if !strings.HasSuffix(name, ".svg") {
-		name += ".svg"
-	}
+	name = misc.EnsureSuffix(name, ".svg")
 	f, err := s.iconsFS.Open(pkgPath.Join(string(pack), name))
 	if err != nil {
 		return "", fmt.Errorf("couldn't open icon %q: %w", name, err)
@@ -345,8 +343,6 @@ func (s *Server) convertRcloneInfo(rcloneInfo *rclone.DirInfo) DirInfo {
 		Sort:  rcloneInfo.Sort,
 		Order: rcloneInfo.Order,
 		Dir:   rcloneInfo.Dir,
-		// Always encode entries as a slice.
-		Entries: []DirEntry{},
 	}
 
 	breadcrumbURL := mustParseURL("/ui").JoinPath(rcloneInfo.Dir)

@@ -5,6 +5,7 @@ import (
 	"encoding/gob"
 	"fmt"
 	"sync"
+	"testing"
 	"time"
 )
 
@@ -16,9 +17,37 @@ type dirCache struct {
 }
 
 func newDirCache(ttl time.Duration) *dirCache {
-	return &dirCache{
+	c := &dirCache{
 		ttl:   ttl,
 		cache: make(map[string]*dirCacheItem),
+	}
+
+	if !testing.Testing() {
+		go func() {
+			for {
+				time.Sleep(10 * time.Second)
+
+				c.cleanUp()
+			}
+		}()
+	}
+
+	return c
+}
+
+func (c *dirCache) cleanUp() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	now := time.Now()
+	for k, item := range c.cache {
+		item.Lock()
+		expiresAt := item.expiresAt
+		item.Unlock()
+
+		if now.After(expiresAt) {
+			delete(c.cache, k)
+		}
 	}
 }
 

@@ -454,7 +454,6 @@ func (r *Rclone) getDirInfo(ctx context.Context, path string) (*DirInfo, error) 
 		}
 
 		// No data in cache - proceed to load the directory.
-
 		saveToCache = cacheItem.StoreLocked
 	}
 
